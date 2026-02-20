@@ -1,0 +1,337 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String    @id @default(cuid())
+  code          String    @unique
+  name          String?
+  email         String    @unique
+  emailVerified DateTime?
+  password      String
+  image         String?
+  role          UserRole? // Ruolo non più utilizzato per utenti standard, mantenuto per retrocompatibilità
+  isAdmin       Boolean   @default(false)
+  isSuperAdmin  Boolean   @default(false)
+  isResponsabile Boolean  @default(false)
+  isCoordinatore Boolean  @default(false)
+  isWorker      Boolean   @default(false)
+  isActive      Boolean   @default(true)
+  isArchived    Boolean   @default(false)
+  mustChangePassword Boolean @default(true)
+  companyId     String?
+  company       Company?  @relation(fields: [companyId], references: [id], onDelete: SetNull)
+  cognome       String?
+  codiceFiscale String?  @unique
+  areas         String?   // JSON array di aree: ["Area Tecnica", "Area di Sala", "Area Amministrativa"]
+  roles         String?   // JSON array di ruoli: {"Area Tecnica": ["Macchinista", "Elettricista"], "Area di Sala": ["Maschera"]}
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  accounts      Account[]
+  sessions      Session[]
+  assignments   Assignment[]
+  timeEntries   TimeEntry[] // Ore inserite dall'utente
+  unavailabilities Unavailability[]
+}
+
+model Company {
+  id             String   @id @default(cuid())
+  code           String   @unique
+  ragioneSociale String
+  address        String?
+  city           String?
+  province       String?
+  postalCode     String?
+  partitaIva     String?
+  codiceFiscale  String?
+  codiceSDI      String?
+  email          String?
+  pec            String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  users          User[]
+}
+
+model Location {
+  id                          String   @id @default(cuid())
+  code                        String   @unique
+  name                        String
+  address                     String?
+  city                        String?
+  province                    String?
+  postalCode                  String?
+  color                       String?  // Colore preimpostato per la location
+  enabledInAdvancedManagement Boolean  @default(false)
+  isArchived                  Boolean  @default(false)
+  createdAt                   DateTime  @default(now())
+  updatedAt                   DateTime  @updatedAt
+  events                      Event[]
+  workdays                    Workday[]
+  docTemplates                DocTemplate[]
+}
+
+model Client {
+  id             String   @id @default(cuid())
+  code           String   @unique
+  type           String?  // "AZIENDA", "PA", "PRIVATO"
+  ragioneSociale String?
+  nome           String?  // Per privati
+  cognome        String?  // Per privati
+  address        String?
+  city           String?
+  province       String?
+  postalCode     String?
+  partitaIva     String?
+  codiceFiscale  String?
+  codiceSDI      String?  // Per aziende
+  codicePA       String?  // Per PA (6 cifre)
+  email          String?
+  pec            String?
+  isArchived     Boolean  @default(false)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+}
+
+model Area {
+  id                       String   @id @default(cuid())
+  code                     String   @unique
+  name                     String   @unique
+  prefix                   String?  @unique
+  enabledInWorkdayPlanning Boolean  @default(false)
+  createdAt                DateTime @default(now())
+  updatedAt                DateTime @updatedAt
+}
+
+model Duty {
+  id        String   @id @default(cuid())
+  code      String   @unique
+  name      String
+  area      String   // "Area Tecnica", "Area di Sala", "Area Amministrativa"
+  createdAt  DateTime  @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Event {
+  id          String     @id @default(cuid())
+  title       String
+  clientName  String?    // Deprecato: usare clientIds
+  clientIds   String?    // JSON array di ID clienti: ["id1", "id2", ...]
+  locationId  String?
+  location    Location?  @relation(fields: [locationId], references: [id], onDelete: SetNull)
+  startDate   DateTime
+  endDate     DateTime
+  notes       String?
+  isClosed    Boolean    @default(false)
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  workdays    Workday[]
+}
+
+model Workday {
+  id                 String   @id @default(cuid())
+  date               DateTime
+  eventId            String
+  event              Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  locationId         String?
+  location           Location? @relation(fields: [locationId], references: [id], onDelete: SetNull)
+  isOpen             Boolean  @default(true)
+  openedByUserId     String?
+  closedByUserId     String?
+  startTime          String?  // HH:MM
+  endTime            String?  // HH:MM
+  timeSpans          String?  // JSON: [{start:"HH:MM", end:"HH:MM"}, ...]
+  areaEnabledStates  String?  // JSON: {"areaId": true, "areaId2": false, ...}
+  areaShiftPreferences String?  // JSON: {"areaId": {"ignoreOverlaps": true}, ...}
+  notes              String?
+  createdAt          DateTime  @default(now())
+  assignments        Assignment[]
+  
+  @@index([eventId])
+  @@index([locationId])
+}
+
+model TaskType {
+  id              String   @id @default(cuid())
+  name            String
+  description     String?
+  type            String   // "ACTIVITY" o "SHIFT"
+  color           String?  // Colore per visualizzazione
+  areas           String?  // JSON array di ID aree: ["id1", "id2", ...]
+  isHourlyService Boolean  @default(true) // true = servizio orario, false = servizio a turno
+  shiftHours      Float?   // Ore del turno (solo se isHourlyService = false)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  assignments     Assignment[]
+
+  @@unique([name, type])
+}
+
+model Assignment {
+  id          String   @id @default(cuid())
+  workdayId   String
+  workday     Workday  @relation(fields: [workdayId], references: [id], onDelete: Cascade)
+  userId      String?
+  user        User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  taskTypeId  String
+  taskType    TaskType @relation(fields: [taskTypeId], references: [id], onDelete: Cascade)
+  clientId    String?  // ID del cliente associato al turno
+  startTime   String?  // HH:MM
+  endTime     String?  // HH:MM
+  area        String?  // "Area Tecnica", "Area di Sala", "Area di Biglietteria"
+  personnelRequests String?  // JSON: [{"dutyId": "...", "quantity": 5}, ...]
+  assignedUsers     String?  // JSON: [{"userId":"...","dutyId":"optional"}, ...]
+  note        String?
+  hasScheduledBreak Boolean  @default(false) // Flag per indicare se c'è una pausa prevista
+  scheduledBreakStartTime String?  // HH:MM - Orario inizio pausa prevista
+  scheduledBreakEndTime String?    // HH:MM - Orario fine pausa prevista
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  timeEntries TimeEntry[] // Ore effettive inserite dall'utente
+  
+  @@index([workdayId])
+  @@index([userId])
+  @@index([taskTypeId])
+  @@index([clientId])
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+model DocTemplate {
+  id            String   @id @default(cuid())
+  title         String
+  description   String?
+  category      String?  // Categoria del template (es. "Sicurezza", "Amministrazione", "Contratti")
+  pageSettings  String   // JSON: PageSettings
+  blocksJson    String   // JSON: Block[]
+  locationId    String?  // Location associata
+  location      Location? @relation(fields: [locationId], references: [id], onDelete: SetNull)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  createdBy     String?
+  isArchived    Boolean  @default(false)
+  
+  @@index([locationId])
+  @@index([category])
+}
+
+model DocInstance {
+  id           String   @id @default(cuid())
+  templateId   String
+  title        String
+  dataJson     String   // JSON: dati compilati
+  pdfUrl       String?  // URL del PDF generato
+  status       String   @default("DRAFT") // DRAFT, SIGNED, ARCHIVED
+  createdById  String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  signedAt     DateTime?
+  signedBy     String?
+  signEvents   SignEvent[]
+}
+
+model SignEvent {
+  id               String   @id @default(cuid())
+  instanceId       String
+  instance         DocInstance @relation(fields: [instanceId], references: [id], onDelete: Cascade)
+  templateId       String
+  userId           String
+  signaturePngUrl  String?
+  signatureHash    String
+  signedAtUtc      DateTime
+  signedAtLocal    String
+  tz               String   @default("Europe/Rome")
+  tzOffsetMinutes  Int
+  userAgent        String?
+  ipHash           String?
+  blockId          String?  // ID del blocco firma nel template
+  role             String?  // Ruolo richiesto per questa firma
+  createdAt        DateTime @default(now())
+
+  @@index([instanceId])
+  @@index([userId])
+}
+
+model TimeEntry {
+  id          String   @id @default(cuid())
+  assignmentId String
+  assignment  Assignment @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  date        DateTime // Data del turno (copiata da workday.date per facilità query)
+  hoursWorked Float    // Ore effettive lavorate (può essere diverso da quelle programmate)
+  startTime   String?  // HH:MM - Orario di inizio effettivo (opzionale)
+  endTime     String?  // HH:MM - Orario di fine effettivo (opzionale)
+  hasTakenBreak Boolean?  // Se l'utente ha fatto la pausa (null se non prevista, true/false se prevista)
+  actualBreakStartTime String?  // HH:MM - Orario inizio pausa effettiva
+  actualBreakEndTime String?    // HH:MM - Orario fine pausa effettiva
+  notes       String?  // Note aggiuntive (es. "Straordinario per emergenza")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  @@unique([assignmentId, userId]) // Un utente può inserire ore solo una volta per assignment
+  @@index([userId])
+  @@index([assignmentId])
+  @@index([date])
+}
+
+model Unavailability {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  dateStart DateTime // Primo giorno indisponibilità
+  dateEnd   DateTime // Ultimo giorno (per singolo giorno: dateStart = dateEnd)
+  startTime String?  // HH:MM - null = tutto il giorno
+  endTime   String?  // HH:MM - null = tutto il giorno
+  status    String   @default("APPROVED") // APPROVED | PENDING_APPROVAL (con conflitto turno)
+  note      String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@index([dateStart, dateEnd])
+  @@index([status])
+}
+
+enum UserRole {
+  SUPER_ADMIN
+  ADMIN
+  RESPONSABILE
+}
