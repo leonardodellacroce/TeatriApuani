@@ -60,13 +60,13 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen">
+    <div className="min-h-screen text-gray-900">
       <Navbar />
       <Container>
         <div className="min-h-[calc(100vh-4rem)] flex items-center justify-center">
           <div className="w-full max-w-md space-y-8">
             <div>
-              <h1 className="text-4xl font-bold text-center mb-8">Login</h1>
+              <h1 className="text-4xl font-bold text-center mb-8 text-gray-900">Login</h1>
             </div>
             <form onSubmit={handleSubmit} className="space-y-6">
               <div>

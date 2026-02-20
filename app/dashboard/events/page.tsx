@@ -171,7 +171,7 @@ const CalendarView = ({ events, onEventClick, canOpenClosedEvents, areaNamesMap,
   return (
     <div>
       <div className="flex flex-nowrap items-center justify-between gap-2 mb-4 lg:mb-6">
-        <h2 className="text-xl lg:text-2xl font-bold whitespace-nowrap">
+        <h2 className="text-xl lg:text-2xl font-bold whitespace-nowrap text-gray-900">
           {monthNames[currentDate.getMonth()]} {currentDate.getFullYear()}
         </h2>
         <div className="flex gap-2 flex-shrink-0">
@@ -205,7 +205,7 @@ const CalendarView = ({ events, onEventClick, canOpenClosedEvents, areaNamesMap,
       <div className="grid grid-cols-7 gap-0.5 sm:gap-1">
         {/* Giorni della settimana */}
         {weekDays.map(day => (
-          <div key={day} className="p-1 lg:p-2 text-[10px] lg:text-base font-semibold text-center text-gray-700">
+          <div key={day} className="p-1 lg:p-2 text-[10px] lg:text-base font-semibold text-center text-gray-900">
             {day}
           </div>
         ))}
@@ -233,7 +233,7 @@ const CalendarView = ({ events, onEventClick, canOpenClosedEvents, areaNamesMap,
                 }
               }}
             >
-              <div className="font-semibold text-xs lg:text-base mb-0.5 lg:mb-1">{day}</div>
+              <div className="font-semibold text-xs lg:text-base mb-0.5 lg:mb-1 text-gray-900">{day}</div>
               {/* Mobile e tablet: pallini colorati */}
               <div className="flex lg:hidden flex-wrap justify-center gap-0.5 mt-0.5">
                 {dayEvents.slice(0, 6).map((ev: any) => (
@@ -605,11 +605,11 @@ const ProgrammaView = ({
 
   return (
     <div>
-      <div className="flex flex-wrap items-center justify-between mb-6 gap-4">
-        <div className="flex items-center gap-2 flex-nowrap">
-          <h2 className="text-2xl font-bold whitespace-nowrap">
-            {monthNames[programmaMonth.getMonth()]} {programmaMonth.getFullYear()}
-          </h2>
+      <div className="flex flex-nowrap items-center justify-between gap-2 mb-4 lg:mb-6">
+        <h2 className="text-xl lg:text-2xl font-bold whitespace-nowrap text-gray-900">
+          {monthNames[programmaMonth.getMonth()]} {programmaMonth.getFullYear()}
+        </h2>
+        <div className="flex gap-2 flex-shrink-0">
           <button
             onClick={() => setProgrammaMonth(new Date(programmaMonth.getFullYear(), programmaMonth.getMonth() - 1, 1))}
             className="w-10 h-10 inline-flex items-center justify-center border border-gray-300 rounded-lg hover:bg-gray-50 hover:border-gray-400 active:scale-100 transition-all duration-200 cursor-pointer"
@@ -635,11 +635,13 @@ const ProgrammaView = ({
             </svg>
           </button>
         </div>
-        {areasToShow.length > 1 && (
+      </div>
+      {areasToShow.length > 1 && (
+        <div className="mb-4 lg:mb-6">
           <select
             value={selectedAreaFilter}
             onChange={(e) => setSelectedAreaFilter(e.target.value)}
-            className="px-3 py-2 h-10 border border-gray-300 rounded-lg text-sm bg-white focus:ring-2 focus:ring-gray-500 focus:border-transparent flex-shrink-0"
+            className="px-3 py-2 h-10 border border-gray-300 rounded-lg text-sm bg-white focus:ring-2 focus:ring-gray-500 focus:border-transparent"
           >
             <option value="__all__">Tutte le aree</option>
             {areasToShow.map((a) => (
@@ -648,8 +650,8 @@ const ProgrammaView = ({
               </option>
             ))}
           </select>
-        )}
-      </div>
+        </div>
+      )}
       {areasToShow.length === 0 ? (
         <div className="text-center py-12">
           <p className="text-gray-500">Nessuna area disponibile per la visualizzazione</p>
@@ -660,7 +662,7 @@ const ProgrammaView = ({
             const rows = buildRowsForArea(area.name);
             return (
               <div key={area.id}>
-                <h3 className="text-lg font-semibold text-gray-800 mb-3">{area.name}</h3>
+                <h3 className="text-lg font-semibold text-gray-900 mb-3">{area.name}</h3>
                 {rows.length === 0 ? (
                   <p className="text-gray-500 text-sm py-4">Nessuna giornata nel mese selezionato</p>
                 ) : (
@@ -1117,7 +1119,7 @@ export default function EventsPage() {
     <DashboardShell>
       <div>
         <div className="flex flex-col lg:flex-row lg:justify-between lg:items-center gap-4 mb-6">
-          <h1 className="text-2xl lg:text-3xl font-bold">Eventi</h1>
+          <h1 className="text-2xl lg:text-3xl font-bold text-gray-900">Eventi</h1>
           <div className="flex flex-wrap gap-2 lg:gap-4 items-center">
             {canSeeAllEvents && (
               <select
@@ -1277,7 +1279,7 @@ export default function EventsPage() {
           <div className="bg-white border border-gray-200 rounded-lg p-6">
             {/* Navigazione mese per vista lista */}
             <div className="flex flex-nowrap items-center justify-between gap-2 mb-6">
-              <h2 className="text-xl lg:text-2xl font-bold whitespace-nowrap">
+              <h2 className="text-xl lg:text-2xl font-bold whitespace-nowrap text-gray-900">
                 {monthNames[listMonth.getMonth()]} {listMonth.getFullYear()}
               </h2>
               <div className="flex gap-2 flex-shrink-0">

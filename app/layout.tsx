@@ -11,6 +11,10 @@ export const viewport: Viewport = {
 export const metadata: Metadata = {
   title: "Teatri Apuani",
   description: "Teatri Apuani - MVP",
+  icons: {
+    icon: [{ url: "/icon.png?v=2", sizes: "96x96", type: "image/png" }],
+    apple: [{ url: "/apple-touch-icon.png?v=2", sizes: "96x96", type: "image/png" }],
+  },
 };
 
 export default function RootLayout({
