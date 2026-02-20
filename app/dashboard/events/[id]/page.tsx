@@ -340,6 +340,15 @@ export default function EventDetailPage() {
     return `${day}/${month}/${year}`;
   };
 
+  const formatDateWithWeekday = (dateString: string) => {
+    const date = new Date(dateString);
+    const weekday = date.toLocaleDateString("it-IT", { weekday: "long" });
+    const day = String(date.getDate()).padStart(2, "0");
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    const year = String(date.getFullYear()).slice(-2);
+    return { weekday, short: `${day}/${month}/${year}` };
+  };
+
   const formatDateTime = (dateString: string) => {
     return new Date(dateString).toLocaleString("it-IT");
   };
@@ -351,6 +360,15 @@ export default function EventDetailPage() {
     } catch {
       return null;
     }
+  };
+
+  const getTimeSpansPlainText = (timeSpansStr: string | null, startTime?: string | null, endTime?: string | null): string => {
+    const timeSpans = parseTimeSpans(timeSpansStr);
+    if (timeSpans && timeSpans.length > 0) {
+      return timeSpans.map((ts) => `${ts.start} - ${ts.end}`).join(", ");
+    }
+    if (startTime && endTime) return `${startTime} - ${endTime}`;
+    return "-";
   };
 
   const calculateWorkDuration = (startTime: string | null, endTime: string | null, timeSpansStr?: string | null): string | null => {
@@ -446,74 +464,71 @@ export default function EventDetailPage() {
   return (
     <DashboardShell>
       <div>
-        <div className="flex justify-between items-center mb-6">
-          <div className="flex items-center gap-3">
+        <div className="mb-6">
+          <div className="flex items-start gap-3">
             <button
               onClick={() => router.push("/dashboard/events")}
               aria-label="Indietro"
               title="Indietro"
-              className="h-10 w-10 inline-flex items-center justify-center rounded-lg bg-gray-900 text-white hover:bg-gray-800 hover:shadow-lg transition-colors"
+              className="h-10 w-10 shrink-0 inline-flex items-center justify-center rounded-lg bg-gray-900 text-white hover:bg-gray-800 hover:shadow-lg transition-colors"
             >
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7" />
               </svg>
             </button>
-            <h1 className="text-3xl font-bold">{event.title}</h1>
-            <button
-              onClick={() => setToggleEventTarget({ id: eventId, isClosed: !event.isClosed })}
-              title={event.isClosed ? "Clicca per aprire l'evento" : "Clicca per chiudere l'evento"}
-              className={`px-3 py-1 text-sm font-semibold rounded-full transition-colors cursor-pointer ${
-                event.isClosed
-                  ? "bg-red-100 text-red-800 hover:bg-red-200"
-                  : "bg-green-100 text-green-800 hover:bg-green-200"
-              }`}
-            >
-              {event.isClosed ? "Chiuso" : "Aperto"}
-            </button>
-          </div>
-          <div className="flex gap-2">
-            {/* Rimosso pulsante lucchetto: gestione apertura/chiusura ora tramite lo stato accanto al titolo */}
-            {canEditEvents && (
-              <>
+            <div className="min-w-0 flex-1">
+              <h1 className="text-3xl font-bold line-clamp-2 break-words">{event.title}</h1>
+              <div className="flex items-center justify-end gap-2 mt-3 flex-wrap">
                 <button
-                  onClick={() => {
-                    // Verifica se l'evento è passato
-                    if (event) {
-                      const eventEndDate = new Date(event.endDate);
-                      const now = new Date();
-                      const isPast = eventEndDate < now;
-                      
-                      if (isPast && !isSuperAdmin) {
-                        alert("Gli eventi passati possono essere modificati solo dal Super Admin");
-                        return;
-                      }
-                      
-                      if (isPast && isSuperAdmin) {
-                        setShowPastEventEditDialog(true);
-                        return;
-                      }
-                    }
-                    
-                    router.push(`/dashboard/events/${eventId}/edit?tab=${activeTab}`);
-                  }}
-                  aria-label="Modifica Evento"
-                  title="Modifica Evento"
-                  className="h-10 w-10 inline-flex items-center justify-center rounded-lg bg-gray-900 text-white hover:bg-gray-800 hover:shadow-lg transition-colors"
+                  onClick={() => setToggleEventTarget({ id: eventId, isClosed: !event.isClosed })}
+                  title={event.isClosed ? "Clicca per aprire l'evento" : "Clicca per chiudere l'evento"}
+                  className={`px-3 py-1 text-sm font-semibold rounded-full transition-colors cursor-pointer ${
+                    event.isClosed
+                      ? "bg-red-100 text-red-800 hover:bg-red-200"
+                      : "bg-green-100 text-green-800 hover:bg-green-200"
+                  }`}
                 >
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.232 5.232l3.536 3.536M4 20h4l10.293-10.293a1 1 0 000-1.414l-2.586-2.586a1 1 0 00-1.414 0L4 16v4z" /></svg>
+                  {event.isClosed ? "Chiuso" : "Aperto"}
                 </button>
-                {canDeleteEvents && (
-                <button
-                  onClick={() => setDeleteTarget(eventId)}
-                  aria-label="Elimina Evento"
-                  title="Elimina Evento"
-                  className="h-10 w-10 inline-flex items-center justify-center rounded-lg bg-red-600 text-white hover:bg-red-700 transition-colors"
-                >
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6M9 7h6m-1-2H10l1-1h2l1 1z" /></svg>
-                </button>
+                {canEditEvents && (
+                  <>
+                    <button
+                      onClick={() => {
+                        if (event) {
+                          const eventEndDate = new Date(event.endDate);
+                          const now = new Date();
+                          const isPast = eventEndDate < now;
+                          if (isPast && !isSuperAdmin) {
+                            alert("Gli eventi passati possono essere modificati solo dal Super Admin");
+                            return;
+                          }
+                          if (isPast && isSuperAdmin) {
+                            setShowPastEventEditDialog(true);
+                            return;
+                          }
+                        }
+                        router.push(`/dashboard/events/${eventId}/edit?tab=${activeTab}`);
+                      }}
+                      aria-label="Modifica Evento"
+                      title="Modifica Evento"
+                      className="h-10 w-10 inline-flex items-center justify-center rounded-lg bg-gray-900 text-white hover:bg-gray-800 hover:shadow-lg transition-colors"
+                    >
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.232 5.232l3.536 3.536M4 20h4l10.293-10.293a1 1 0 000-1.414l-2.586-2.586a1 1 0 00-1.414 0L4 16v4z" /></svg>
+                    </button>
+                    {canDeleteEvents && (
+                      <button
+                        onClick={() => setDeleteTarget(eventId)}
+                        aria-label="Elimina Evento"
+                        title="Elimina Evento"
+                        className="h-10 w-10 inline-flex items-center justify-center rounded-lg bg-red-600 text-white hover:bg-red-700 transition-colors"
+                      >
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6M9 7h6m-1-2H10l1-1h2l1 1z" /></svg>
+                      </button>
+                    )}
+                  </>
                 )}
-              </>
-            )}
+              </div>
+            </div>
           </div>
         </div>
 
@@ -617,7 +632,62 @@ export default function EventDetailPage() {
             </div>
 
             {event.workdays && event.workdays.length > 0 ? (
-              <div className="bg-white rounded-lg border border-gray-200">
+              <>
+              {/* Mobile: card per ogni giornata */}
+              <div className="lg:hidden space-y-3">
+                {event.workdays.map((workday) => {
+                  const { weekday, short } = formatDateWithWeekday(workday.date);
+                  const canOpen = canManageWorkdays || workday.isOpen;
+                  const a = getWorkdayAlertStates({ ...(workday as any), areaNamesMap } as any);
+                  const c = getClientAlertState(workday as any);
+                  const localMap = dutyMapByWorkday[workday.id] || dutyIdToName;
+                  const p = getPersonnelAlertState({ ...(workday as any), dutyIdToName: localMap });
+                  return (
+                    <div
+                      key={workday.id}
+                      onClick={() => canOpen && router.push(`/dashboard/events/${eventId}/workdays/${workday.id}`)}
+                      className={`bg-white rounded-lg border border-gray-200 p-4 shadow-sm ${canOpen ? "cursor-pointer active:bg-gray-50" : "opacity-60 cursor-not-allowed"}`}
+                    >
+                      <div className="space-y-2">
+                        <div className="flex items-start justify-between gap-2">
+                          <div>
+                            <div className="font-medium text-gray-900 capitalize">{weekday}</div>
+                            <div className="text-sm text-gray-500">{short}</div>
+                          </div>
+                          <span className={`text-xs font-semibold px-2 py-1 rounded-full shrink-0 ${
+                            workday.isOpen ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"
+                          }`}>
+                            {workday.isOpen ? "Aperta" : "Chiusa"}
+                          </span>
+                        </div>
+                        <div className="text-sm text-gray-600">
+                          <span className="text-gray-500">Location:</span> {workday.location?.name || "-"}
+                        </div>
+                        <div className="text-sm text-gray-600">
+                          <span className="text-gray-500">Orari:</span> {getTimeSpansPlainText(workday.timeSpans, workday.startTime, workday.endTime)}
+                        </div>
+                        <div className="text-sm text-gray-600">
+                          <span className="text-gray-500">Durata:</span> {calculateWorkDuration(workday.startTime, workday.endTime, workday.timeSpans) || "-"}
+                        </div>
+                        {canManageWorkdays && (
+                          <div className="flex items-center gap-3 pt-2 flex-wrap">
+                            <div className="flex items-center gap-2.5">
+                              <svg className={`w-4 h-4 ${a.activityMissing ? 'text-red-600' : (a.activityCoverageGap ? 'text-yellow-600' : 'text-green-600')}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7V3m8 4V3M3 11h18M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+                              <svg className={`w-4 h-4 ${a.shiftMissing || a.shiftCoverageGap ? (a.shiftMissing ? 'text-red-600' : 'text-yellow-600') : 'text-green-600'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                              <span className={`text-sm font-normal ${c.color === 'red' ? 'text-red-600' : c.color === 'yellow' ? 'text-yellow-600' : 'text-green-600'}`} style={{ fontFamily: 'Arial, sans-serif' }}>€</span>
+                              <svg className={`w-4 h-4 ${p.color === 'red' ? 'text-red-600' : p.color === 'yellow' ? 'text-yellow-600' : 'text-green-600'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M12 7a3 3 0 110 6 3 3 0 010-6zM6 20a6 6 0 1112 0v1H6v-1z" /></svg>
+                            </div>
+                            <span className="text-xs font-semibold text-gray-900">Gestisci →</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Desktop: tabella */}
+              <div className="hidden lg:block bg-white rounded-lg border border-gray-200 overflow-x-auto">
                 <table className="min-w-full">
                   <thead className="bg-gray-50">
                     <tr>
@@ -891,6 +961,7 @@ export default function EventDetailPage() {
                   </tbody>
                 </table>
               </div>
+              </>
             ) : (
               <div className="text-center py-12 bg-white rounded-lg border border-gray-200">
                 <p className="text-gray-500">Nessuna giornata di lavoro pianificata</p>

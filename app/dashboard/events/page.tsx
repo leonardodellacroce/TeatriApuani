@@ -45,6 +45,7 @@ interface Event {
 
 const CalendarView = ({ events, onEventClick, canOpenClosedEvents, areaNamesMap, dutyIdToName, showAdminIndicators }: { events: Event[]; onEventClick: (eventId: string) => void; canOpenClosedEvents: boolean, areaNamesMap: Record<string, string>, dutyIdToName: Record<string, string>, showAdminIndicators: boolean }) => {
   const [currentDate, setCurrentDate] = useState(new Date());
+  const [mobileDayDetail, setMobileDayDetail] = useState<{ date: Date; dayEvents: any[] } | null>(null);
 
   // Rimuovi il tooltip degli alert quando si naviga via (evita che resti visibile sulle pagine successive)
   useEffect(() => {
@@ -69,16 +70,23 @@ const CalendarView = ({ events, onEventClick, canOpenClosedEvents, areaNamesMap,
   const getEventsForDate = (date: Date) => {
     const formattedDate = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
     
+    // Logica: l'evento appare solo nei giorni che hanno una giornata di lavoro.
+    // "Inizio il giorno x, orario oltre la mezzanotte vale sempre per il giorno x" → workday.date è il giorno di riferimento.
     return events.filter(event => {
+      if (event.workdays && event.workdays.length > 0) {
+        return event.workdays.some(workday => {
+          const wdDate = new Date(workday.date);
+          const wdStr = `${wdDate.getFullYear()}-${String(wdDate.getMonth() + 1).padStart(2, '0')}-${String(wdDate.getDate()).padStart(2, '0')}`;
+          return wdStr === formattedDate;
+        });
+      }
+      // Eventi senza workdays: fallback su startDate/endDate
       const start = new Date(event.startDate);
       const end = new Date(event.endDate);
       const checkDate = new Date(date);
-      
-      // Imposta ora a mezzanotte per confrontare solo le date
       start.setHours(0, 0, 0, 0);
       end.setHours(0, 0, 0, 0);
       checkDate.setHours(0, 0, 0, 0);
-      
       return checkDate >= start && checkDate <= end;
     }).map(event => {
       // Controlla se c'è una giornata di lavoro aperta per questo giorno specifico
@@ -126,7 +134,8 @@ const CalendarView = ({ events, onEventClick, canOpenClosedEvents, areaNamesMap,
         hasAlertOnThisDate: (hasAlertOnThisDate || false) && alertMessages.length > 0,
         workdayIdsForDate
       };
-    });
+    })
+    .filter((event, index, arr) => arr.findIndex(e => e.id === event.id) === index);
   };
 
   const { daysInMonth, startingDayOfWeek } = getDaysInMonth(currentDate);
@@ -154,38 +163,49 @@ const CalendarView = ({ events, onEventClick, canOpenClosedEvents, areaNamesMap,
     days.push(day);
   }
 
+  const formatDayDate = (d: Date) => {
+    const weekDays = ["Lun", "Mar", "Mer", "Gio", "Ven", "Sab", "Dom"];
+    return `${weekDays[(d.getDay() + 6) % 7]} ${d.getDate()} ${monthNames[d.getMonth()]}`;
+  };
+
   return (
     <div>
-      <div className="flex items-center justify-between mb-6">
-        <h2 className="text-2xl font-bold">
+      <div className="flex flex-nowrap items-center justify-between gap-2 mb-4 lg:mb-6">
+        <h2 className="text-xl lg:text-2xl font-bold whitespace-nowrap">
           {monthNames[currentDate.getMonth()]} {currentDate.getFullYear()}
         </h2>
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-shrink-0">
           <button
             onClick={goToPreviousMonth}
-            className="px-4 py-2 h-10 border border-gray-300 rounded-lg text-sm hover:bg-gray-50 hover:border-gray-400 hover:shadow-md hover:scale-105 active:scale-100 transition-all duration-200 cursor-pointer"
+            className="w-10 h-10 inline-flex items-center justify-center border border-gray-300 rounded-lg hover:bg-gray-50 hover:border-gray-400 active:scale-100 transition-all duration-200 cursor-pointer"
+            aria-label="Mese precedente"
           >
-            ← Precedente
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7" />
+            </svg>
           </button>
           <button
             onClick={() => setCurrentDate(new Date())}
-            className="px-4 py-2 h-10 border border-gray-300 rounded-lg text-sm hover:bg-gray-50 hover:border-gray-400 hover:shadow-md hover:scale-105 active:scale-100 transition-all duration-200 cursor-pointer"
+            className="px-3 h-10 border border-gray-300 rounded-lg text-sm hover:bg-gray-50 hover:border-gray-400 active:scale-100 transition-all duration-200 cursor-pointer"
           >
             Oggi
           </button>
           <button
             onClick={goToNextMonth}
-            className="px-4 py-2 h-10 border border-gray-300 rounded-lg text-sm hover:bg-gray-50 hover:border-gray-400 hover:shadow-md hover:scale-105 active:scale-100 transition-all duration-200 cursor-pointer"
+            className="w-10 h-10 inline-flex items-center justify-center border border-gray-300 rounded-lg hover:bg-gray-50 hover:border-gray-400 active:scale-100 transition-all duration-200 cursor-pointer"
+            aria-label="Mese successivo"
           >
-            Successivo →
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" />
+            </svg>
           </button>
         </div>
       </div>
 
-      <div className="grid grid-cols-7 gap-1">
+      <div className="grid grid-cols-7 gap-0.5 sm:gap-1">
         {/* Giorni della settimana */}
         {weekDays.map(day => (
-          <div key={day} className="p-2 font-semibold text-center text-gray-700">
+          <div key={day} className="p-1 lg:p-2 text-[10px] lg:text-base font-semibold text-center text-gray-700">
             {day}
           </div>
         ))}
@@ -193,42 +213,58 @@ const CalendarView = ({ events, onEventClick, canOpenClosedEvents, areaNamesMap,
         {/* Giorni del mese */}
         {days.map((day, index) => {
           if (day === null) {
-            return <div key={`empty-${index}`} className="p-2"></div>;
+            return <div key={`empty-${index}`} className="p-1 lg:p-2 min-h-[2.5rem] lg:min-h-24"></div>;
           }
 
           const date = new Date(currentDate.getFullYear(), currentDate.getMonth(), day);
           const dayEvents = getEventsForDate(date);
           const isToday = date.toDateString() === new Date().toDateString();
+          const hasEvents = dayEvents.length > 0;
 
           return (
             <div
               key={day}
-              className={`p-2 min-h-24 border border-gray-200 rounded ${
+              className={`p-1 lg:p-2 min-h-[2.5rem] lg:min-h-24 aspect-square lg:aspect-auto border border-gray-200 rounded ${
                 isToday ? "bg-blue-50 border-blue-300" : "bg-white"
-              }`}
+              } ${hasEvents ? "cursor-pointer active:bg-gray-50" : ""}`}
+              onClick={() => {
+                if (hasEvents && dayEvents.length > 0) {
+                  setMobileDayDetail({ date, dayEvents });
+                }
+              }}
             >
-              <div className="font-semibold mb-1">{day}</div>
-              <div className="space-y-1">
+              <div className="font-semibold text-xs lg:text-base mb-0.5 lg:mb-1">{day}</div>
+              {/* Mobile e tablet: pallini colorati */}
+              <div className="flex lg:hidden flex-wrap justify-center gap-0.5 mt-0.5">
+                {dayEvents.slice(0, 6).map((ev: any) => (
+                  <div
+                    key={ev.id}
+                    className="w-1.5 h-1.5 rounded-full flex-shrink-0"
+                    style={{ backgroundColor: ev.location?.color || "#9ca3af" }}
+                    title={ev.title}
+                  />
+                ))}
+                {dayEvents.length > 6 && <span className="text-[8px] text-gray-500">+{dayEvents.length - 6}</span>}
+              </div>
+              {/* Desktop: eventi con titolo */}
+              <div className="hidden lg:block space-y-1 mt-1">
                 {dayEvents.slice(0, 2).map((event: any) => {
-                  const locationColor = event.location?.color || "#9ca3af"; // Grigio di default
+                  const locationColor = event.location?.color || "#9ca3af";
                   const isLightColor = locationColor === "#ffffff" || locationColor?.startsWith("#fff");
                   const textColor = isLightColor ? "text-gray-900" : "text-white";
-                  
                   return (
                     <div
                       key={event.id}
                       className={`text-xs p-1 rounded ${textColor} ${event.isClosed && !canOpenClosedEvents ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'} ${event.isClosed && canOpenClosedEvents ? 'opacity-70 hover:opacity-90' : !event.isClosed ? 'hover:opacity-80' : ''} flex items-center gap-1`}
-                      style={{
-                        backgroundColor: locationColor,
-                      }}
-                      onClick={() => {
+                      style={{ backgroundColor: locationColor }}
+                      onClick={(e) => {
+                        e.stopPropagation();
                         if (!event.isClosed || canOpenClosedEvents) {
                           document.getElementById("alert-tooltip")?.remove();
                           onEventClick(event.id);
                         }
                       }}
                     >
-                      {/* Icona lucchetto - solo se evento chiuso */}
                       {event.isClosed && (
                         <svg className="w-3 h-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" style={{ opacity: 0.9 }}>
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
@@ -243,9 +279,8 @@ const CalendarView = ({ events, onEventClick, canOpenClosedEvents, areaNamesMap,
                       )}
                       {showAdminIndicators && event.hasAlertOnThisDate && (event.workdayIdsForDate && (event.workdayIdsForDate as any).length > 0) && (
                         <div className="relative inline-block">
-                          {/* Punto esclamativo con colore dinamico */}
                           <svg
-                            className={`w-3 h-3 flex-shrink-0 cursor-help text-white`}
+                            className="w-3 h-3 flex-shrink-0 cursor-help text-white"
                             fill="currentColor"
                             viewBox="0 0 24 24"
                             style={{ opacity: 0.9 }}
@@ -261,8 +296,6 @@ const CalendarView = ({ events, onEventClick, canOpenClosedEvents, areaNamesMap,
                               tooltip.style.top = `${rect.top}px`;
                               tooltip.style.transform = 'translate(-50%, calc(-100% - 8px))';
                               document.body.appendChild(tooltip);
-
-                              // Fetch dettagli workday e costruisci messaggi come nella pagina workdays
                               const fetchAndSet = async () => {
                                 try {
                                   const activityMsgsRed: string[] = [];
@@ -280,36 +313,17 @@ const CalendarView = ({ events, onEventClick, canOpenClosedEvents, areaNamesMap,
                                     const states = getWorkdayAlertStates({ ...wd, areaNamesMap } as any);
                                     const p = getPersonnelAlertState({ ...wd, dutyIdToName } as any);
                                     const c = getClientAlertState(wd as any);
-                                    // Rossi
                                     if (states.activityMissing) activityMsgsRed.push(states.activityMessage);
                                     if (states.shiftMissing) {
                                       if (states.shiftMessages?.length) shiftMsgsRed.push(...states.shiftMessages);
                                       else if (states.shiftMessage) shiftMsgsRed.push(states.shiftMessage);
                                     }
-                                    // Gialli
                                     if (states.activityCoverageGap) activityMsgsYellow.push(states.activityCoverageMessage);
                                     if (states.shiftCoverageGap) shiftMsgsYellow.push(states.shiftCoverageMessage);
-                                    // Personale
-                                    if (p?.color === 'red') {
-                                      // evita la prima riga titolo, aggiungi solo dettagli se presenti
-                                      if (Array.isArray(p.messages) && p.messages.length > 0) {
-                                        personnelMsgsRed.push(...p.messages);
-                                      }
-                                    } else if (p?.color === 'yellow') {
-                                      if (Array.isArray(p.messages) && p.messages.length > 0) {
-                                        personnelMsgsYellow.push(...p.messages);
-                                      }
-                                    }
-                                    // Clienti
-                                    if (c?.color === 'red') {
-                                      if (Array.isArray(c.messages) && c.messages.length > 0) {
-                                        clientMsgsRed.push(...c.messages);
-                                      }
-                                    } else if (c?.color === 'yellow') {
-                                      if (Array.isArray(c.messages) && c.messages.length > 0) {
-                                        clientMsgsYellow.push(...c.messages);
-                                      }
-                                    }
+                                    if (p?.color === 'red' && Array.isArray(p.messages) && p.messages.length > 0) personnelMsgsRed.push(...p.messages);
+                                    else if (p?.color === 'yellow' && Array.isArray(p.messages) && p.messages.length > 0) personnelMsgsYellow.push(...p.messages);
+                                    if (c?.color === 'red' && Array.isArray(c.messages) && c.messages.length > 0) clientMsgsRed.push(...c.messages);
+                                    else if (c?.color === 'yellow' && Array.isArray(c.messages) && c.messages.length > 0) clientMsgsYellow.push(...c.messages);
                                   }
                                   const tooltipEl = document.getElementById('alert-tooltip');
                                   if (tooltipEl) {
@@ -317,46 +331,40 @@ const CalendarView = ({ events, onEventClick, canOpenClosedEvents, areaNamesMap,
                                     const iconCalYellow = '<svg class="w-3 h-3 text-yellow-500 inline-block mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3M3 11h18M5 21h14a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2z"/></svg>';
                                     const iconClockRed = '<svg class="w-3 h-3 text-red-500 inline-block mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>';
                                     const iconClockYellow = '<svg class="w-3 h-3 text-yellow-500 inline-block mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>';
-
                                     const sections: string[] = [];
                                     if (activityMsgsRed.length || activityMsgsYellow.length) {
                                       const rows: string[] = [];
-                                      activityMsgsRed.forEach(m => rows.push(`<div class=\"flex items-center gap-1\">${iconCalRed}<span>${m}</span></div>`));
-                                      activityMsgsYellow.forEach(m => rows.push(`<div class=\"flex items-center gap-1\">${iconCalYellow}<span>${m}</span></div>`));
-                                      sections.push(`<div class=\"mb-1 space-y-1\"><div class=\"font-semibold text-[11px]\">Programmazione attività</div>${rows.join('')}</div>`);
+                                      activityMsgsRed.forEach(m => rows.push(`<div class="flex items-center gap-1">${iconCalRed}<span>${m}</span></div>`));
+                                      activityMsgsYellow.forEach(m => rows.push(`<div class="flex items-center gap-1">${iconCalYellow}<span>${m}</span></div>`));
+                                      sections.push(`<div class="mb-1 space-y-1"><div class="font-semibold text-[11px]">Programmazione attività</div>${rows.join('')}</div>`);
                                     }
                                     if (shiftMsgsRed.length || shiftMsgsYellow.length) {
                                       const rows: string[] = [];
-                                      shiftMsgsRed.forEach(m => rows.push(`<div class=\"flex items-center gap-1\">${iconClockRed}<span>${m}</span></div>`));
-                                      shiftMsgsYellow.forEach(m => rows.push(`<div class=\"flex items-center gap-1\">${iconClockYellow}<span>${m}</span></div>`));
-                                      sections.push(`<div class=\"mb-1 space-y-1\"><div class=\"font-semibold text-[11px]\">Programmazione turni</div>${rows.join('')}</div>`);
+                                      shiftMsgsRed.forEach(m => rows.push(`<div class="flex items-center gap-1">${iconClockRed}<span>${m}</span></div>`));
+                                      shiftMsgsYellow.forEach(m => rows.push(`<div class="flex items-center gap-1">${iconClockYellow}<span>${m}</span></div>`));
+                                      sections.push(`<div class="mb-1 space-y-1"><div class="font-semibold text-[11px]">Programmazione turni</div>${rows.join('')}</div>`);
                                     }
-                                    // Clienti turni (calendario, orologio, euro, omino)
                                     if (clientMsgsRed.length || clientMsgsYellow.length) {
-                                      const iconEuroRed = '<span class="text-red-500 inline-block mr-1" style="font-family: Arial, sans-serif; font-weight: 400; font-size: 12px;">€</span>';
-                                      const iconEuroYellow = '<span class="text-yellow-500 inline-block mr-1" style="font-family: Arial, sans-serif; font-weight: 400; font-size: 12px;">€</span>';
+                                      const iconEuroRed = '<span class="text-red-500 inline-block mr-1" style="font-family:Arial;font-weight:400;font-size:12px">€</span>';
+                                      const iconEuroYellow = '<span class="text-yellow-500 inline-block mr-1" style="font-family:Arial;font-weight:400;font-size:12px">€</span>';
                                       const rows: string[] = [];
-                                      rows.push(`<div class=\"flex items-center gap-1\">${clientMsgsRed.length?iconEuroRed:iconEuroYellow}<span>${(clientMsgsRed.length?clientMsgsRed:clientMsgsYellow)[0] || 'Clienti turni'}</span></div>`);
-                                      const details = (clientMsgsRed.length?clientMsgsRed:clientMsgsYellow).slice(1);
-                                      details.forEach(m => rows.push(`<div class=\"ml-4\"><span>${m}</span></div>`));
-                                      sections.push(`<div class=\"${sections.length > 0 ? 'mb-1 ' : ''}space-y-1\"><div class=\"font-semibold text-[11px]\">Clienti turni</div>${rows.join('')}</div>`);
+                                      rows.push(`<div class="flex items-center gap-1">${clientMsgsRed.length?iconEuroRed:iconEuroYellow}<span>${(clientMsgsRed.length?clientMsgsRed:clientMsgsYellow)[0] || 'Clienti turni'}</span></div>`);
+                                      (clientMsgsRed.length?clientMsgsRed:clientMsgsYellow).slice(1).forEach(m => rows.push(`<div class="ml-4"><span>${m}</span></div>`));
+                                      sections.push(`<div class="${sections.length>0?'mb-1 ':''}space-y-1"><div class="font-semibold text-[11px]">Clienti turni</div>${rows.join('')}</div>`);
                                     }
-                                    // Programmazione personale per ultima (calendario, orologio, euro, omino)
                                     if (personnelMsgsRed.length || personnelMsgsYellow.length) {
-                                      const iconPersonRed = '<svg class="w-3 h-3 text-red-500 inline-block mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 7a3 3 0 110 6 3 3 0 010-6z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M6 20a6 6 0 1112 0v1H6v-1z" /></svg>';
-                                      const iconPersonYellow = '<svg class="w-3 h-3 text-yellow-500 inline-block mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 7a3 3 0 110 6 3 3 0 010-6z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M6 20a6 6 0 1112 0v1H6v-1z" /></svg>';
+                                      const iconPersonRed = '<svg class="w-3 h-3 text-red-500 inline-block mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 7a3 3 0 110 6 3 3 0 010-6z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M6 20a6 6 0 1112 0v1H6v-1z"/></svg>';
+                                      const iconPersonYellow = '<svg class="w-3 h-3 text-yellow-500 inline-block mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 7a3 3 0 110 6 3 3 0 010-6z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M6 20a6 6 0 1112 0v1H6v-1z"/></svg>';
                                       const rows: string[] = [];
-                                      rows.push(`<div class=\"flex items-center gap-1\">${personnelMsgsRed.length?iconPersonRed:iconPersonYellow}<span>${(personnelMsgsRed.length?personnelMsgsRed:personnelMsgsYellow)[0] || 'Programmazione personale'}</span></div>`);
-                                      const details = (personnelMsgsRed.length?personnelMsgsRed:personnelMsgsYellow).slice(1);
-                                      details.forEach(m => rows.push(`<div class=\"ml-4\"><span>${m}</span></div>`));
-                                      sections.push(`<div class=\"space-y-1\"><div class=\"font-semibold text-[11px]\">Programmazione personale</div>${rows.join('')}</div>`);
+                                      rows.push(`<div class="flex items-center gap-1">${personnelMsgsRed.length?iconPersonRed:iconPersonYellow}<span>${(personnelMsgsRed.length?personnelMsgsRed:personnelMsgsYellow)[0] || 'Programmazione personale'}</span></div>`);
+                                      (personnelMsgsRed.length?personnelMsgsRed:personnelMsgsYellow).slice(1).forEach(m => rows.push(`<div class="ml-4"><span>${m}</span></div>`));
+                                      sections.push(`<div class="space-y-1"><div class="font-semibold text-[11px]">Programmazione personale</div>${rows.join('')}</div>`);
                                     }
                                     if (sections.length === 0) {
-                                      // Nessun errore: rimuovi tooltip e nascondi l'icona
                                       tooltipEl.remove();
                                       (e.currentTarget as SVGElement).style.display = 'none';
                                     } else {
-                                      tooltipEl.innerHTML = sections.join('<div class=\"h-1\"></div>');
+                                      tooltipEl.innerHTML = sections.join('<div class="h-1"></div>');
                                     }
                                   }
                                 } catch {}
@@ -376,15 +384,84 @@ const CalendarView = ({ events, onEventClick, canOpenClosedEvents, areaNamesMap,
                   );
                 })}
                 {dayEvents.length > 2 && (
-                  <div className="text-xs text-gray-500">
-                    +{dayEvents.length - 2} altro
-                  </div>
+                  <div className="text-xs text-gray-500">+{dayEvents.length - 2} altro</div>
                 )}
               </div>
             </div>
           );
         })}
       </div>
+
+      {/* Mobile: pannello eventi del giorno selezionato */}
+      {mobileDayDetail && (
+        <>
+          <div
+            className="fixed inset-0 z-40 bg-black/40 lg:hidden"
+            onClick={() => setMobileDayDetail(null)}
+            aria-hidden="true"
+          />
+          <div className="fixed bottom-0 left-0 right-0 z-50 bg-white rounded-t-2xl shadow-2xl max-h-[70vh] overflow-hidden lg:hidden">
+            <div className="sticky top-0 bg-white px-4 py-3 border-b border-gray-200 flex items-center justify-between">
+              <h3 className="font-semibold text-gray-900">
+                {formatDayDate(mobileDayDetail.date)}
+              </h3>
+              <button
+                onClick={() => setMobileDayDetail(null)}
+                className="p-2 -mr-2 text-gray-500 hover:text-gray-700"
+                aria-label="Chiudi"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            <div className="overflow-y-auto max-h-[calc(70vh-56px)] p-4 space-y-2">
+              {mobileDayDetail.dayEvents.map((event: any) => {
+                const locationColor = event.location?.color || "#9ca3af";
+                const isLightColor = locationColor === "#ffffff" || locationColor?.startsWith("#fff");
+                const textColor = isLightColor ? "text-gray-900" : "text-white";
+                const canOpen = !event.isClosed || canOpenClosedEvents;
+                return (
+                  <div
+                    key={event.id}
+                    onClick={() => {
+                      if (canOpen) {
+                        setMobileDayDetail(null);
+                        onEventClick(event.id);
+                      }
+                    }}
+                    className={`rounded-lg p-4 border-l-4 ${canOpen ? "cursor-pointer active:bg-gray-50" : "opacity-60 cursor-not-allowed"}`}
+                    style={{ borderLeftColor: locationColor }}
+                  >
+                    <div className="font-medium text-gray-900 truncate">{event.title}</div>
+                    <div className="text-sm text-gray-500 mt-0.5">{event.location?.name || "-"}</div>
+                    {event.clientName && (
+                      <div className="text-xs text-gray-500 mt-0.5">{event.clientName}</div>
+                    )}
+                    <div className="flex items-center gap-2 mt-2">
+                      {event.isClosed && (
+                        <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                        </svg>
+                      )}
+                      {showAdminIndicators && event.hasOpenWorkdayOnThisDate && (
+                        <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                        </svg>
+                      )}
+                      {showAdminIndicators && event.hasAlertOnThisDate && (
+                        <svg className="w-4 h-4 text-yellow-600" fill="currentColor" viewBox="0 0 24 24">
+                          <path d="M12 2a10 10 0 100 20 10 10 0 000-20zm1 14h-2v-2h2v2zm0-4h-2V6h2v6z" />
+                        </svg>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 };
@@ -433,6 +510,8 @@ const ProgrammaView = ({
       workdayId: string;
       date: string;
       dateFormatted: string;
+      dateFormattedShort: string; // GG/MM/AA per mobile
+      weekdayName: string; // giorno settimana per mobile
       location: string;
       eventTitle: string;
       persone: string;
@@ -473,6 +552,8 @@ const ProgrammaView = ({
           month: "long",
           year: "numeric",
         });
+        const dateFormattedShort = `${String(wdDate.getDate()).padStart(2, "0")}/${String(wdDate.getMonth() + 1).padStart(2, "0")}/${String(wdDate.getFullYear()).slice(-2)}`;
+        const weekdayName = wdDate.toLocaleDateString("it-IT", { weekday: "long" });
 
         let personeMancanti = "-";
         if (showPersoneMancanti && unavailabilities.length > 0) {
@@ -502,6 +583,8 @@ const ProgrammaView = ({
           workdayId: wd.id,
           date: wd.date,
           dateFormatted,
+          dateFormattedShort,
+          weekdayName,
           location,
           eventTitle: event.title,
           persone,
@@ -522,44 +605,50 @@ const ProgrammaView = ({
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-6 flex-wrap gap-4">
-        <h2 className="text-2xl font-bold">
-          {monthNames[programmaMonth.getMonth()]} {programmaMonth.getFullYear()}
-        </h2>
-        <div className="flex items-center gap-2 flex-wrap">
-          {areasToShow.length > 1 && (
-            <select
-              value={selectedAreaFilter}
-              onChange={(e) => setSelectedAreaFilter(e.target.value)}
-              className="px-3 py-2 h-10 border border-gray-300 rounded-lg text-sm bg-white focus:ring-2 focus:ring-gray-500 focus:border-transparent"
-            >
-              <option value="__all__">Tutte le aree</option>
-              {areasToShow.map((a) => (
-                <option key={a.id} value={a.name}>
-                  {a.name}
-                </option>
-              ))}
-            </select>
-          )}
+      <div className="flex flex-wrap items-center justify-between mb-6 gap-4">
+        <div className="flex items-center gap-2 flex-nowrap">
+          <h2 className="text-2xl font-bold whitespace-nowrap">
+            {monthNames[programmaMonth.getMonth()]} {programmaMonth.getFullYear()}
+          </h2>
           <button
             onClick={() => setProgrammaMonth(new Date(programmaMonth.getFullYear(), programmaMonth.getMonth() - 1, 1))}
-            className="px-4 py-2 h-10 border border-gray-300 rounded-lg text-sm hover:bg-gray-50 hover:border-gray-400 hover:shadow-md hover:scale-105 active:scale-100 transition-all duration-200 cursor-pointer"
+            className="w-10 h-10 inline-flex items-center justify-center border border-gray-300 rounded-lg hover:bg-gray-50 hover:border-gray-400 active:scale-100 transition-all duration-200 cursor-pointer"
+            aria-label="Mese precedente"
           >
-            ← Precedente
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7" />
+            </svg>
           </button>
           <button
             onClick={() => setProgrammaMonth(new Date())}
-            className="px-4 py-2 h-10 border border-gray-300 rounded-lg text-sm hover:bg-gray-50 hover:border-gray-400 hover:shadow-md hover:scale-105 active:scale-100 transition-all duration-200 cursor-pointer"
+            className="px-3 h-10 border border-gray-300 rounded-lg text-sm hover:bg-gray-50 hover:border-gray-400 active:scale-100 transition-all duration-200 cursor-pointer"
           >
             Oggi
           </button>
           <button
             onClick={() => setProgrammaMonth(new Date(programmaMonth.getFullYear(), programmaMonth.getMonth() + 1, 1))}
-            className="px-4 py-2 h-10 border border-gray-300 rounded-lg text-sm hover:bg-gray-50 hover:border-gray-400 hover:shadow-md hover:scale-105 active:scale-100 transition-all duration-200 cursor-pointer"
+            className="w-10 h-10 inline-flex items-center justify-center border border-gray-300 rounded-lg hover:bg-gray-50 hover:border-gray-400 active:scale-100 transition-all duration-200 cursor-pointer"
+            aria-label="Mese successivo"
           >
-            Successivo →
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" />
+            </svg>
           </button>
         </div>
+        {areasToShow.length > 1 && (
+          <select
+            value={selectedAreaFilter}
+            onChange={(e) => setSelectedAreaFilter(e.target.value)}
+            className="px-3 py-2 h-10 border border-gray-300 rounded-lg text-sm bg-white focus:ring-2 focus:ring-gray-500 focus:border-transparent flex-shrink-0"
+          >
+            <option value="__all__">Tutte le aree</option>
+            {areasToShow.map((a) => (
+              <option key={a.id} value={a.name}>
+                {a.name}
+              </option>
+            ))}
+          </select>
+        )}
       </div>
       {areasToShow.length === 0 ? (
         <div className="text-center py-12">
@@ -596,7 +685,10 @@ const ProgrammaView = ({
                             onClick={() => onRowClick(row.eventId, row.workdayId)}
                             className="hover:bg-gray-50 cursor-pointer transition-colors"
                           >
-                            <td className="px-6 py-4 text-sm text-gray-900 capitalize">{row.dateFormatted}</td>
+                            <td className="px-6 py-4 text-sm text-gray-900">
+                              <span className="lg:hidden capitalize">{row.weekdayName}<br />{row.dateFormattedShort}</span>
+                              <span className="hidden lg:inline capitalize">{row.dateFormatted}</span>
+                            </td>
                             <td className="px-6 py-4 text-sm text-gray-700">{row.location}</td>
                             <td className="px-6 py-4 text-sm font-medium text-gray-900">{row.eventTitle}</td>
                             <td className="px-6 py-4 text-sm text-gray-700">{row.persone}</td>
@@ -814,16 +906,18 @@ export default function EventsPage() {
   };
 
   const sortedEvents = [...events].sort((a, b) => {
-    if (!sortConfig) return 0;
+    // In vista lista, default: ordine per data inizio ascendente (giorno 1 → 31)
+    const key = sortConfig?.key ?? "startDate";
+    const direction = sortConfig?.direction ?? "asc";
 
-    const aVal = a[sortConfig.key];
-    const bVal = b[sortConfig.key];
+    const aVal = a[key];
+    const bVal = b[key];
 
     if (aVal == null && bVal == null) return 0;
-    if (aVal == null) return sortConfig.direction === "asc" ? 1 : -1;
-    if (bVal == null) return sortConfig.direction === "asc" ? -1 : 1;
-    if (aVal < bVal) return sortConfig.direction === "asc" ? -1 : 1;
-    if (aVal > bVal) return sortConfig.direction === "asc" ? 1 : -1;
+    if (aVal == null) return direction === "asc" ? 1 : -1;
+    if (bVal == null) return direction === "asc" ? -1 : 1;
+    if (aVal < bVal) return direction === "asc" ? -1 : 1;
+    if (aVal > bVal) return direction === "asc" ? 1 : -1;
     return 0;
   });
 
@@ -1022,9 +1116,9 @@ export default function EventsPage() {
   return (
     <DashboardShell>
       <div>
-        <div className="flex justify-between items-center mb-6">
-          <h1 className="text-3xl font-bold">Eventi</h1>
-          <div className="flex gap-4 items-center">
+        <div className="flex flex-col lg:flex-row lg:justify-between lg:items-center gap-4 mb-6">
+          <h1 className="text-2xl lg:text-3xl font-bold">Eventi</h1>
+          <div className="flex flex-wrap gap-2 lg:gap-4 items-center">
             {canSeeAllEvents && (
               <select
                 value={filterStatus}
@@ -1182,28 +1276,34 @@ export default function EventsPage() {
         {viewMode === "list" && (
           <div className="bg-white border border-gray-200 rounded-lg p-6">
             {/* Navigazione mese per vista lista */}
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-2xl font-bold">
+            <div className="flex flex-nowrap items-center justify-between gap-2 mb-6">
+              <h2 className="text-xl lg:text-2xl font-bold whitespace-nowrap">
                 {monthNames[listMonth.getMonth()]} {listMonth.getFullYear()}
               </h2>
-              <div className="flex gap-2">
+              <div className="flex gap-2 flex-shrink-0">
                 <button
                   onClick={() => setListMonth(new Date(listMonth.getFullYear(), listMonth.getMonth() - 1, 1))}
-                  className="px-4 py-2 h-10 border border-gray-300 rounded-lg text-sm hover:bg-gray-50 hover:border-gray-400 hover:shadow-md hover:scale-105 active:scale-100 transition-all duration-200 cursor-pointer"
+                  className="w-10 h-10 inline-flex items-center justify-center border border-gray-300 rounded-lg hover:bg-gray-50 hover:border-gray-400 active:scale-100 transition-all duration-200 cursor-pointer"
+                  aria-label="Mese precedente"
                 >
-                  ← Precedente
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7" />
+                  </svg>
                 </button>
                 <button
                   onClick={() => setListMonth(new Date())}
-                  className="px-4 py-2 h-10 border border-gray-300 rounded-lg text-sm hover:bg-gray-50 hover:border-gray-400 hover:shadow-md hover:scale-105 active:scale-100 transition-all duration-200 cursor-pointer"
+                  className="px-3 h-10 border border-gray-300 rounded-lg text-sm hover:bg-gray-50 hover:border-gray-400 active:scale-100 transition-all duration-200 cursor-pointer"
                 >
                   Oggi
                 </button>
                 <button
                   onClick={() => setListMonth(new Date(listMonth.getFullYear(), listMonth.getMonth() + 1, 1))}
-                  className="px-4 py-2 h-10 border border-gray-300 rounded-lg text-sm hover:bg-gray-50 hover:border-gray-400 hover:shadow-md hover:scale-105 active:scale-100 transition-all duration-200 cursor-pointer"
+                  className="w-10 h-10 inline-flex items-center justify-center border border-gray-300 rounded-lg hover:bg-gray-50 hover:border-gray-400 active:scale-100 transition-all duration-200 cursor-pointer"
+                  aria-label="Mese successivo"
                 >
-                  Successivo →
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" />
+                  </svg>
                 </button>
               </div>
             </div>
@@ -1212,7 +1312,52 @@ export default function EventsPage() {
                 <p className="text-gray-500">Nessun evento trovato per questo mese</p>
               </div>
             ) : (
-              <div className="overflow-x-auto">
+              <>
+              {/* Mobile e tablet: card con tutte le info */}
+              <div className="lg:hidden space-y-3">
+                {filteredEvents.map((event) => {
+                  const canOpen = !(event.isClosed && !canOpenClosedEvents);
+                  return (
+                  <div
+                    key={event.id}
+                    onClick={() => canOpen && router.push(`/dashboard/events/${event.id}?tab=workdays`)}
+                    className={`bg-white rounded-lg border border-gray-200 p-4 shadow-sm ${event.isClosed ? "opacity-80" : ""} ${canOpen ? "cursor-pointer active:bg-gray-50" : "cursor-not-allowed"}`}
+                  >
+                    <div className="min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          {event.isClosed && (
+                            <svg className="w-4 h-4 text-gray-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                            </svg>
+                          )}
+                          {!isStandardUser && !inWorkerModeEvents && event.workdays && event.workdays.length > 0 && (
+                            <svg className="w-4 h-4 text-gray-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                            </svg>
+                          )}
+                          {!isStandardUser && !inWorkerModeEvents && eventHasAlert(event) && (
+                            <svg className="w-4 h-4 text-yellow-600 flex-shrink-0" fill="currentColor" viewBox="0 0 24 24">
+                              <path d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                            </svg>
+                          )}
+                          <span className="font-medium text-gray-900 truncate">{event.title}</span>
+                        </div>
+                        <div className="mt-2 space-y-1 text-sm text-gray-600">
+                          <div><span className="text-gray-500">Location:</span> {event.location?.name || "-"}</div>
+                          {!isStandardUser && !inWorkerModeEvents && (
+                            <div><span className="text-gray-500">Cliente:</span> {event.clientName || "-"}</div>
+                          )}
+                          <div><span className="text-gray-500">Data inizio:</span> {formatDate(event.startDate)}</div>
+                          <div><span className="text-gray-500">Data fine:</span> {formatDate(event.endDate)}</div>
+                        </div>
+                    </div>
+                  </div>
+                  );
+                })}
+              </div>
+
+              {/* Desktop: tabella */}
+              <div className="hidden lg:block overflow-x-auto">
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
                 <tr>
@@ -1395,6 +1540,7 @@ export default function EventsPage() {
               </tbody>
             </table>
               </div>
+              </>
             )}
           </div>
         )}

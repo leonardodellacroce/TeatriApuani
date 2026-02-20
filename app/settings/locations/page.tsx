@@ -157,7 +157,7 @@ export default function LocationsPage() {
   return (
     <DashboardShell>
       <div>
-        <div className="flex justify-between items-center mb-6">
+        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-6">
           <div className="flex items-center gap-3">
             <button
               onClick={() => router.push("/settings")}
@@ -188,8 +188,8 @@ export default function LocationsPage() {
         </div>
 
         {/* Filtri */}
-        <div className="mb-6 flex gap-4">
-          <div className="flex-1">
+        <div className="mb-6 flex flex-col sm:flex-row gap-4">
+          <div className="flex-1 min-w-0">
             <label htmlFor="province-filter" className="block text-sm font-medium text-gray-700 mb-2">
               Filtra per Provincia
             </label>

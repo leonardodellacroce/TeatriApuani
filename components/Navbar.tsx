@@ -14,6 +14,7 @@ export default function Navbar() {
   const [isPending, startTransition] = useTransition();
   const [workMode, setWorkMode] = useState<WorkMode>("admin");
   const [profileDropdownOpen, setProfileDropdownOpen] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [pendingUnavailCount, setPendingUnavailCount] = useState(0);
 
   const userRole = session?.user?.role as string | undefined;
@@ -85,7 +86,7 @@ export default function Navbar() {
           </div>
 
           {/* Navigation Links */}
-          <div className="hidden md:flex items-center space-x-8">
+          <div className="hidden lg:flex items-center space-x-8">
             {session && (
               <>
                 <Link
@@ -257,30 +258,165 @@ export default function Navbar() {
             )}
           </div>
 
-          {/* Mobile menu button */}
-          <div className="md:hidden">
+          {/* Mobile e tablet menu button */}
+          <div className="lg:hidden">
             <button
               type="button"
-              className="text-gray-700 hover:text-gray-900 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-gray-500"
+              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              className="p-2 text-gray-700 hover:text-gray-900 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-gray-500 rounded-lg"
               aria-label="Menu"
+              aria-expanded={mobileMenuOpen}
             >
-              <svg
-                className="h-6 w-6"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M4 6h16M4 12h16M4 18h16"
-                />
-              </svg>
+              {mobileMenuOpen ? (
+                <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              ) : (
+                <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                </svg>
+              )}
             </button>
           </div>
         </div>
       </div>
+
+      {/* Mobile menu panel */}
+      {mobileMenuOpen && (
+        <>
+          <div
+            className="fixed inset-0 z-40 bg-black/20 lg:hidden"
+            onClick={() => setMobileMenuOpen(false)}
+            aria-hidden="true"
+          />
+          <div className="lg:hidden absolute left-0 right-0 top-16 z-50 bg-white border-b border-gray-200 shadow-lg max-h-[calc(100vh-4rem)] overflow-y-auto">
+            <div className="px-4 py-4 space-y-1">
+              {session ? (
+                <>
+                  <Link
+                    href="/dashboard"
+                    onClick={() => setMobileMenuOpen(false)}
+                    className="block px-4 py-3 rounded-lg text-gray-700 hover:bg-gray-100 font-medium"
+                  >
+                    Dashboard
+                  </Link>
+                  <Link
+                    href="/dashboard/events"
+                    onClick={() => setMobileMenuOpen(false)}
+                    className="block px-4 py-3 rounded-lg text-gray-700 hover:bg-gray-100 font-medium"
+                  >
+                    Eventi
+                  </Link>
+                  {canSeeIndisponibilita && (
+                    <Link
+                      href="/dashboard/unavailabilities"
+                      onClick={() => setMobileMenuOpen(false)}
+                      className="flex items-center px-4 py-3 rounded-lg text-gray-700 hover:bg-gray-100 font-medium"
+                    >
+                      Indisponibilità
+                      {canAccessUsers && pendingUnavailCount > 0 && (
+                        <span className="ml-2 min-w-[18px] h-[18px] px-1 flex items-center justify-center text-[10px] font-bold text-white bg-red-500 rounded-full">
+                          {pendingUnavailCount > 99 ? "99+" : pendingUnavailCount}
+                        </span>
+                      )}
+                    </Link>
+                  )}
+                  {canSeeMyShiftsAndHours && (
+                    <>
+                      <Link
+                        href="/dashboard/time-entries"
+                        onClick={() => setMobileMenuOpen(false)}
+                        className="block px-4 py-3 rounded-lg text-gray-700 hover:bg-gray-100 font-medium"
+                      >
+                        Le Mie Ore
+                      </Link>
+                      <Link
+                        href="/dashboard/my-shifts"
+                        onClick={() => setMobileMenuOpen(false)}
+                        className="block px-4 py-3 rounded-lg text-gray-700 hover:bg-gray-100 font-medium"
+                      >
+                        I Miei Turni
+                      </Link>
+                    </>
+                  )}
+                  {canAccessUsers && (
+                    <>
+                      <Link
+                        href="/dashboard/reports"
+                        onClick={() => setMobileMenuOpen(false)}
+                        className="block px-4 py-3 rounded-lg text-gray-700 hover:bg-gray-100 font-medium"
+                      >
+                        Reportistica
+                      </Link>
+                      {userRole === "RESPONSABILE" ? (
+                        <Link
+                          href="/settings/users"
+                          onClick={() => setMobileMenuOpen(false)}
+                          className="block px-4 py-3 rounded-lg text-gray-700 hover:bg-gray-100 font-medium"
+                        >
+                          Utenti
+                        </Link>
+                      ) : (
+                        <Link
+                          href="/settings"
+                          onClick={() => setMobileMenuOpen(false)}
+                          className="block px-4 py-3 rounded-lg text-gray-700 hover:bg-gray-100 font-medium"
+                        >
+                          Impostazioni
+                        </Link>
+                      )}
+                    </>
+                  )}
+                  <div className="border-t border-gray-200 pt-3 mt-3">
+                    <p className="px-4 py-2 text-sm text-gray-500">{session.user?.name}</p>
+                    {isNonStandardWorker && (
+                      <div className="space-y-1">
+                        <button
+                          onClick={() => {
+                            handleWorkModeChange("admin");
+                            setMobileMenuOpen(false);
+                          }}
+                          className={`w-full text-left px-4 py-3 rounded-lg text-sm ${workMode === "admin" ? "bg-gray-100 font-medium" : "text-gray-700 hover:bg-gray-50"}`}
+                        >
+                          Modalità amministratore
+                        </button>
+                        <button
+                          onClick={() => {
+                            handleWorkModeChange("worker");
+                            setMobileMenuOpen(false);
+                          }}
+                          className={`w-full text-left px-4 py-3 rounded-lg text-sm ${workMode === "worker" ? "bg-gray-100 font-medium" : "text-gray-700 hover:bg-gray-50"}`}
+                        >
+                          Modalità lavoratore
+                        </button>
+                      </div>
+                    )}
+                    <button
+                      onClick={() => {
+                        setMobileMenuOpen(false);
+                        handleLogout();
+                      }}
+                      disabled={loggingOut}
+                      className={`w-full text-left px-4 py-3 rounded-lg text-gray-700 hover:bg-gray-50 text-sm ${loggingOut ? "opacity-60" : ""}`}
+                    >
+                      {loggingOut ? "Logout…" : "Logout"}
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <Link
+                  href="/login"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="block px-4 py-3 rounded-lg text-gray-700 hover:bg-gray-100 font-medium"
+                >
+                  Login
+                </Link>
+              )}
+            </div>
+          </div>
+        </>
+      )}
+
     </nav>
   );
 }

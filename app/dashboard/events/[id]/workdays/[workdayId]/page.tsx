@@ -85,7 +85,6 @@ export default function WorkdayViewPage() {
 
   const [workday, setWorkday] = useState<Workday | null>(null);
   const [loading, setLoading] = useState(true);
-  const [showSchedule, setShowSchedule] = useState(false);
   const [showActivitiesModal, setShowActivitiesModal] = useState(false);
   const [taskTypes, setTaskTypes] = useState<any[]>([]);
   const [selectedTaskTypes, setSelectedTaskTypes] = useState<string[]>([]);
@@ -94,7 +93,6 @@ export default function WorkdayViewPage() {
   const [enabledAreas, setEnabledAreas] = useState<Array<{ id: string; name: string; enabledInWorkdayPlanning?: boolean }>>([]);
   const [expandedAreas, setExpandedAreas] = useState<Record<string, boolean>>({});
   const [areaEnabledSwitches, setAreaEnabledSwitches] = useState<Record<string, boolean>>({});
-  const anyAreaEnabled = Object.values(areaEnabledSwitches).some(Boolean);
   
   // Shift modal states
   const [showShiftModal, setShowShiftModal] = useState(false);
@@ -529,6 +527,10 @@ export default function WorkdayViewPage() {
     return hh * 60 + mm;
   };
 
+  // 00:00 (mezzanotte) = fine della giornata corrente, equivalente a 24:00 per la validazione
+  const normalizeEndForDay = (minutes: number): number =>
+    minutes === 0 ? 1440 : minutes;
+
   // Verifica se un orario (HH:MM) è dentro almeno uno degli intervalli della giornata
   const isTimeWithinWorkdaySpans = (time: string): boolean => {
     const t = parseTimeToMinutesHelper(time);
@@ -539,11 +541,12 @@ export default function WorkdayViewPage() {
       const s = parseTimeToMinutesHelper(span.start);
       const e = parseTimeToMinutesHelper(span.end);
       if (s === null || e === null) continue;
+      const tNorm = t === 0 ? 1440 : t; // 00:00 = fine giornata
       if (e < s) {
         // overnight: valido se t >= s (giorno corrente) oppure t <= e (giorno successivo)
         if (t >= s || t <= e) return true;
       } else {
-        if (t >= s && t <= e) return true;
+        if (tNorm >= s && tNorm <= e) return true;
       }
     }
     return false;
@@ -623,6 +626,7 @@ export default function WorkdayViewPage() {
       } else if (!times.start && times.end) {
         const activityEnd = parseTimeToMinutesHelper(times.end);
         if (activityEnd === null) return null;
+        const activityEndNorm = normalizeEndForDay(activityEnd);
         
         const fitsInAnySpan = workdaySpans.some(span => {
           const spanStart = parseTimeToMinutesHelper(span.start);
@@ -633,7 +637,7 @@ export default function WorkdayViewPage() {
           if (isOvernight) {
             return activityEnd <= spanEnd || activityEnd > spanStart;
           } else {
-            return activityEnd >= spanStart && activityEnd <= spanEnd;
+            return activityEndNorm >= spanStart && activityEndNorm <= spanEnd;
           }
         });
         
@@ -645,6 +649,8 @@ export default function WorkdayViewPage() {
         const activityEnd = parseTimeToMinutesHelper(times.end);
         
         if (activityStart === null || activityEnd === null) return null;
+        const activityEndNorm = normalizeEndForDay(activityEnd);
+        const activityIsOvernight = activityEnd < activityStart;
         
         let startValid = false;
         let endValid = false;
@@ -656,7 +662,6 @@ export default function WorkdayViewPage() {
           if (spanStart === null || spanEnd === null) return;
           
           const isOvernight = spanEnd < spanStart;
-          const activityIsOvernight = activityEnd < activityStart;
           
           if (isOvernight) {
             if (activityIsOvernight) {
@@ -665,7 +670,7 @@ export default function WorkdayViewPage() {
                 endValid = true;
               }
             } else {
-              if ((activityStart >= spanStart && activityEnd <= 1440) || 
+              if ((activityStart >= spanStart && activityEndNorm <= 1440) || 
                   (activityStart >= 0 && activityEnd <= spanEnd)) {
                 startValid = true;
                 endValid = true;
@@ -673,12 +678,19 @@ export default function WorkdayViewPage() {
             }
           } else {
             if (!activityIsOvernight) {
-              if (activityStart >= spanStart && activityEnd <= spanEnd) {
+              if (activityStart >= spanStart && activityEndNorm <= spanEnd) {
                 startValid = true;
                 endValid = true;
               } else {
                 if (activityStart >= spanStart && activityStart <= spanEnd) startValid = true;
-                if (activityEnd >= spanStart && activityEnd <= spanEnd) endValid = true;
+                if (activityEndNorm >= spanStart && activityEndNorm <= spanEnd) endValid = true;
+              }
+            } else {
+              // Attività oltre mezzanotte (es. 22:00-00:00), span non overnight (es. 22:00-24:00)
+              // 00:00 = fine giornata, valido se rientra nello span
+              if (activityStart >= spanStart && activityEndNorm <= spanEnd) {
+                startValid = true;
+                endValid = true;
               }
             }
           }
@@ -1147,6 +1159,7 @@ export default function WorkdayViewPage() {
         // Verifica se la fine è valida (considera solo end, ma anche turni notturni)
         let endValid = false;
         const shiftIsOvernight = shiftEnd < shiftStart;
+        const shiftEndNorm = normalizeEndForDay(shiftEnd);
         
         activitySpans.forEach(span => {
           const spanStart = parseTimeToMinutesHelper(span.start);
@@ -1162,13 +1175,16 @@ export default function WorkdayViewPage() {
               if (shiftEnd >= 0 && shiftEnd <= spanEnd) endValid = true;
             } else {
               // Turno normale: fine può essere nel giorno corrente (>= spanStart) o nel successivo (<= spanEnd)
-              if (shiftEnd >= spanStart && shiftEnd <= 1440) endValid = true;
+              if (shiftEndNorm >= spanStart && shiftEndNorm <= 1440) endValid = true;
               if (shiftEnd >= 0 && shiftEnd <= spanEnd) endValid = true;
             }
           } else {
-            // Span normale: tutto nel giorno corrente
+            // Span normale: tutto nel giorno corrente. 00:00 = fine giornata (24:00)
             if (!shiftIsOvernight) {
-              if (shiftEnd >= spanStart && shiftEnd <= spanEnd) endValid = true;
+              if (shiftEndNorm >= spanStart && shiftEndNorm <= spanEnd) endValid = true;
+            } else {
+              // Turno oltre mezzanotte (es. 22:00-00:00): 00:00 valido se span arriva a 24:00
+              if (shiftEndNorm >= spanStart && shiftEndNorm <= spanEnd) endValid = true;
             }
           }
         });
@@ -1485,7 +1501,6 @@ export default function WorkdayViewPage() {
     if (!newState) {
       setExpandedAreas((exp) => ({ ...exp, [areaId]: false }));
     } else {
-      setShowSchedule(true);
       setExpandedAreas((exp) => ({ ...exp, [areaId]: true }));
     }
     try {
@@ -1697,7 +1712,6 @@ export default function WorkdayViewPage() {
             // Auto-expand aree abilitate
             const enabledAreaIds = Object.keys(parsed).filter(areaId => parsed[areaId] === true);
             if (enabledAreaIds.length > 0) {
-              setShowSchedule(true);
               // Espandi tutte le aree abilitate
               setExpandedAreas(prev => {
                 const updated = { ...prev };
@@ -2118,21 +2132,21 @@ export default function WorkdayViewPage() {
     <>
     <DashboardShell>
       <div>
-        <div className="flex justify-between items-center mb-6">
-          <div className="flex items-center gap-3">
+        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 mb-4 lg:mb-6">
+          <div className="flex items-center gap-3 min-w-0">
             <button
               onClick={() => router.push(`/dashboard/events/${eventId}?tab=workdays`)}
               aria-label="Indietro"
               title="Indietro"
-              className="h-10 w-10 inline-flex items-center justify-center rounded-lg bg-gray-900 text-white hover:bg-gray-800 hover:shadow-lg transition-colors"
+              className="h-10 w-10 shrink-0 inline-flex items-center justify-center rounded-lg bg-gray-900 text-white hover:bg-gray-800 hover:shadow-lg transition-colors"
             >
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7" />
               </svg>
             </button>
-            <h1 className="text-3xl font-bold">Giornata di Lavoro</h1>
+            <h1 className="text-2xl lg:text-3xl font-bold truncate">Giornata di Lavoro</h1>
           </div>
-          <div className="flex gap-2 pointer-events-auto">
+          <div className="flex gap-2 pointer-events-auto flex-shrink-0">
             {canEditEvents && isReadOnly && (
               <>
                 <button
@@ -2152,64 +2166,17 @@ export default function WorkdayViewPage() {
           </div>
         </div>
 
-        <div className="bg-white rounded-lg border border-gray-200 p-6">
-          <div className="flex justify-between items-center mb-4">
+        <div className="bg-white rounded-lg border border-gray-200 p-4 lg:p-6">
+          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 mb-4">
             <h2 className="text-xl font-semibold">Dettagli Giornata</h2>
             {canEditEvents && workday.isOpen && !isReadOnly && (
-              <div className="flex gap-2">
+              <div className="flex flex-wrap gap-2">
                 <button
                   onClick={handleOpenActivitiesModal}
-                  className="px-4 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800 hover:shadow-lg hover:scale-105 active:scale-100 transition-all duration-200 cursor-pointer text-sm"
+                  className="w-full sm:w-auto px-4 py-2.5 bg-gray-900 text-white rounded-lg hover:bg-gray-800 active:scale-100 transition-all duration-200 cursor-pointer text-sm"
                 >
                   Definisci attività
                 </button>
-                {(() => {
-                  const scheduleInfo = getIncompleteScheduleInfo(workday as any);
-                  const isScheduleComplete = !scheduleInfo.hasWarning;
-                  return (
-                    <div
-                      className="relative inline-block"
-                      onMouseEnter={(e) => {
-                        if (scheduleInfo.hasWarning) {
-                          const existing = document.getElementById('programma-tooltip');
-                          if (existing) existing.remove();
-                          const tooltip = document.createElement('div');
-                          tooltip.textContent = "Attenzione: le attività non coprono tutto l'intervallo orario";
-                          tooltip.id = 'programma-tooltip';
-                          tooltip.className = 'fixed z-[2147483647] bg-gray-900 text-white text-xs rounded py-2 px-3 shadow-lg whitespace-nowrap pointer-events-none';
-                          const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
-                          tooltip.style.left = `${rect.left + rect.width / 2}px`;
-                          tooltip.style.top = `${rect.top}px`;
-                          tooltip.style.transform = 'translate(-50%, calc(-100% - 8px))';
-                          document.body.appendChild(tooltip);
-                        }
-                      }}
-                      onMouseLeave={() => {
-                        const tooltip = document.getElementById('programma-tooltip');
-                        if (tooltip) tooltip.remove();
-                      }}
-                    >
-                      <button
-                        onClick={() => {
-                          if (showSchedule) {
-                            if (anyAreaEnabled) return; // cannot hide while any area enabled
-                            setShowSchedule(false);
-                          } else {
-                            setShowSchedule(true);
-                          }
-                        }}
-                        disabled={isReadOnly || (showSchedule && anyAreaEnabled)}
-                        className={`px-4 py-2 rounded-lg text-sm transition-all duration-200 ${
-                          !(isReadOnly || (showSchedule && anyAreaEnabled))
-                             ? "bg-gray-900 text-white hover:bg-gray-800 hover:shadow-lg hover:scale-105 active:scale-100 cursor-pointer"
-                             : "bg-gray-300 text-gray-500 cursor-not-allowed opacity-50"
-                         }`}
-                      >
-                        {showSchedule ? "Nascondi Programmazione" : "Programma giornata"}
-                      </button>
-                    </div>
-                  );
-                })()}
               </div>
             )}
           </div>
@@ -2498,7 +2465,10 @@ export default function WorkdayViewPage() {
                         );
                       })}
                     </div>
-                    <div className="mt-1 flex justify-between text-[11px] text-gray-600">
+                    <div className="mt-1 grid grid-cols-7 gap-0 text-xs text-gray-600 lg:hidden">
+                      {[0,4,8,12,16,20,24].map((h) => <span key={h}>{String(h).padStart(2,'0')}:00</span>)}
+                    </div>
+                    <div className="mt-1 hidden lg:flex justify-between text-[11px] text-gray-600">
                       {Array.from({ length: 13 }).map((_, idx) => (<span key={idx}>{String(idx * 2).padStart(2,'0')}:00</span>))}
                     </div>
                   </div>
@@ -2551,7 +2521,10 @@ export default function WorkdayViewPage() {
                               );
                             })}
                           </div>
-                          <div className="mt-1 flex justify-between text-[11px] text-gray-400">
+                          <div className="mt-1 grid grid-cols-7 gap-0 text-xs text-gray-400 lg:hidden">
+                            {[0,4,8,12,16,20,24].map((h) => <span key={h}>{String(h).padStart(2,'0')}:00</span>)}
+                          </div>
+                          <div className="mt-1 hidden lg:flex justify-between text-[11px] text-gray-400">
                             {Array.from({ length: 13 }).map((_, idx) => (<span key={idx}>{String(idx * 2).padStart(2,'0')}:00</span>))}
                           </div>
                         </div>
@@ -2631,7 +2604,7 @@ export default function WorkdayViewPage() {
                       <div className="text-xs text-gray-600 mb-1">{assignment.taskType?.name}</div>
                       
                       {/* Timeline giorno attuale */}
-                      <div className="h-6 w-full bg-gray-50 rounded-md border border-gray-200 relative overflow-hidden">
+                      <div className="h-8 lg:h-6 w-full bg-gray-50 rounded-md border border-gray-200 relative overflow-hidden">
                         <div
                           className="absolute top-0 bottom-0 rounded"
                           style={{
@@ -2651,7 +2624,10 @@ export default function WorkdayViewPage() {
                           onMouseLeave={() => setTooltip(null)}
                         />
                       </div>
-                      <div className="mt-1 flex justify-between text-[10px] text-gray-500">
+                      <div className="mt-1 grid grid-cols-7 gap-0 text-xs text-gray-500 lg:hidden">
+                        {[0,4,8,12,16,20,24].map((h) => <span key={h}>{String(h).padStart(2,'0')}:00</span>)}
+                      </div>
+                      <div className="mt-1 hidden lg:flex justify-between text-[10px] text-gray-500">
                         {Array.from({ length: 13 }).map((_, idx) => (
                           <span key={idx}>{String(idx * 2).padStart(2, '0')}:00</span>
                         ))}
@@ -2690,7 +2666,7 @@ export default function WorkdayViewPage() {
                       {isOvernight && widthPctNext > 0 && (
                         <div className="mt-3">
                           <div className="text-xs text-gray-500 italic mb-1">Giorno successivo</div>
-                          <div className="h-6 w-full bg-gray-50 rounded-md border border-dashed border-gray-300 relative overflow-hidden">
+                          <div className="h-8 lg:h-6 w-full bg-gray-50 rounded-md border border-dashed border-gray-300 relative overflow-hidden">
                             <div
                               className="absolute top-0 bottom-0 rounded"
                               style={{
@@ -2710,7 +2686,10 @@ export default function WorkdayViewPage() {
                               onMouseLeave={() => setTooltip(null)}
                             />
                           </div>
-                          <div className="mt-1 flex justify-between text-[10px] text-gray-400">
+                          <div className="mt-1 grid grid-cols-7 gap-0 text-xs text-gray-400 lg:hidden">
+                            {[0,4,8,12,16,20,24].map((h) => <span key={h}>{String(h).padStart(2,'0')}:00</span>)}
+                          </div>
+                          <div className="mt-1 hidden lg:flex justify-between text-[10px] text-gray-400">
                             {Array.from({ length: 13 }).map((_, idx) => (
                               <span key={idx}>{String(idx * 2).padStart(2, '0')}:00</span>
                             ))}
@@ -2726,8 +2705,7 @@ export default function WorkdayViewPage() {
           )}
           
           {/* Programmazione Giornata - Aree Abilitate */}
-          {showSchedule && (
-            <div className="mt-4 pt-4 border-t border-gray-200">
+          <div className="mt-4 pt-4 border-t border-gray-200">
               <div className="flex items-center gap-2 mb-3 flex-wrap">
                 <h3 className="text-sm font-medium text-gray-500">Programmazione Giornata</h3>
                 {!isStandardUser && (() => {
@@ -2836,7 +2814,7 @@ export default function WorkdayViewPage() {
                           {!isReadOnly && (
                           <button
                             onClick={() => handleOpenShiftModal(area.id)}
-                            className="px-4 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800 hover:shadow-lg hover:scale-105 active:scale-100 transition-all duration-200 cursor-pointer text-sm mb-4"
+                            className="w-full sm:w-auto px-4 py-2.5 bg-gray-900 text-white rounded-lg hover:bg-gray-800 hover:shadow-lg active:scale-100 transition-all duration-200 cursor-pointer text-sm mb-4"
                           >
                             Imposta turno
                           </button>
@@ -2928,7 +2906,7 @@ export default function WorkdayViewPage() {
                                         </div>
                                         
                                         {/* Timeline giorno attuale */}
-                                        <div className="h-6 w-full bg-gray-50 rounded-md border border-gray-200 relative overflow-hidden">
+                                        <div className="h-8 lg:h-6 w-full bg-gray-50 rounded-md border border-gray-200 relative overflow-hidden">
                                           <div
                                             className="absolute top-0 bottom-0 rounded"
                                             style={{
@@ -3023,7 +3001,10 @@ export default function WorkdayViewPage() {
                                             );
                                           })()}
                                         </div>
-                                        <div className="mt-1 flex justify-between text-[10px] text-gray-500">
+                                        <div className="mt-1 grid grid-cols-7 gap-0 text-xs text-gray-500 lg:hidden">
+                                          {[0,4,8,12,16,20,24].map((h) => <span key={h}>{String(h).padStart(2,'0')}:00</span>)}
+                                        </div>
+                                        <div className="mt-1 hidden lg:flex justify-between text-[10px] text-gray-500">
                                           {Array.from({ length: 13 }).map((_, idx) => (
                                             <span key={idx}>{String(idx * 2).padStart(2, '0')}:00</span>
                                           ))}
@@ -3062,7 +3043,7 @@ export default function WorkdayViewPage() {
                                         {isOvernight && widthPctNext > 0 && (
                                           <div className="mt-3">
                                             <div className="text-xs text-gray-500 italic mb-1">Giorno successivo</div>
-                                            <div className="h-6 w-full bg-gray-50 rounded-md border border-dashed border-gray-300 relative overflow-hidden">
+                                            <div className="h-8 lg:h-6 w-full bg-gray-50 rounded-md border border-dashed border-gray-300 relative overflow-hidden">
                                               <div
                                                 className="absolute top-0 bottom-0 rounded"
                                                 style={{
@@ -3154,7 +3135,10 @@ export default function WorkdayViewPage() {
                                                 );
                                               })()}
                                             </div>
-                                            <div className="mt-1 flex justify-between text-[10px] text-gray-400">
+                                            <div className="mt-1 grid grid-cols-7 gap-0 text-xs text-gray-400 lg:hidden">
+                                              {[0,4,8,12,16,20,24].map((h) => <span key={h}>{String(h).padStart(2,'0')}:00</span>)}
+                                            </div>
+                                            <div className="mt-1 hidden lg:flex justify-between text-[10px] text-gray-400">
                                               {Array.from({ length: 13 }).map((_, idx) => (
                                                 <span key={idx}>{String(idx * 2).padStart(2, '0')}:00</span>
                                               ))}
@@ -3166,15 +3150,14 @@ export default function WorkdayViewPage() {
                                         
                                         {/* Pulsante Imposta tipologia personale / personale in turno */}
                                         {!isReadOnly && (
-                                          <div className="mt-2">
+                                          <div className="mt-2 flex flex-wrap gap-2">
                                             <button
                                               onClick={() => handleOpenPersonnelModal(assignment)}
-                                              className="px-3 py-1.5 text-xs bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 hover:shadow-md hover:scale-105 active:scale-100 transition-all duration-200 cursor-pointer"
+                                              className="px-3 py-2 text-xs bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 active:scale-100 transition-all duration-200 cursor-pointer"
                                             >
                                               Imposta tipologia personale
                                             </button>
                                             {(() => {
-                                              // Disabilita finché non esiste almeno una tipologia di personale per il turno
                                               let hasPersonnelTypes = false;
                                               try {
                                                 if (assignment.personnelRequests) {
@@ -3186,7 +3169,7 @@ export default function WorkdayViewPage() {
                                                 <button
                                                   onClick={() => hasPersonnelTypes && handleOpenAssignUsersModal(assignment)}
                                                   disabled={!hasPersonnelTypes}
-                                                  className={`ml-2 px-3 py-1.5 text-xs rounded-lg transition-all duration-200 ${hasPersonnelTypes ? 'bg-gray-100 text-gray-700 hover:bg-gray-200 hover:shadow-md hover:scale-105 active:scale-100 cursor-pointer' : 'bg-gray-200 text-gray-400 cursor-not-allowed'}`}
+                                                  className={`px-3 py-2 text-xs rounded-lg transition-all duration-200 ${hasPersonnelTypes ? 'bg-gray-100 text-gray-700 hover:bg-gray-200 active:scale-100 cursor-pointer' : 'bg-gray-200 text-gray-400 cursor-not-allowed'}`}
                                                 >
                                                   Imposta personale in turno
                                                 </button>
@@ -3208,7 +3191,6 @@ export default function WorkdayViewPage() {
                 </div>
               )}
             </div>
-          )}
         </div>
 
 
@@ -3839,15 +3821,14 @@ export default function WorkdayViewPage() {
                                     }`}
                                   />
                                 </div>
-                                {/* Selettore cliente - sempre visibile se ci sono clienti */}
+                                {/* Selettore cliente - desktop: sulla stessa riga degli orari */}
                                 {eventClients.length > 0 && (
-                                  <div className="flex-1">
+                                  <div className="flex-1 hidden lg:block">
                                     <label className="block text-xs text-gray-500 mb-1">Cliente</label>
                                     <select
                                       value={(shiftClients[shiftType.id] || [])[intervalIdx] || ""}
                                       onChange={(e) => {
                                         const currentClients = [...(shiftClients[shiftType.id] || [])];
-                                        // Assicurati che l'array abbia la lunghezza giusta
                                         while (currentClients.length <= intervalIdx) {
                                           currentClients.push("");
                                         }
@@ -3866,6 +3847,34 @@ export default function WorkdayViewPage() {
                                         </option>
                                       ))}
                                     </select>
+                                  </div>
+                                )}
+                                {/* Checkbox Pausa prevista - mobile: al posto di Cliente sulla riga degli orari */}
+                                {eventClients.length > 0 && (
+                                  <div className="flex-1 lg:hidden flex items-center">
+                                    <label className="flex items-center space-x-2 cursor-pointer">
+                                      <input
+                                        type="checkbox"
+                                        checked={(shiftBreaks[shiftType.id] || [])[intervalIdx]?.hasScheduledBreak || false}
+                                        onChange={(e) => {
+                                          const currentBreaks = [...(shiftBreaks[shiftType.id] || [])];
+                                          while (currentBreaks.length <= intervalIdx) {
+                                            currentBreaks.push({ hasScheduledBreak: false, scheduledBreakStartTime: "", scheduledBreakEndTime: "" });
+                                          }
+                                          currentBreaks[intervalIdx] = {
+                                            hasScheduledBreak: e.target.checked,
+                                            scheduledBreakStartTime: e.target.checked ? currentBreaks[intervalIdx]?.scheduledBreakStartTime || "" : "",
+                                            scheduledBreakEndTime: e.target.checked ? currentBreaks[intervalIdx]?.scheduledBreakEndTime || "" : "",
+                                          };
+                                          setShiftBreaks({
+                                            ...shiftBreaks,
+                                            [shiftType.id]: currentBreaks
+                                          });
+                                        }}
+                                        className="w-4 h-4 text-gray-900 border-gray-300 rounded focus:ring-gray-900"
+                                      />
+                                      <span className="text-xs text-gray-500">Pausa prevista</span>
+                                    </label>
                                   </div>
                                 )}
                                 {/* Pulsante rimuovi intervallo - mostrato solo se ci sono più intervalli */}
@@ -3936,6 +3945,34 @@ export default function WorkdayViewPage() {
                                  </div>
                                )}
                               </div>
+                              {/* Cliente - mobile: sotto gli orari */}
+                              {eventClients.length > 0 && (
+                                <div className="w-full lg:hidden">
+                                  <label className="block text-xs text-gray-500 mb-1">Cliente</label>
+                                  <select
+                                    value={(shiftClients[shiftType.id] || [])[intervalIdx] || ""}
+                                    onChange={(e) => {
+                                      const currentClients = [...(shiftClients[shiftType.id] || [])];
+                                      while (currentClients.length <= intervalIdx) {
+                                        currentClients.push("");
+                                      }
+                                      currentClients[intervalIdx] = e.target.value;
+                                      setShiftClients({
+                                        ...shiftClients,
+                                        [shiftType.id]: currentClients
+                                      });
+                                    }}
+                                    className="w-full px-3 py-2 h-10 border border-gray-300 rounded-lg text-sm"
+                                  >
+                                    <option value="">Seleziona cliente...</option>
+                                    {eventClients.map(client => (
+                                      <option key={client.id} value={client.id}>
+                                        {client.name}
+                                      </option>
+                                    ))}
+                                  </select>
+                                </div>
+                              )}
                               {/* Seconda riga: campi pausa */}
                               <div className="flex gap-2 items-start">
                                 {/* Spazio per pulsanti su/giù per allineamento */}
@@ -3996,9 +4033,9 @@ export default function WorkdayViewPage() {
                                 ) : (
                                   <div className="flex-1"></div>
                                 )}
-                                {/* Checkbox Pausa prevista - sotto Cliente, sulla stessa riga delle label Inizio pausa e Fine pausa */}
+                                {/* Checkbox Pausa prevista - desktop: sotto Cliente; mobile: nella riga degli orari */}
                                 {eventClients.length > 0 && (
-                                  <div className="flex-1">
+                                  <div className="flex-1 hidden lg:block">
                                     <label className="flex items-center space-x-2 cursor-pointer mb-1">
                                       <input
                                         type="checkbox"
