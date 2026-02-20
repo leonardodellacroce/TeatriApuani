@@ -34,7 +34,7 @@ export default function ChangePasswordPage() {
 
   if (status === "loading") {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="min-h-screen bg-white flex items-center justify-center">
         <p>Caricamento...</p>
       </div>
     );
@@ -124,7 +124,7 @@ export default function ChangePasswordPage() {
   };
 
   return (
-    <div className="min-h-screen">
+    <div className="min-h-screen bg-white text-gray-900">
       <Navbar />
       <Container>
         <div className="min-h-[calc(100vh-4rem)] flex items-center justify-center">

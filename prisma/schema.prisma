@@ -58,21 +58,19 @@ model Company {
 }
 
 model Location {
-  id                          String   @id @default(cuid())
-  code                        String   @unique
-  name                        String
-  address                     String?
-  city                        String?
-  province                    String?
-  postalCode                  String?
-  color                       String?  // Colore preimpostato per la location
-  enabledInAdvancedManagement Boolean  @default(false)
-  isArchived                  Boolean  @default(false)
-  createdAt                   DateTime  @default(now())
-  updatedAt                   DateTime  @updatedAt
-  events                      Event[]
-  workdays                    Workday[]
-  docTemplates                DocTemplate[]
+  id         String   @id @default(cuid())
+  code       String   @unique
+  name       String
+  address    String?
+  city       String?
+  province   String?
+  postalCode String?
+  color      String?  // Colore preimpostato per la location
+  isArchived Boolean  @default(false)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  events     Event[]
+  workdays   Workday[]
 }
 
 model Client {
@@ -232,61 +230,6 @@ model VerificationToken {
   expires    DateTime
 
   @@unique([identifier, token])
-}
-
-model DocTemplate {
-  id            String   @id @default(cuid())
-  title         String
-  description   String?
-  category      String?  // Categoria del template (es. "Sicurezza", "Amministrazione", "Contratti")
-  pageSettings  String   // JSON: PageSettings
-  blocksJson    String   // JSON: Block[]
-  locationId    String?  // Location associata
-  location      Location? @relation(fields: [locationId], references: [id], onDelete: SetNull)
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-  createdBy     String?
-  isArchived    Boolean  @default(false)
-  
-  @@index([locationId])
-  @@index([category])
-}
-
-model DocInstance {
-  id           String   @id @default(cuid())
-  templateId   String
-  title        String
-  dataJson     String   // JSON: dati compilati
-  pdfUrl       String?  // URL del PDF generato
-  status       String   @default("DRAFT") // DRAFT, SIGNED, ARCHIVED
-  createdById  String
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
-  signedAt     DateTime?
-  signedBy     String?
-  signEvents   SignEvent[]
-}
-
-model SignEvent {
-  id               String   @id @default(cuid())
-  instanceId       String
-  instance         DocInstance @relation(fields: [instanceId], references: [id], onDelete: Cascade)
-  templateId       String
-  userId           String
-  signaturePngUrl  String?
-  signatureHash    String
-  signedAtUtc      DateTime
-  signedAtLocal    String
-  tz               String   @default("Europe/Rome")
-  tzOffsetMinutes  Int
-  userAgent        String?
-  ipHash           String?
-  blockId          String?  // ID del blocco firma nel template
-  role             String?  // Ruolo richiesto per questa firma
-  createdAt        DateTime @default(now())
-
-  @@index([instanceId])
-  @@index([userId])
 }
 
 model TimeEntry {

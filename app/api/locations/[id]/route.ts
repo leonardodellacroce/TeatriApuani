@@ -45,24 +45,18 @@ export async function PATCH(
 
     const { id } = await params;
     const body = await req.json();
-    const { name, address, city, province, postalCode, color, enabledInAdvancedManagement } = body;
-
-    const updateData: any = {
-      name,
-      address,
-      city,
-      province,
-      postalCode,
-      color,
-    };
-    
-    if (enabledInAdvancedManagement !== undefined) {
-      updateData.enabledInAdvancedManagement = enabledInAdvancedManagement;
-    }
+    const { name, address, city, province, postalCode, color } = body;
 
     const location = await prisma.location.update({
       where: { id },
-      data: updateData,
+      data: {
+        name,
+        address,
+        city,
+        province,
+        postalCode,
+        color,
+      },
     });
 
     return NextResponse.json(location);

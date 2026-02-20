@@ -14,7 +14,6 @@ export default function NewLocationPage() {
     province: "",
     postalCode: "",
     color: null as string | null,
-    enabledInAdvancedManagement: false,
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -343,21 +342,6 @@ export default function NewLocationPage() {
             selectedColor={formData.color}
             onChange={(color) => setFormData({ ...formData, color })}
           />
-
-          <div className="space-y-2">
-            <label className="flex items-center gap-2 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={formData.enabledInAdvancedManagement}
-                onChange={(e) => setFormData({ ...formData, enabledInAdvancedManagement: e.target.checked })}
-                className="w-4 h-4 text-gray-900 border-gray-300 rounded focus:ring-gray-500"
-              />
-              <span className="text-sm font-medium text-gray-700">Abilita in gestione avanzata</span>
-            </label>
-            <p className="text-xs text-gray-500 ml-6">
-              Se abilitata, questa location sarà visualizzata nella sezione "Gestione Avanzata Location" e sarà possibile gestire dati relativi alla sicurezza della location
-            </p>
-          </div>
 
           {fieldError && (
             <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative">

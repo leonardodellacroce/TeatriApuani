@@ -5,7 +5,11 @@ import Providers from "@/components/Providers";
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
+  minimumScale: 1,
   maximumScale: 5,
+  viewportFit: "cover",
+  themeColor: "#ffffff",
+  colorScheme: "light",
 };
 
 export const metadata: Metadata = {
@@ -23,8 +27,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="it">
-      <body className="antialiased">
+    <html lang="it" className="light" style={{ colorScheme: "light" }} suppressHydrationWarning>
+      <body className="antialiased bg-white text-gray-900">
         <Providers>{children}</Providers>
       </body>
     </html>

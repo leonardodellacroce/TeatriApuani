@@ -60,7 +60,7 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen text-gray-900">
+    <div className="min-h-screen bg-white text-gray-900">
       <Navbar />
       <Container>
         <div className="min-h-[calc(100vh-4rem)] flex items-center justify-center">
@@ -83,7 +83,7 @@ export default function Login() {
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="w-full px-4 py-2 h-10 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-gray-500 focus:border-transparent"
+                  className="w-full px-4 py-2 h-10 border border-gray-300 rounded-lg text-base bg-white text-gray-900 focus:ring-2 focus:ring-gray-500 focus:border-transparent"
                   placeholder="nome@esempio.com"
                 />
               </div>
@@ -101,7 +101,7 @@ export default function Login() {
                   required
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="w-full px-4 py-2 h-10 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-gray-500 focus:border-transparent"
+                  className="w-full px-4 py-2 h-10 border border-gray-300 rounded-lg text-base bg-white text-gray-900 focus:ring-2 focus:ring-gray-500 focus:border-transparent"
                   placeholder="••••••••"
                 />
               </div>

@@ -80,7 +80,7 @@ export async function POST(req: NextRequest) {
 
     const body = await req.json();
     console.log("Body received:", body);
-    const { name, address, city, province, postalCode, color, enabledInAdvancedManagement } = body;
+    const { name, address, city, province, postalCode, color } = body;
 
     if (!name || typeof name !== "string") {
       return NextResponse.json(
@@ -104,7 +104,6 @@ export async function POST(req: NextRequest) {
         province,
         postalCode,
         color,
-        enabledInAdvancedManagement: enabledInAdvancedManagement || false,
       },
     });
 
