@@ -7,10 +7,14 @@ import { prisma } from "@/lib/prisma";
 export const dynamic = "force-dynamic";
 
 export async function GET(req: NextRequest) {
-  // Verifica che la richiesta sia da Vercel Cron (Authorization: Bearer CRON_SECRET)
-  const expected = process.env.CRON_SECRET;
+  // Verifica: Authorization Bearer OPPURE ?secret= (per servizi esterni tipo cron-job.org)
+  const expected = process.env.CRON_SECRET?.trim();
   const authHeader = req.headers.get("authorization");
-  if (!expected || authHeader !== `Bearer ${expected}`) {
+  const secretParam = req.nextUrl.searchParams.get("secret")?.trim();
+  const valid =
+    expected &&
+    (authHeader === `Bearer ${expected}` || secretParam === expected);
+  if (!valid) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
