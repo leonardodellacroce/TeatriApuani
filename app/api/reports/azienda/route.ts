@@ -397,13 +397,15 @@ export async function GET(req: NextRequest) {
           for (const [dutyId, hours] of dutyHoursInShift.entries()) {
             const duty = dutyMap.get(dutyId);
             const dutyInfo = duty ? { name: duty.name, code: duty.code } : { name: "Non specificato", code: "" };
+            const peopleCount = dutyPeopleCount.get(dutyId) || 0;
+            const hoursPerPerson = peopleCount > 0 ? hours / peopleCount : hours;
             
             shift.duties.set(dutyId, {
               dutyId,
               dutyName: dutyInfo.name,
               dutyCode: dutyInfo.code,
-              numberOfPeople: dutyPeopleCount.get(dutyId) || 0,
-              totalHours: hours,
+              numberOfPeople: peopleCount,
+              totalHours: hoursPerPerson,
             });
           }
           }
@@ -536,7 +538,7 @@ export async function GET(req: NextRequest) {
                 scheduledBreakStartTime: assignment.scheduledBreakStartTime || null,
                 scheduledBreakEndTime: assignment.scheduledBreakEndTime || null,
                 duties: new Map(),
-                totalHours: hours,
+                totalHours: hours * userSet.size,
                 numberOfPeople: userSet.size,
                 shifts,
                 overtimeHours,

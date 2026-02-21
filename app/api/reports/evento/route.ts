@@ -352,6 +352,7 @@ export async function GET(req: NextRequest) {
           const numberOfPeople = userHoursMap.size;
           const displayStartTime = (hoursType === "actual" && actualStartTime) ? actualStartTime : assignment.startTime;
           const displayEndTime = (hoursType === "actual" && actualEndTime) ? actualEndTime : assignment.endTime;
+          // Ore totali nel dettaglio turno: ore × persone
           const shiftTotalHours = hoursType === "actual" ? totalActualHours : shiftHours * numberOfPeople;
           if (!taskTypeIsHourlyService) {
             const calc = calculateShiftAndOvertime(shiftHours, taskTypeShiftHours);
@@ -387,13 +388,14 @@ export async function GET(req: NextRequest) {
 
           const dutyInfo = dutyCache.get(dutyId) || { name: "Non specificato", code: "" };
           const peopleCount = dutyPeopleCount.get(dutyId) || 0;
+          const hoursPerPerson = peopleCount > 0 ? hours / peopleCount : hours;
           
           shift.duties.set(dutyId, {
             dutyId,
             dutyName: dutyInfo.name,
             dutyCode: dutyInfo.code,
             numberOfPeople: peopleCount,
-            totalHours: hours,
+            totalHours: hoursPerPerson,
           });
         }
 
@@ -495,7 +497,7 @@ export async function GET(req: NextRequest) {
             scheduledBreakStartTime: assignment.scheduledBreakStartTime || null,
             scheduledBreakEndTime: assignment.scheduledBreakEndTime || null,
             duties: new Map(),
-            totalHours: shiftHours,
+            totalHours: shiftHours * userCount,
             numberOfPeople: userCount,
             shifts,
             overtimeHours,

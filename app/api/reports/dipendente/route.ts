@@ -226,7 +226,8 @@ export async function GET(req: NextRequest) {
 
         const timeEntries = assignment.timeEntries.filter(te => te.userId === uid);
 
-        if (timeEntries.length === 0) continue;
+        // Per ore effettive servono i time entries; per ore previste includiamo anche assignment senza time entries
+        if (hoursType === "actual" && timeEntries.length === 0) continue;
 
         if (!employeeMap.has(uid)) {
           const user = await prisma.user.findUnique({
