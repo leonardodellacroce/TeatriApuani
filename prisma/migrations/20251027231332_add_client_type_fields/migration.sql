@@ -19,8 +19,8 @@ CREATE TABLE "new_Client" (
     "email" TEXT,
     "pec" TEXT,
     "isArchived" BOOLEAN NOT NULL DEFAULT false,
-    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" DATETIME NOT NULL
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL
 );
 INSERT INTO "new_Client" ("address", "city", "code", "codiceFiscale", "codiceSDI", "createdAt", "email", "id", "isArchived", "partitaIva", "pec", "postalCode", "province", "ragioneSociale", "updatedAt") SELECT "address", "city", "code", "codiceFiscale", "codiceSDI", "createdAt", "email", "id", "isArchived", "partitaIva", "pec", "postalCode", "province", "ragioneSociale", "updatedAt" FROM "Client";
 DROP TABLE "Client";

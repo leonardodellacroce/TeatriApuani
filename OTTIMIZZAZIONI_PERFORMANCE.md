@@ -97,4 +97,18 @@ Nota: nel nome host aggiungi `-pooler` subito prima di `.aws.neon.tech`.
 | 1 | Usare DATABASE_URL con connection pooling Neon | Facile |
 | 2 | Regione Vercel su Frankfurt (fra1) – già in vercel.json | Fatto |
 | 3 | Parallelizzare fetch dove sono ancora sequenziali | Media |
-| 4 | Creare API unificata per conflitti assegnamenti (N+1) | Media |
+| 4 | Creare API unificata per conflitti assegnamenti (N+1) | Fatto |
+| 5 | Connection string: aggiungere connect_timeout=15 | Facile |
+| 6 | Indici database (Workday.date, TaskType.type, Event.startDate) | Fatto |
+
+---
+
+## Connection string – connect_timeout
+
+Aggiungi `connect_timeout=15` alla DATABASE_URL per dare più tempo alla connessione durante i cold start:
+
+```
+postgresql://user:pass@host/dbname?sslmode=require&connect_timeout=15
+```
+
+In Vercel: Settings → Environment Variables → modifica `DATABASE_URL` aggiungendo `&connect_timeout=15` alla fine.

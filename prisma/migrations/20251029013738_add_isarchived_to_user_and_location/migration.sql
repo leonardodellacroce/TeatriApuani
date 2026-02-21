@@ -11,8 +11,8 @@ CREATE TABLE "new_Location" (
     "postalCode" TEXT,
     "color" TEXT,
     "isArchived" BOOLEAN NOT NULL DEFAULT false,
-    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" DATETIME NOT NULL
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL
 );
 INSERT INTO "new_Location" ("address", "city", "code", "color", "createdAt", "id", "name", "postalCode", "province", "updatedAt") SELECT "address", "city", "code", "color", "createdAt", "id", "name", "postalCode", "province", "updatedAt" FROM "Location";
 DROP TABLE "Location";
@@ -23,7 +23,7 @@ CREATE TABLE "new_User" (
     "code" TEXT NOT NULL,
     "name" TEXT,
     "email" TEXT NOT NULL,
-    "emailVerified" DATETIME,
+    "emailVerified" TIMESTAMP(3),
     "password" TEXT NOT NULL,
     "image" TEXT,
     "role" TEXT,
@@ -38,8 +38,8 @@ CREATE TABLE "new_User" (
     "codiceFiscale" TEXT,
     "areas" TEXT,
     "roles" TEXT,
-    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" DATETIME NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
     CONSTRAINT "User_companyId_fkey" FOREIGN KEY ("companyId") REFERENCES "Company" ("id") ON DELETE SET NULL ON UPDATE CASCADE
 );
 INSERT INTO "new_User" ("areas", "code", "codiceFiscale", "cognome", "companyId", "createdAt", "email", "emailVerified", "id", "image", "isActive", "isAdmin", "isCoordinatore", "isResponsabile", "isSuperAdmin", "name", "password", "role", "roles", "updatedAt") SELECT "areas", "code", "codiceFiscale", "cognome", "companyId", "createdAt", "email", "emailVerified", "id", "image", "isActive", "isAdmin", "isCoordinatore", "isResponsabile", "isSuperAdmin", "name", "password", "role", "roles", "updatedAt" FROM "User";

@@ -16,8 +16,8 @@ CREATE TABLE "new_Company" (
     "codiceSDI" TEXT,
     "email" TEXT,
     "pec" TEXT,
-    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" DATETIME NOT NULL
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL
 );
 
 -- Assegna codici progressivi alle aziende esistenti
@@ -52,8 +52,8 @@ CREATE TABLE "new_Location" (
     "city" TEXT,
     "province" TEXT,
     "postalCode" TEXT,
-    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" DATETIME NOT NULL
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL
 );
 
 -- Assegna codici progressivi alle location esistenti

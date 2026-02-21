@@ -5,8 +5,8 @@ CREATE TABLE "DocTemplate" (
     "description" TEXT,
     "pageSettings" TEXT NOT NULL,
     "blocksJson" TEXT NOT NULL,
-    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" DATETIME NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
     "createdBy" TEXT,
     "isArchived" BOOLEAN NOT NULL DEFAULT false
 );
@@ -19,9 +19,9 @@ CREATE TABLE "DocInstance" (
     "dataJson" TEXT NOT NULL,
     "pdfUrl" TEXT,
     "status" TEXT NOT NULL DEFAULT 'DRAFT',
-    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" DATETIME NOT NULL,
-    "signedAt" DATETIME,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+    "signedAt" TIMESTAMP(3),
     "signedBy" TEXT
 );
 

@@ -284,3 +284,5 @@ Lavori in Cursor come sempre. Quando hai finito: `git add .` → `git commit -m 
 
 **Se qualcosa non funziona?**  
 Controlla che `DATABASE_URL` e `NEXTAUTH_URL` in Vercel siano corretti. `NEXTAUTH_URL` deve essere esattamente l’URL del sito (con `https://`).
+
+**Performance – connection string:** Aggiungi `&connect_timeout=15` alla `DATABASE_URL` in Vercel per gestire meglio i cold start del database.

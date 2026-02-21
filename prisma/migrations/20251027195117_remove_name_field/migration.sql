@@ -19,8 +19,8 @@ CREATE TABLE "new_Company" (
     "codiceSDI" TEXT,
     "email" TEXT,
     "pec" TEXT,
-    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" DATETIME NOT NULL
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL
 );
 INSERT INTO "new_Company" ("address", "city", "codiceFiscale", "codiceSDI", "createdAt", "email", "id", "partitaIva", "pec", "postalCode", "province", "ragioneSociale", "updatedAt") SELECT "address", "city", "codiceFiscale", "codiceSDI", "createdAt", "email", "id", "partitaIva", "pec", "postalCode", "province", "ragioneSociale", "updatedAt" FROM "Company";
 DROP TABLE "Company";

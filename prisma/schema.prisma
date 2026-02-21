@@ -128,6 +128,8 @@ model Event {
   createdAt   DateTime   @default(now())
   updatedAt   DateTime   @updatedAt
   workdays    Workday[]
+
+  @@index([startDate])
 }
 
 model Workday {
@@ -151,6 +153,7 @@ model Workday {
   
   @@index([eventId])
   @@index([locationId])
+  @@index([date])
 }
 
 model TaskType {
@@ -167,6 +170,7 @@ model TaskType {
   assignments     Assignment[]
 
   @@unique([name, type])
+  @@index([type])
 }
 
 model Assignment {

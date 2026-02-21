@@ -6,12 +6,12 @@ CREATE TABLE "new_Event" (
     "title" TEXT NOT NULL,
     "clientName" TEXT,
     "locationId" TEXT,
-    "startDate" DATETIME NOT NULL,
-    "endDate" DATETIME NOT NULL,
+    "startDate" TIMESTAMP(3) NOT NULL,
+    "endDate" TIMESTAMP(3) NOT NULL,
     "notes" TEXT,
     "isClosed" BOOLEAN NOT NULL DEFAULT false,
-    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" DATETIME NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
     CONSTRAINT "Event_locationId_fkey" FOREIGN KEY ("locationId") REFERENCES "Location" ("id") ON DELETE SET NULL ON UPDATE CASCADE
 );
 INSERT INTO "new_Event" ("clientName", "createdAt", "endDate", "id", "locationId", "notes", "startDate", "title", "updatedAt") SELECT "clientName", "createdAt", "endDate", "id", "locationId", "notes", "startDate", "title", "updatedAt" FROM "Event";
