@@ -233,11 +233,13 @@ Le "variabili d’ambiente" sono dati che il sito deve conoscere (es. dove trova
 
 | Nome (Name) | Valore (Value) |
 |-------------|----------------|
-| `DATABASE_URL` | Incolla la connection string di **appteatri-prod** (quella per il sito online) |
+| `DATABASE_URL` | Incolla la connection string di **appteatri-prod** con **Connection pooling** attivato (vedi sotto) |
 | `NEXTAUTH_SECRET` | La stessa stringa che hai messo in `.env.local` (quella generata con `openssl rand -base64 32`) |
 | `NEXTAUTH_URL` | Per ora lascia vuoto o scrivi `https://appteatri.vercel.app` – lo sistemeremo dopo |
 
-4. Clicca **"Deploy"**
+4. **Importante per le performance:** usa la connection string con **Connection pooling**. In Neon Console, quando copi la connection string, clicca su **"Connection pooling"** (o aggiungi `-pooler` al nome host, es. `ep-xxx-123456-pooler.eu-central-1.aws.neon.tech`). Senza pooling il sito sarà molto lento online.
+
+5. Clicca **"Deploy"**
 
 ### Passo 4.4 – Attendere il deploy
 
@@ -252,6 +254,12 @@ Le "variabili d’ambiente" sono dati che il sito deve conoscere (es. dove trova
 3. Nel menu a sinistra clicca **"Environment Variables"**
 4. Trova `NEXTAUTH_URL` e modificala: metti **esattamente** l’URL del tuo sito (es. `https://appteatri-xyz123.vercel.app`)
 5. Vai su **"Deployments"**, clicca sui tre puntini del deploy più recente e scegli **"Redeploy"**
+
+### Passo 4.6 – Regione Vercel (performance)
+
+Per ridurre la latenza verso il database Neon (Frankfurt), le funzioni Vercel sono configurate per girare a **Frankfurt** (`fra1`). Il file `vercel.json` contiene già `"regions": ["fra1"]`.
+
+Se hai creato il progetto prima di questa modifica, assicurati di fare un **Redeploy** dopo aver pushato il codice aggiornato, così Vercel userà la nuova regione.
 
 ---
 

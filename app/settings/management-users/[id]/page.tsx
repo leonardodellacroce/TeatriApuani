@@ -174,7 +174,7 @@ export default function EditUserPage() {
           isActive: data.isActive !== undefined ? data.isActive : true,
           isWorker: data.isWorker || false,
           codiceFiscale: data.codiceFiscale || "",
-          companyId: data.company?.id || null,
+          companyId: data.company?.id || "",
         };
         setFormData(initialData);
         setOriginalData(initialData);
@@ -750,7 +750,7 @@ export default function EditUserPage() {
               <select
                 id="companyId"
                 name="companyId"
-                value={formData.companyId}
+                value={formData.companyId ?? ""}
                 onChange={handleChange}
                 required
                 className="w-full px-4 py-2 h-10 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-gray-500 focus:border-transparent"

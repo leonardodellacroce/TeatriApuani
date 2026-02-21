@@ -44,6 +44,10 @@ function toISODate(d: Date) {
   return `${year}-${month}-${day}`;
 }
 
+function getGroupDateKey(dateStr: string) {
+  return dateStr ? toISODate(new Date(dateStr)) : "";
+}
+
 export default function MyShiftsPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
@@ -140,21 +144,21 @@ export default function MyShiftsPage() {
   }, []);
   const todayGroups = useMemo(() => {
     return groups
-      .filter((g) => (g.date || "").split("T")[0] === todayKey)
+      .filter((g) => getGroupDateKey(g.date) === todayKey)
       .slice()
       .sort(compareGroupDateAsc);
   }, [groups, todayKey, compareGroupDateAsc]);
   const futureGroups = useMemo(() => {
     // Futuro: più vicino ad oggi in alto (data crescente)
     return groups
-      .filter((g) => (g.date || "").split("T")[0] > todayKey)
+      .filter((g) => getGroupDateKey(g.date) > todayKey)
       .slice()
       .sort(compareGroupDateAsc);
   }, [groups, todayKey, compareGroupDateAsc]);
   const pastGroups = useMemo(() => {
     // Passato: più vicino ad oggi in alto (data decrescente)
     return groups
-      .filter((g) => (g.date || "").split("T")[0] < todayKey)
+      .filter((g) => getGroupDateKey(g.date) < todayKey)
       .slice()
       .sort(compareGroupDateDesc);
   }, [groups, todayKey, compareGroupDateDesc]);

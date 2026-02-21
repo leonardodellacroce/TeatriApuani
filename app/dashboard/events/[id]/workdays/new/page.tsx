@@ -136,7 +136,7 @@ export default function NewWorkdayPage() {
     const target = toUtcDayStart(new Date(dateStr));
     const diffMs = target.getTime() - start.getTime();
     const ordinal = Math.floor(diffMs / (24 * 60 * 60 * 1000)) + 1;
-    return ordinal;
+    return Math.max(1, ordinal); // Mai mostrare 0: prima giornata = Giornata 1
   };
 
   const isDateDuplicate = (date: string, index: number) => {
@@ -376,7 +376,7 @@ export default function NewWorkdayPage() {
                   <div key={existingWorkday.id} className="border border-gray-300 rounded-lg p-4 bg-gray-50 opacity-75">
                     <div className="flex justify-between items-center mb-2">
                       <span className="text-sm font-medium text-gray-700">
-                        {`Giornata ${getOrdinalFromDateString(new Date(existingWorkday.date).toISOString().split('T')[0])} (già creata)`}
+                        {`Giornata ${getOrdinalFromDateString(new Date(existingWorkday.date).toISOString().split('T')[0]) ?? idx + 1} (già creata)`}
                       </span>
                     </div>
                     <div className="space-y-2">

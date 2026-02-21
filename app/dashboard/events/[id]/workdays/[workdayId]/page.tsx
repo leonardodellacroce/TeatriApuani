@@ -170,7 +170,7 @@ export default function WorkdayViewPage() {
 
   const checkAllUsersForConflicts = async (users: any[], assignment: any) => {
     const wdDate = (workday as any)?.date ? new Date((workday as any).date) : null;
-    if (!wdDate || !assignment?.startTime || !assignment?.endTime) return;
+    if (!wdDate || !assignment?.startTime || !assignment?.endTime || users.length === 0) return;
     
     const yyyy = wdDate.getUTCFullYear();
     const mm = String(wdDate.getUTCMonth() + 1).padStart(2, '0');
@@ -187,33 +187,39 @@ export default function WorkdayViewPage() {
     const currentLocName = (workday as any)?.location?.name || '';
     const reasons: Record<string, string> = {};
     
-    // Controlla ogni utente
-    for (const user of users) {
-      try {
-        const res = await fetch(`/api/assignments?userId=${encodeURIComponent(user.id)}&date=${dateStr}`);
-        if (res.ok) {
-          const others: Array<{ workdayId: string; locationName: string; eventTitle: string; startTime: string; endTime: string }> = await res.json();
-          const candidates = others.filter(o => 
-            o.workdayId !== assignment?.workdayId && 
-            o.locationName && 
-            o.locationName !== currentLocName
-          );
-          
-          for (const o of candidates) {
-            const os = t2m(o.startTime); 
-            let oe = t2m(o.endTime); 
-            if (oe <= os) oe += 1440;
-            if (Math.max(sM, os) < Math.min(eM, oe)) {
-              reasons[user.id] = `In turno presso ${o.locationName} per l'evento "${o.eventTitle}" nello stesso orario`;
-              break;
-            }
+    try {
+      const userIds = users.map((u) => u.id).join(",");
+      const res = await fetch(`/api/assignments?userIds=${encodeURIComponent(userIds)}&date=${dateStr}`);
+      if (!res.ok) return;
+      const all: Array<{ userId?: string; workdayId: string; locationName: string; eventTitle: string; startTime: string; endTime: string }> = await res.json();
+      const byUser = new Map<string, typeof all>();
+      for (const o of all) {
+        const uid = o.userId;
+        if (uid) {
+          if (!byUser.has(uid)) byUser.set(uid, []);
+          byUser.get(uid)!.push(o);
+        }
+      }
+      for (const user of users) {
+        const others = byUser.get(user.id) || [];
+        const candidates = others.filter(o => 
+          o.workdayId !== assignment?.workdayId && 
+          o.locationName && 
+          o.locationName !== currentLocName
+        );
+        for (const o of candidates) {
+          const os = t2m(o.startTime); 
+          let oe = t2m(o.endTime); 
+          if (oe <= os) oe += 1440;
+          if (Math.max(sM, os) < Math.min(eM, oe)) {
+            reasons[user.id] = `In turno presso ${o.locationName} per l'evento "${o.eventTitle}" nello stesso orario`;
+            break;
           }
         }
-      } catch (e) {
-        console.error('Error checking user conflicts:', user.id, e);
       }
+    } catch (e) {
+      console.error('Error checking user conflicts:', e);
     }
-    
     setUserDisableReasons(reasons);
   };
 

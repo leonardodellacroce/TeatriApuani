@@ -127,6 +127,7 @@ export async function validateShiftWithinActivities(
 }
 
 // GET /api/assignments?userId=...&date=YYYY-MM-DD
+// GET /api/assignments?userIds=id1,id2,id3&date=YYYY-MM-DD  (batch: evita N+1)
 export async function GET(req: NextRequest) {
   const session = await auth();
   if (!session?.user) {
@@ -136,11 +137,18 @@ export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
     const userId = searchParams.get("userId");
+    const userIdsParam = searchParams.get("userIds");
     const dateStr = searchParams.get("date");
 
-    if (!userId || !dateStr) {
+    const userIds: string[] = userId
+      ? [userId]
+      : userIdsParam
+        ? userIdsParam.split(",").map((id) => id.trim()).filter(Boolean)
+        : [];
+
+    if (userIds.length === 0 || !dateStr) {
       return NextResponse.json(
-        { error: "Missing userId or date" },
+        { error: "Missing userId/userIds and date" },
         { status: 400 }
       );
     }
@@ -165,18 +173,23 @@ export async function GET(req: NextRequest) {
     const wdIds = workdays.map((w) => w.id);
     if (wdIds.length === 0) return NextResponse.json([]);
 
+    // Condizione OR per ogni userId (assignedUsers contiene userId O userId diretto)
+    const userConditions = userIds.flatMap((uid) => [
+      { assignedUsers: { contains: uid } },
+      { userId: uid },
+    ]);
+
     const assignments = await prisma.assignment.findMany({
       where: {
         workdayId: { in: wdIds },
         taskType: { is: { type: "SHIFT" } },
-        OR: [
-          { assignedUsers: { contains: userId } },
-          { userId: userId },
-        ],
+        OR: userConditions,
       },
       select: {
         id: true,
         workdayId: true,
+        userId: true,
+        assignedUsers: true,
         startTime: true,
         endTime: true,
         area: true,
@@ -190,15 +203,37 @@ export async function GET(req: NextRequest) {
       mapEvent[w.id] = (w as any).event?.title || "";
     });
 
-    const result = assignments.map((a) => ({
-      id: a.id,
-      workdayId: a.workdayId,
-      locationName: mapLoc[a.workdayId] || "",
-      eventTitle: mapEvent[a.workdayId] || "",
-      startTime: a.startTime,
-      endTime: a.endTime,
-      area: a.area,
-    }));
+    const userIdSet = new Set(userIds);
+    const result: Array<{ userId?: string; id: string; workdayId: string; locationName: string; eventTitle: string; startTime: string | null; endTime: string | null; area: string | null }> = [];
+
+    for (const a of assignments) {
+      const base = {
+        id: a.id,
+        workdayId: a.workdayId,
+        locationName: mapLoc[a.workdayId] || "",
+        eventTitle: mapEvent[a.workdayId] || "",
+        startTime: a.startTime,
+        endTime: a.endTime,
+        area: a.area,
+      };
+      const assigned: string[] = [];
+      if (a.userId && userIdSet.has(a.userId)) assigned.push(a.userId);
+      if (a.assignedUsers) {
+        try {
+          const parsed = JSON.parse(a.assignedUsers);
+          if (Array.isArray(parsed)) {
+            for (const u of parsed) {
+              const uid = typeof u === "string" ? u : u?.userId;
+              if (uid && userIdSet.has(uid) && !assigned.includes(uid)) assigned.push(uid);
+            }
+          }
+        } catch {}
+      }
+      if (assigned.length === 0) continue;
+      for (const uid of assigned) {
+        result.push({ userId: uid, ...base });
+      }
+    }
 
     return NextResponse.json(result);
   } catch (e) {
