@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useRouter, useParams } from "next/navigation";
 import DashboardShell from "@/components/DashboardShell";
+import PageSkeleton from "@/components/PageSkeleton";
 import ConfirmEditDialog from "@/components/ConfirmEditDialog";
 import ConfirmDialog from "@/components/ConfirmDialog";
 import AreasRolesSelector from "@/components/AreasRolesSelector";
@@ -474,13 +475,7 @@ export default function EditUserPage() {
   };
 
   if (fetching || !user) {
-    return (
-      <DashboardShell>
-        <div className="flex items-center justify-center h-64">
-          <p>Caricamento...</p>
-        </div>
-      </DashboardShell>
-    );
+    return <PageSkeleton />;
   }
 
   return (

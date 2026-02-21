@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import DashboardShell from "@/components/DashboardShell";
+import PageSkeleton from "@/components/PageSkeleton";
 import ConfirmDialog from "@/components/ConfirmDialog";
 
 interface Client {
@@ -178,13 +179,7 @@ export default function ClientsPage() {
   };
 
   if (loading) {
-    return (
-      <DashboardShell>
-        <div className="flex items-center justify-center h-64">
-          <p>Caricamento...</p>
-        </div>
-      </DashboardShell>
-    );
+    return <PageSkeleton />;
   }
 
   return (

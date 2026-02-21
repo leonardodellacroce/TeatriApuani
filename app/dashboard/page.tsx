@@ -1,6 +1,7 @@
 "use client";
 
 import DashboardShell from "@/components/DashboardShell";
+import PageSkeleton from "@/components/PageSkeleton";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -34,11 +35,7 @@ export default function Dashboard() {
   }, []);
 
   if (status === "loading") {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <p>Caricamento...</p>
-      </div>
-    );
+    return <PageSkeleton />;
   }
 
   if (!session) {

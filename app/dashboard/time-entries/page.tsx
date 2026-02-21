@@ -6,6 +6,7 @@ import { useSession } from "next-auth/react";
 import { getWorkModeCookie } from "@/lib/workMode";
 import { useRouter } from "next/navigation";
 import DashboardShell from "@/components/DashboardShell";
+import PageSkeleton from "@/components/PageSkeleton";
 import ConfirmDialog from "@/components/ConfirmDialog";
 
 interface TimeEntry {
@@ -521,13 +522,7 @@ export default function TimeEntriesPage() {
   const sortedGroupsWithOnlyTimeEntries = groupsWithOnlyTimeEntries.slice().sort(compareGroupsByProximityToToday);
 
   if (status === "loading" || loading) {
-    return (
-      <DashboardShell>
-        <div className="flex items-center justify-center h-64">
-          <p>Caricamento...</p>
-        </div>
-      </DashboardShell>
-    );
+    return <PageSkeleton />;
   }
 
   return (

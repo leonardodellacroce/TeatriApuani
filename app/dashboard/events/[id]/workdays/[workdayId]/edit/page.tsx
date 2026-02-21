@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { useSession } from "next-auth/react";
 import DashboardShell from "@/components/DashboardShell";
+import PageSkeleton from "@/components/PageSkeleton";
 import ConfirmDialog from "@/components/ConfirmDialog";
 import { getWorkModeCookie } from "@/lib/workMode";
 
@@ -217,13 +218,7 @@ export default function EditWorkdayPage() {
   };
 
   if (loadingData) {
-    return (
-      <DashboardShell>
-        <div className="flex items-center justify-center h-64">
-          <p>Caricamento dati...</p>
-        </div>
-      </DashboardShell>
-    );
+    return <PageSkeleton />;
   }
 
   if (!workday) {

@@ -201,7 +201,10 @@ export default function MyShiftsPage() {
         </div>
 
         {loading ? (
-          <div className="p-8 text-center text-gray-500">Caricamento...</div>
+          <div className="p-8 animate-pulse space-y-2">
+            <div className="h-4 bg-gray-200 rounded w-1/3 mx-auto" />
+            <div className="h-4 bg-gray-200 rounded w-1/4 mx-auto" />
+          </div>
         ) : tableGroups.length === 0 ? (
           <div className="p-8 text-center text-gray-500">{emptyText}</div>
         ) : (

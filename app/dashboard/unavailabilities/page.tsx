@@ -5,6 +5,7 @@ import { useSession } from "next-auth/react";
 import { getWorkModeCookie } from "@/lib/workMode";
 import { useRouter } from "next/navigation";
 import DashboardShell from "@/components/DashboardShell";
+import PageSkeleton from "@/components/PageSkeleton";
 import ConfirmDialog from "@/components/ConfirmDialog";
 import { formatUserName, type UserLike } from "@/lib/formatUserName";
 
@@ -392,13 +393,7 @@ export default function UnavailabilitiesPage() {
   };
 
   if (status === "loading" || !session) {
-    return (
-      <DashboardShell>
-        <div className="flex items-center justify-center h-64">
-          <p>Caricamento...</p>
-        </div>
-      </DashboardShell>
-    );
+    return <PageSkeleton />;
   }
 
   return (
@@ -590,7 +585,10 @@ export default function UnavailabilitiesPage() {
         )}
 
         {loading ? (
-          <p>Caricamento...</p>
+          <div className="py-6 animate-pulse space-y-2">
+            <div className="h-4 bg-gray-200 rounded w-1/3" />
+            <div className="h-4 bg-gray-200 rounded w-1/4" />
+          </div>
         ) : list.length === 0 ? (
           <p className="text-gray-500">Nessuna indisponibilità registrata.</p>
         ) : (

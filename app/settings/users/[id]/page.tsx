@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { useSession } from "next-auth/react";
 import DashboardShell from "@/components/DashboardShell";
+import PageSkeleton from "@/components/PageSkeleton";
 import AreasRolesSelector from "@/components/AreasRolesSelector";
 import ConfirmEditDialog from "@/components/ConfirmEditDialog";
 import ConfirmDialog from "@/components/ConfirmDialog";
@@ -435,13 +436,7 @@ export default function EditUserPage() {
   };
 
   if (fetching || !user) {
-    return (
-      <DashboardShell>
-        <div className="flex items-center justify-center h-64">
-          <p>Caricamento...</p>
-        </div>
-      </DashboardShell>
-    );
+    return <PageSkeleton />;
   }
 
   const isSuperAdmin = session?.user?.role === "SUPER_ADMIN";

@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import DashboardShell from "@/components/DashboardShell";
+import PageSkeleton from "@/components/PageSkeleton";
 import AreasRolesSelector from "@/components/AreasRolesSelector";
 import { UserRoles } from "@/lib/areas-roles";
 
@@ -330,13 +331,7 @@ export default function NewUserPage() {
   };
 
   if (fetching) {
-    return (
-      <DashboardShell>
-        <div className="flex items-center justify-center h-64">
-          <p>Caricamento aziende...</p>
-        </div>
-      </DashboardShell>
-    );
+    return <PageSkeleton />;
   }
 
   return (

@@ -35,7 +35,10 @@ export default function ChangePasswordPage() {
   if (status === "loading") {
     return (
       <div className="min-h-screen bg-white flex items-center justify-center">
-        <p>Caricamento...</p>
+        <div className="animate-pulse flex flex-col items-center gap-3">
+          <div className="h-6 w-32 bg-gray-200 rounded" />
+          <div className="h-4 w-24 bg-gray-100 rounded" />
+        </div>
       </div>
     );
   }
