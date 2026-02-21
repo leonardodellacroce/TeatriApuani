@@ -585,10 +585,7 @@ export default function UnavailabilitiesPage() {
         )}
 
         {loading ? (
-          <div className="py-6 animate-pulse space-y-2">
-            <div className="h-4 bg-gray-200 rounded w-1/3" />
-            <div className="h-4 bg-gray-200 rounded w-1/4" />
-          </div>
+          <p className="py-6 text-gray-400 text-sm">...</p>
         ) : list.length === 0 ? (
           <p className="text-gray-500">Nessuna indisponibilità registrata.</p>
         ) : (
