@@ -717,6 +717,7 @@ export default function EventsPage() {
   const router = useRouter();
   const { data: session } = useSession();
   const [areaNamesMap, setAreaNamesMap] = useState<Record<string, string>>({});
+  const [allAreas, setAllAreas] = useState<Array<{ id: string; name: string; enabledInWorkdayPlanning?: boolean }>>([]);
   const [events, setEvents] = useState<Event[]>([]);
   const [dutyIdToName, setDutyIdToName] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
@@ -756,48 +757,7 @@ export default function EventsPage() {
   } | null>(null);
 
   useEffect(() => {
-    fetchEvents();
-    // carica mappa aree per associare id -> nome come nella pagina workdays
-    (async () => {
-      try {
-        const res = await fetch('/api/areas');
-        if (res.ok) {
-          const data = await res.json();
-          const map: Record<string, string> = {};
-          (Array.isArray(data) ? data : data?.areas || []).forEach((a: any) => {
-            if (a?.id && a?.name) map[a.id] = a.name;
-          });
-          setAreaNamesMap(map);
-        }
-      } catch {}
-    })();
-    // carica mappa mansioni per tooltip personale
-    (async () => {
-      try {
-        const res = await fetch('/api/duties');
-        if (res.ok) {
-          const data = await res.json();
-          const map: Record<string, string> = {};
-          (Array.isArray(data) ? data : data?.duties || []).forEach((d: any) => {
-            const id = d?.id;
-            const name = d?.name;
-            const code = d?.code;
-            if (id && name) {
-              map[id] = name;
-            }
-            if (name) {
-              map[name] = name;
-              if (typeof name === 'string') map[name.toLowerCase()] = name;
-            }
-            if (code && name) {
-              map[code] = name;
-              if (typeof code === 'string') map[code.toLowerCase()] = name;
-            }
-          });
-          setDutyIdToName(map);
-        }
-      } catch {}
-    })();
+    fetchEventsWithMeta();
   }, []);
 
   // Carica indisponibilità per vista Programma (solo admin)
@@ -817,25 +777,17 @@ export default function EventsPage() {
       .catch(() => setProgrammaUnavailabilities([]));
   }, [showPersoneMancanti, viewMode, programmaMonth]);
 
-  // Carica aree per vista Programma: admin = tutte abilitate, standard = solo quelle dell'utente
+  // Deriva aree per vista Programma da allAreas (già caricate con with-meta)
   useEffect(() => {
-    (async () => {
-      try {
-        const res = await fetch("/api/areas");
-        if (!res.ok) return;
-        const allAreas: Array<{ id: string; name: string; enabledInWorkdayPlanning?: boolean }> = await res.json();
-        const enabledAreas = (Array.isArray(allAreas) ? allAreas : []).filter(
-          (a) => a?.id && a?.name && (a.enabledInWorkdayPlanning === true || a.enabledInWorkdayPlanning === undefined)
-        );
-        if (canSeeAllEvents) {
-          setProgrammaAreasToShow(enabledAreas.map((a) => ({ id: a.id, name: a.name })));
-        } else {
-          const meRes = await fetch("/api/users/me");
-          if (!meRes.ok) {
-            setProgrammaAreasToShow([]);
-            return;
-          }
-          const me = await meRes.json();
+    const enabledAreas = allAreas.filter(
+      (a) => a?.id && a?.name && (a.enabledInWorkdayPlanning === true || a.enabledInWorkdayPlanning === undefined)
+    );
+    if (canSeeAllEvents) {
+      setProgrammaAreasToShow(enabledAreas.map((a) => ({ id: a.id, name: a.name })));
+    } else if (enabledAreas.length > 0) {
+      fetch("/api/users/me")
+        .then((r) => (r.ok ? r.json() : null))
+        .then((me) => {
           let userAreaNames: string[] = [];
           if (me?.areas) {
             try {
@@ -845,12 +797,12 @@ export default function EventsPage() {
           }
           const filtered = enabledAreas.filter((a) => userAreaNames.includes(a.name));
           setProgrammaAreasToShow(filtered.map((a) => ({ id: a.id, name: a.name })));
-        }
-      } catch {
-        setProgrammaAreasToShow([]);
-      }
-    })();
-  }, [canSeeAllEvents]);
+        })
+        .catch(() => setProgrammaAreasToShow([]));
+    } else {
+      setProgrammaAreasToShow([]);
+    }
+  }, [canSeeAllEvents, allAreas]);
 
   // Chiudi il dropdown quando si clicca fuori
   useEffect(() => {
@@ -868,12 +820,35 @@ export default function EventsPage() {
     }
   }, [showClientDropdown]);
 
-  const fetchEvents = async () => {
+  const fetchEventsWithMeta = async () => {
     try {
-      const res = await fetch("/api/events");
+      const res = await fetch("/api/events/with-meta");
       if (res.ok) {
-        const data = await res.json();
-        setEvents(data);
+        const { events: evts, areas: areasList, duties: dutiesList } = await res.json();
+        setEvents(evts || []);
+        const areasArr = Array.isArray(areasList) ? areasList : [];
+        setAllAreas(areasArr);
+        const areaMap: Record<string, string> = {};
+        areasArr.forEach((a: any) => {
+          if (a?.id && a?.name) areaMap[a.id] = a.name;
+        });
+        setAreaNamesMap(areaMap);
+        const dutyMap: Record<string, string> = {};
+        (Array.isArray(dutiesList) ? dutiesList : []).forEach((d: any) => {
+          const id = d?.id;
+          const name = d?.name;
+          const code = d?.code;
+          if (id && name) dutyMap[id] = name;
+          if (name) {
+            dutyMap[name] = name;
+            if (typeof name === "string") dutyMap[name.toLowerCase()] = name;
+          }
+          if (code && name) {
+            dutyMap[code] = name;
+            if (typeof code === "string") dutyMap[code.toLowerCase()] = name;
+          }
+        });
+        setDutyIdToName(dutyMap);
       }
     } catch (error) {
       console.error("Error fetching events:", error);

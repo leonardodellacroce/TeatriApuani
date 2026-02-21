@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { revalidateTag } from "next/cache";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 
@@ -116,7 +117,9 @@ export async function PATCH(
       where: { id },
       data: updateData,
     });
-    
+
+    revalidateTag("areas", "max");
+
     console.log("Area updated successfully:", updatedArea);
     
     // Se il prefisso è cambiato, aggiorna tutti i codici delle mansioni di quest'area
@@ -153,6 +156,7 @@ export async function PATCH(
       }
       
       console.log(`Completed updating duty codes for area ${currentArea.name}`);
+      revalidateTag("duties", "max");
     }
 
     return NextResponse.json(updatedArea);
@@ -196,6 +200,9 @@ export async function DELETE(
     await prisma.area.delete({
       where: { id },
     });
+
+    revalidateTag("areas", "max");
+    revalidateTag("duties", "max");
 
     return NextResponse.json({ success: true });
   } catch (error) {

@@ -1,6 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
+import { unstable_cache, revalidateTag } from "next/cache";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
+
+const getCachedAreas = unstable_cache(
+  async () => {
+    return prisma.area.findMany({
+      orderBy: { createdAt: "desc" },
+    });
+  },
+  ["areas-list"],
+  { revalidate: 120, tags: ["areas"] }
+);
 
 // GET /api/areas
 export async function GET() {
@@ -11,9 +22,7 @@ export async function GET() {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const areas = await prisma.area.findMany({
-      orderBy: { createdAt: "desc" },
-    });
+    const areas = await getCachedAreas();
 
     return NextResponse.json(areas);
   } catch (error) {
@@ -88,6 +97,8 @@ export async function POST(req: NextRequest) {
         enabledInWorkdayPlanning: enabledInWorkdayPlanning === true,
       },
     });
+
+    revalidateTag("areas", "max");
 
     return NextResponse.json(area, { status: 201 });
   } catch (error) {

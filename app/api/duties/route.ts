@@ -1,7 +1,22 @@
 import { NextRequest, NextResponse } from "next/server";
+import { unstable_cache, revalidateTag } from "next/cache";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { isAdmin } from "@/lib/authz";
+
+function getCachedDuties(area: string | null) {
+  return unstable_cache(
+    async () => {
+      const where = area ? { area } : {};
+      return prisma.duty.findMany({
+        where,
+        orderBy: { createdAt: "desc" },
+      });
+    },
+    ["duties-list", area ?? "all"],
+    { revalidate: 120, tags: ["duties"] }
+  )();
+}
 
 // GET /api/duties
 export async function GET(req: NextRequest) {
@@ -17,7 +32,7 @@ export async function GET(req: NextRequest) {
     const code = searchParams.get("code");
     const excludeId = searchParams.get("excludeId");
 
-    // If validating a code, return existence boolean
+    // If validating a code, return existence boolean (no cache - validation)
     if (code) {
       const existing = await prisma.duty.findFirst({
         where: {
@@ -29,15 +44,7 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ exists: Boolean(existing) });
     }
 
-    let where: any = {};
-    if (area) {
-      where.area = area;
-    }
-
-    const duties = await prisma.duty.findMany({
-      where,
-      orderBy: { createdAt: "desc" },
-    });
+    const duties = await getCachedDuties(area);
 
     return NextResponse.json(duties);
   } catch (error) {
@@ -108,6 +115,8 @@ export async function POST(req: NextRequest) {
         area,
       },
     });
+
+    revalidateTag("duties", "max");
 
     return NextResponse.json(duty, { status: 201 });
   } catch (error) {

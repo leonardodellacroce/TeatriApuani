@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { revalidateTag } from "next/cache";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { isAdmin } from "@/lib/authz";
@@ -121,6 +122,8 @@ export async function PATCH(
       data: updateData,
     });
 
+    revalidateTag("duties", "max");
+
     return NextResponse.json(duty);
   } catch (error) {
     console.error("Error updating duty:", error);
@@ -155,6 +158,8 @@ export async function DELETE(
     await prisma.duty.delete({
       where: { id },
     });
+
+    revalidateTag("duties", "max");
 
     return NextResponse.json({ success: true });
   } catch (error) {

@@ -75,117 +75,45 @@ export default function EventDetailPage() {
   const isAdminOrSuperAdmin = ["SUPER_ADMIN", "ADMIN"].includes(session?.user?.role || "");
 
   useEffect(() => {
-    fetchEvent();
-    // carica mappa aree id->nome per messaggi
-    (async () => {
-      try {
-        const res = await fetch('/api/areas');
-        if (res.ok) {
-          const data = await res.json();
-          const map: Record<string, string> = {};
-          (Array.isArray(data) ? data : data?.areas || []).forEach((a: any) => {
-            if (a?.id && a?.name) map[a.id] = a.name;
-          });
-          setAreaNamesMap(map);
-        }
-      } catch {}
-    })();
-    // carica mappa mansioni id->nome per tooltip personale
-    (async () => {
-      try {
-        const res = await fetch('/api/duties');
-        if (res.ok) {
-          const data = await res.json();
-          const map: Record<string,string> = {};
-          (Array.isArray(data) ? data : data?.duties || []).forEach((d: any) => {
-            const id = d?.id;
-            const name = d?.name;
-            const code = d?.code;
-            if (id && name) {
-              map[id] = name;
-            }
-            if (name) {
-              map[name] = name;
-              if (typeof name === 'string') map[name.toLowerCase()] = name;
-            }
-            if (code && name) {
-              map[code] = name;
-              if (typeof code === 'string') map[code.toLowerCase()] = name;
-            }
-          });
-          setDutyIdToName(map);
-        }
-      } catch {}
-    })();
-    
-    // Controlla il parametro tab nell'URL
-    const tab = searchParams.get('tab');
-    if (tab === 'workdays') {
-      setActiveTab('workdays');
-    } else if (isStandardUser) {
-      // Gli utenti standard possono vedere solo la tab Giornate
-      setActiveTab('workdays');
-    }
-  }, [eventId, searchParams]);
+    const tab = searchParams.get("tab");
+    if (tab === "workdays") setActiveTab("workdays");
+    else if (isStandardUser) setActiveTab("workdays");
+    fetchEventFull();
+  }, [eventId, searchParams, isStandardUser]);
 
-  // Dopo aver caricato l'evento, scarica le mappe dutyId->name specifiche per ogni giornata
-  useEffect(() => {
-    (async () => {
-      const wds = event?.workdays || [];
-      if (!Array.isArray(wds) || wds.length === 0) return;
-      const pairs: Array<[string, Record<string,string>]> = [];
-      await Promise.all(
-        wds.map(async (wd: any) => {
-          try {
-            const res = await fetch(`/api/workdays/${wd.id}`);
-            if (!res.ok) return;
-            const data = await res.json();
-            if (data?.dutyIdToName && typeof data.dutyIdToName === 'object') {
-              pairs.push([wd.id, data.dutyIdToName as Record<string,string>]);
-            }
-          } catch {}
-        })
-      );
-      if (pairs.length > 0) {
-        setDutyMapByWorkday((prev) => {
-          const next = { ...prev };
-          for (const [wid, map] of pairs) next[wid] = map;
-          return next;
-        });
-      }
-    })();
-  }, [event]);
-
-  const fetchEvent = async () => {
+  const fetchEventFull = async () => {
     try {
-      const res = await fetch(`/api/events/${eventId}`);
+      const res = await fetch(`/api/events/${eventId}/full`);
       if (res.ok) {
-        const data = await res.json();
-        setEvent(data);
-        
-        // Carica i nomi dei clienti se ci sono clientIds (solo per admin/responsabili)
-        if (!isStandardUser && data.clientIds) {
-          try {
-            const clientIds = JSON.parse(data.clientIds);
-            if (Array.isArray(clientIds) && clientIds.length > 0) {
-              const clientsRes = await fetch("/api/clients");
-              if (clientsRes.ok) {
-                const allClients = await clientsRes.json();
-                const clientNames = clientIds
-                  .map((id: string) => {
-                    const client = allClients.find((c: any) => c.id === id);
-                    if (!client) return null;
-                    const name = client.ragioneSociale || `${client.nome || ''} ${client.cognome || ''}`.trim();
-                    return name || null;
-                  })
-                  .filter(Boolean);
-                setEventClientsNames(clientNames);
-              }
-            }
-          } catch (e) {
-            console.error("Error parsing clientIds:", e);
+        const { event: evt, areas: areasList, duties: dutiesList, eventClientsNames: clientNames } = await res.json();
+        setEvent(evt);
+        setEventClientsNames(clientNames || []);
+        const areaMap: Record<string, string> = {};
+        (Array.isArray(areasList) ? areasList : []).forEach((a: any) => {
+          if (a?.id && a?.name) areaMap[a.id] = a.name;
+        });
+        setAreaNamesMap(areaMap);
+        const dutyMap: Record<string, string> = {};
+        (Array.isArray(dutiesList) ? dutiesList : []).forEach((d: any) => {
+          const id = d?.id;
+          const name = d?.name;
+          const code = d?.code;
+          if (id && name) dutyMap[id] = name;
+          if (name) {
+            dutyMap[name] = name;
+            if (typeof name === "string") dutyMap[name.toLowerCase()] = name;
           }
-        }
+          if (code && name) {
+            dutyMap[code] = name;
+            if (typeof code === "string") dutyMap[code.toLowerCase()] = name;
+          }
+        });
+        setDutyIdToName(dutyMap);
+        const wdMaps: Record<string, Record<string, string>> = {};
+        (evt?.workdays || []).forEach((wd: any) => {
+          if (wd?.dutyIdToName) wdMaps[wd.id] = wd.dutyIdToName;
+        });
+        setDutyMapByWorkday(wdMaps);
       }
     } catch (error) {
       console.error("Error fetching event:", error);
@@ -219,7 +147,7 @@ export default function EventDetailPage() {
 
       if (res.ok) {
         // Ricarica l'evento per aggiornare le workdays
-        await fetchEvent();
+        await fetchEventFull();
         
         // Se era l'ultima giornata aperta, mostra il prompt per chiudere l'evento
         if (wasLastOpen && !event?.isClosed) {
@@ -249,7 +177,7 @@ export default function EventDetailPage() {
 
       if (res.ok) {
         // Ricarica l'evento per aggiornare le workdays
-        await fetchEvent();
+        await fetchEventFull();
         setToggleTarget(null);
       }
     } catch (error) {
@@ -270,7 +198,7 @@ export default function EventDetailPage() {
       });
 
       if (res.ok) {
-        await fetchEvent();
+        await fetchEventFull();
         setToggleEventTarget(null);
       }
     } catch (error) {
@@ -303,7 +231,7 @@ export default function EventDetailPage() {
       });
 
       if (res.ok) {
-        await fetchEvent();
+        await fetchEventFull();
         setDeleteWorkdayTarget(null);
       }
     } catch (error) {
@@ -324,7 +252,7 @@ export default function EventDetailPage() {
       });
 
       if (res.ok) {
-        await fetchEvent();
+        await fetchEventFull();
         setShowCloseEventPrompt(false);
       }
     } catch (error) {
