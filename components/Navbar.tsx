@@ -48,7 +48,9 @@ export default function Navbar() {
     }
   };
   useEffect(() => {
-    refreshPendingCount();
+    if (!canAccessUsers) return;
+    const t = setTimeout(() => refreshPendingCount(), 1500);
+    return () => clearTimeout(t);
   }, [canAccessUsers, session]);
   useEffect(() => {
     const handler = () => refreshPendingCount();

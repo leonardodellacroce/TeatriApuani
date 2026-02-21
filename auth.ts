@@ -79,23 +79,9 @@ export const { auth, handlers, signIn, signOut } = NextAuth({
         token.mustChangePassword = (user as any).mustChangePassword;
       }
       
-      // Se il token esiste già, aggiorna mustChangePassword e isWorker dal database
-      // (per sessioni esistenti o aggiornamenti dopo modifica utente)
-      if (token.id && !user) {
-        try {
-          const dbUser = await prisma.user.findUnique({
-            where: { id: token.id as string },
-            select: { mustChangePassword: true, isWorker: true },
-          });
-          if (dbUser) {
-            token.mustChangePassword = (dbUser as any).mustChangePassword === true;
-            token.isWorker = (dbUser as any).isWorker === true;
-          }
-        } catch (error) {
-          console.error("Error updating token from database:", error);
-        }
-      }
-      
+      // Nota: non aggiorniamo mustChangePassword/isWorker dal DB ad ogni richiesta
+      // (causava 1 query DB per ogni page load). I valori dal login restano validi
+      // fino al prossimo login. Per forzare aggiornamento: logout + login.
       return token;
     },
     async session({ session, token }) {

@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import Providers from "@/components/Providers";
+import { auth } from "@/auth";
 
 export const viewport: Viewport = {
   width: "device-width",
@@ -21,15 +22,16 @@ export const metadata: Metadata = {
   },
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const session = await auth();
   return (
     <html lang="it" className="light" style={{ colorScheme: "light" }} suppressHydrationWarning>
       <body className="antialiased bg-white text-gray-900">
-        <Providers>{children}</Providers>
+        <Providers session={session}>{children}</Providers>
       </body>
     </html>
   );
