@@ -5,6 +5,7 @@ import { useRouter, useParams, useSearchParams } from "next/navigation";
 import { useSession } from "next-auth/react";
 import DashboardShell from "@/components/DashboardShell";
 import PageSkeleton from "@/components/PageSkeleton";
+import SearchableSelect from "@/components/SearchableSelect";
 import ConfirmDialog from "@/components/ConfirmDialog";
 import ConfirmEditDialog from "@/components/ConfirmEditDialog";
 import { getWorkModeCookie } from "@/lib/workMode";
@@ -53,7 +54,6 @@ export default function EditEventPage() {
   const [clients, setClients] = useState<Client[]>([]);
   const [locations, setLocations] = useState<Location[]>([]);
   const [selectedClients, setSelectedClients] = useState<SelectedClient[]>([{ id: "", name: "" }]);
-  const [openDropdownIndex, setOpenDropdownIndex] = useState<number | null>(null);
   const [calculatedDays, setCalculatedDays] = useState<number | null>(null);
   const [loading, setLoading] = useState(false);
   const [loadingData, setLoadingData] = useState(true);
@@ -258,32 +258,6 @@ export default function EditEventPage() {
     }
   };
 
-  const getFilteredClients = (index: number) => {
-    const currentSearch = selectedClients[index].name.toLowerCase();
-    return clients.filter((client) => {
-      const displayName = getClientDisplayName(client).toLowerCase();
-      return displayName.includes(currentSearch);
-    });
-  };
-
-  const handleClientSelect = (index: number, client: Client) => {
-    const updated = [...selectedClients];
-    updated[index] = {
-      id: client.id,
-      name: getClientDisplayName(client),
-    };
-    console.log('[handleClientSelect] Selected client:', { id: client.id, name: getClientDisplayName(client) });
-    console.log('[handleClientSelect] Updated selectedClients:', updated);
-    setSelectedClients(updated);
-    setOpenDropdownIndex(null);
-  };
-
-  const handleClientChange = (index: number, field: string, value: string) => {
-    const updated = [...selectedClients];
-    updated[index] = { ...updated[index], [field]: value };
-    setSelectedClients(updated);
-  };
-
   const addClientField = () => {
     setSelectedClients([...selectedClients, { id: "", name: "" }]);
   };
@@ -404,7 +378,8 @@ export default function EditEventPage() {
       <div>
         <h1 className="text-3xl font-bold mb-6">Modifica Evento</h1>
 
-        <form onSubmit={handleSubmit} className="max-w-2xl space-y-4">
+        <div className="bg-white rounded-lg shadow p-6 border border-gray-200 mb-6 max-w-xl">
+        <form onSubmit={handleSubmit} className="space-y-4">
           {error && (
             <div className="p-4 bg-red-50 border border-red-200 text-red-700 rounded-lg">
               {error}
@@ -432,36 +407,24 @@ export default function EditEventPage() {
             </label>
             {selectedClients.map((selectedClient, index) => (
               <div key={index} className="flex gap-2 mb-2">
-                <div className="relative flex-1">
-                  <input
-                    type="text"
-                    value={selectedClient.name}
-                    onChange={(e) => {
+                <div className="flex-1">
+                  <SearchableSelect
+                    value={selectedClient.id}
+                    onChange={(val) => {
+                      const client = clients.find((c) => c.id === val);
                       const updated = [...selectedClients];
-                      updated[index] = { ...updated[index], name: e.target.value };
+                      updated[index] = client
+                        ? { id: client.id, name: getClientDisplayName(client) }
+                        : { id: "", name: "" };
                       setSelectedClients(updated);
-                      setOpenDropdownIndex(index);
-                    }}
-                    onFocus={() => {
-                      setOpenDropdownIndex(index);
                     }}
                     placeholder="Cerca cliente..."
-                    className="w-full px-3 py-2 h-10 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-gray-900 focus:border-transparent"
+                    emptyOption={{ value: "", label: "Seleziona cliente..." }}
+                    options={[...clients]
+                      .filter((c) => !selectedClients.some((sc, j) => j !== index && sc.id === c.id))
+                      .sort((a, b) => getClientDisplayName(a).localeCompare(getClientDisplayName(b)))
+                      .map((c) => ({ value: c.id, label: getClientDisplayName(c) }))}
                   />
-                  {openDropdownIndex === index && selectedClient.name && getFilteredClients(index).length > 0 && (
-                    <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto">
-                      {getFilteredClients(index).map((client) => (
-                        <button
-                          key={client.id}
-                          type="button"
-                          onClick={() => handleClientSelect(index, client)}
-                          className="w-full px-4 py-2 text-left hover:bg-gray-100"
-                        >
-                          {getClientDisplayName(client)}
-                        </button>
-                      ))}
-                    </div>
-                  )}
                 </div>
                 {index === selectedClients.length - 1 && (
                   <button
@@ -489,20 +452,19 @@ export default function EditEventPage() {
             <label htmlFor="locationId" className="block text-sm font-medium text-gray-700 mb-1">
               Location
             </label>
-            <select
+            <SearchableSelect
               id="locationId"
-              name="locationId"
               value={formData.locationId}
-              onChange={handleChange}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg hover:border-gray-400 hover:shadow-md hover:bg-gray-50 focus:ring-2 focus:ring-gray-900 focus:border-transparent transition-all duration-200 cursor-pointer"
-            >
-              <option value="">Seleziona una location</option>
-              {locations.map((location) => (
-                <option key={location.id} value={location.id}>
-                  {location.name}
-                </option>
-              ))}
-            </select>
+              onChange={(v) => setFormData({ ...formData, locationId: v })}
+              placeholder="Cerca location..."
+              emptyOption={{ value: "", label: "Seleziona una location" }}
+              options={[...locations]
+                .sort((a, b) => (a.name || "").localeCompare(b.name || ""))
+                .map((location) => ({
+                  value: location.id,
+                  label: location.name,
+                }))}
+            />
           </div>
 
           <div className="grid grid-cols-2 gap-4">
@@ -579,6 +541,7 @@ export default function EditEventPage() {
             </button>
           </div>
         </form>
+        </div>
       </div>
 
       <ConfirmDialog

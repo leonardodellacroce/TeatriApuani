@@ -1,21 +1,7 @@
 "use client";
 
 import { useState } from "react";
-
-const PREDEFINED_COLORS = [
-  { name: "Rosso", value: "#EF4444" },
-  { name: "Arancione", value: "#F97316" },
-  { name: "Giallo", value: "#EAB308" },
-  { name: "Verde", value: "#22C55E" },
-  { name: "Verde Chiaro", value: "#84CC16" },
-  { name: "Cyan", value: "#06B6D4" },
-  { name: "Blu", value: "#3B82F6" },
-  { name: "Blu Scuro", value: "#1E40AF" },
-  { name: "Viola", value: "#A855F7" },
-  { name: "Rosa", value: "#EC4899" },
-  { name: "Grigio", value: "#6B7280" },
-  { name: "Marrone", value: "#92400E" },
-];
+import { COLOR_PALETTE } from "@/lib/color-palette";
 
 interface ColorSelectorProps {
   selectedColor: string | null;
@@ -49,7 +35,7 @@ export default function ColorSelector({ selectedColor, onChange }: ColorSelector
                   style={{ backgroundColor: selectedColor }}
                 />
                 <span>
-                  {PREDEFINED_COLORS.find(c => c.value === selectedColor)?.name || selectedColor}
+                  {COLOR_PALETTE.find(c => c.value === selectedColor)?.name || selectedColor}
                 </span>
               </>
             ) : (
@@ -75,8 +61,8 @@ export default function ColorSelector({ selectedColor, onChange }: ColorSelector
               onClick={() => setShowSelector(false)}
             />
             <div className="absolute z-20 mt-1 w-full bg-white border border-gray-300 rounded-lg shadow-lg p-3">
-              <div className="grid grid-cols-6 gap-2">
-                {PREDEFINED_COLORS.map((color) => (
+              <div className="grid grid-cols-8 gap-2">
+                {COLOR_PALETTE.map((color) => (
                   <button
                     key={color.value}
                     type="button"

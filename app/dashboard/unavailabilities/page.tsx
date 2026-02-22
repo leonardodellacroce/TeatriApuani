@@ -6,8 +6,11 @@ import { getWorkModeCookie } from "@/lib/workMode";
 import { useRouter } from "next/navigation";
 import DashboardShell from "@/components/DashboardShell";
 import PageSkeleton from "@/components/PageSkeleton";
+import SearchableSelect from "@/components/SearchableSelect";
 import ConfirmDialog from "@/components/ConfirmDialog";
+import AlertDialog from "@/components/AlertDialog";
 import { formatUserName, type UserLike } from "@/lib/formatUserName";
+import { timeAddMinute, timeSubtractMinute, formatUnavailabilityTimeRange } from "@/lib/unavailabilityTime";
 
 interface Unavailability {
   id: string;
@@ -45,15 +48,6 @@ function formatDateFromPart(isoOrDateStr: string) {
 
 type TimeMode = "all_day" | "until" | "from" | "interval";
 
-function formatTimeRange(start: string | null, end: string | null) {
-  if (!start && !end) return "Tutto il giorno";
-  if (start === "06:00" && end) return `fino alle ${end}`;
-  if (start && end === "24:00") return `dalle ${start}`;
-  if (start && end) return `${start} - ${end}`;
-  if (start) return `dalle ${start}`;
-  if (end) return `fino alle ${end}`;
-  return "-";
-}
 
 function inferTimeMode(start: string | null, end: string | null): TimeMode {
   if (!start && !end) return "all_day";
@@ -114,6 +108,7 @@ export default function UnavailabilitiesPage() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
   const [conflictAlert, setConflictAlert] = useState<string | null>(null);
+  const [alertMessage, setAlertMessage] = useState<string | null>(null);
   /** Conflitti con indisponibilità già comunicate: mostra dialog per scegliere quale mantenere */
   const [overlapConflict, setOverlapConflict] = useState<{
     overlapping: Unavailability[];
@@ -202,7 +197,7 @@ export default function UnavailabilitiesPage() {
 
   const openCreate = () => {
     const today = new Date().toISOString().split("T")[0];
-    setFormUserId(session?.user?.id as string || "");
+    setFormUserId(isAdmin ? "" : (session?.user?.id as string || ""));
     setFormDateStart(today);
     setFormDateEnd(today);
     setFormTimeMode("all_day");
@@ -223,13 +218,13 @@ export default function UnavailabilitiesPage() {
     setFormTimeMode(mode);
     if (mode === "until") {
       setFormStartTime("");
-      setFormEndTime(u.endTime || "");
+      setFormEndTime(timeAddMinute(u.endTime) || u.endTime || "");
     } else if (mode === "from") {
-      setFormStartTime(u.startTime || "");
+      setFormStartTime(timeSubtractMinute(u.startTime) || u.startTime || "");
       setFormEndTime("");
     } else if (mode === "interval") {
-      setFormStartTime(u.startTime || "");
-      setFormEndTime(u.endTime || "");
+      setFormStartTime(timeSubtractMinute(u.startTime) || u.startTime || "");
+      setFormEndTime(timeAddMinute(u.endTime) || u.endTime || "");
     } else {
       setFormStartTime("");
       setFormEndTime("");
@@ -257,7 +252,7 @@ export default function UnavailabilitiesPage() {
           resetForm();
         } else {
           const err = await res.json();
-          alert(err.error || "Errore durante l'aggiornamento");
+          setAlertMessage(err.error || "Errore durante l'aggiornamento");
         }
       } else {
         const res = await fetch("/api/unavailabilities", {
@@ -275,11 +270,11 @@ export default function UnavailabilitiesPage() {
             resetForm();
           }
         } else {
-          alert(data.details ? `${data.error}: ${data.details}` : data.error || "Errore durante la creazione");
+          setAlertMessage(data.details ? `${data.error}: ${data.details}` : data.error || "Errore durante la creazione");
         }
       }
     } catch (err) {
-      alert("Errore di rete");
+      setAlertMessage("Errore di rete");
     }
   };
 
@@ -288,6 +283,10 @@ export default function UnavailabilitiesPage() {
     const dateStart = formDateStart;
     const dateEnd = formTimeMode === "all_day" ? formDateEnd : formDateStart;
     if (!dateStart || !dateEnd) return;
+    if (isAdmin && !editingId && !formUserId) {
+      setAlertMessage("Seleziona un utente");
+      return;
+    }
     let startTime: string | undefined;
     let endTime: string | undefined;
     if (formTimeMode === "all_day") {
@@ -295,13 +294,13 @@ export default function UnavailabilitiesPage() {
       endTime = undefined;
     } else if (formTimeMode === "until") {
       startTime = "06:00";
-      endTime = formEndTime || undefined;
+      endTime = formEndTime ? (timeSubtractMinute(formEndTime) ?? formEndTime) : undefined;
     } else if (formTimeMode === "from") {
-      startTime = formStartTime || undefined;
+      startTime = formStartTime ? (timeAddMinute(formStartTime) ?? formStartTime) : undefined;
       endTime = "24:00";
     } else {
-      startTime = formStartTime || undefined;
-      endTime = formEndTime || undefined;
+      startTime = formStartTime ? (timeAddMinute(formStartTime) ?? formStartTime) : undefined;
+      endTime = formEndTime ? (timeSubtractMinute(formEndTime) ?? formEndTime) : undefined;
     }
     const payload: any = {
       dateStart,
@@ -339,7 +338,7 @@ export default function UnavailabilitiesPage() {
 
       await doSubmit(payload);
     } catch (err) {
-      alert("Errore di rete");
+      setAlertMessage("Errore di rete");
     }
   };
 
@@ -357,15 +356,19 @@ export default function UnavailabilitiesPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ status: "APPROVED" }),
       });
+      const data = await res.json().catch(() => ({}));
       if (res.ok) {
         fetchList();
         window.dispatchEvent(new CustomEvent("unavailabilitiesUpdated"));
+        const removed = (data as { removedFromAssignments?: string[] }).removedFromAssignments;
+        if (removed?.length) {
+          setAlertMessage(`Indisponibilità approvata. Il dipendente è stato rimosso da ${removed.length} turno/i in conflitto.`);
+        }
       } else {
-        const err = await res.json();
-        alert(err.error || "Errore durante l'approvazione");
+        setAlertMessage(data.error || "Errore durante l'approvazione");
       }
     } catch {
-      alert("Errore di rete");
+      setAlertMessage("Errore di rete");
     }
   };
 
@@ -379,10 +382,10 @@ export default function UnavailabilitiesPage() {
         window.dispatchEvent(new CustomEvent("unavailabilitiesUpdated"));
       } else {
         const err = await res.json();
-        alert(err.error || "Errore durante l'eliminazione");
+        setAlertMessage(err.error || "Errore durante l'eliminazione");
       }
     } catch {
-      alert("Errore di rete");
+      setAlertMessage("Errore di rete");
     }
   };
 
@@ -425,7 +428,7 @@ export default function UnavailabilitiesPage() {
         )}
 
         {showForm && (
-          <div className="mb-8 p-6 border border-gray-200 rounded-lg bg-gray-50">
+          <div className="mb-8 p-6 border border-gray-200 rounded-lg bg-white shadow max-w-xl">
             <h2 className="text-xl font-semibold mb-4">{editingId ? "Modifica indisponibilità" : "Nuova indisponibilità"}</h2>
             {conflictAlert && (
               <div className="mb-4 p-4 bg-amber-50 border border-amber-200 rounded-lg text-amber-800">
@@ -436,57 +439,20 @@ export default function UnavailabilitiesPage() {
               {isAdmin && !editingId && (
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Utente</label>
-                  <select
+                  <SearchableSelect
                     value={formUserId}
-                    onChange={(e) => setFormUserId(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg"
-                    required
-                  >
-                    <option value="">Seleziona utente</option>
-                    {users.map((u) => (
-                      <option key={u.id} value={u.id}>
-                        {formatUserName(u, users)}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              )}
-              {formTimeMode === "all_day" ? (
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Data inizio *</label>
-                    <input
-                      type="date"
-                      value={formDateStart}
-                      onChange={(e) => setFormDateStart(e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg"
-                      required
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Data fine *</label>
-                    <input
-                      type="date"
-                      value={formDateEnd}
-                      onChange={(e) => setFormDateEnd(e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg"
-                      required
-                    />
-                  </div>
-                </div>
-              ) : (
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Data *</label>
-                  <input
-                    type="date"
-                    value={formDateStart}
-                    onChange={(e) => {
-                      const v = e.target.value;
-                      setFormDateStart(v);
-                      setFormDateEnd(v);
-                    }}
-                    className="w-full max-w-xs px-3 py-2 border border-gray-300 rounded-lg"
-                    required
+                    onChange={setFormUserId}
+                    placeholder="Cerca dipendente..."
+                    emptyOption={{ value: "", label: "Seleziona utente" }}
+                    options={[...users]
+                      .sort((a, b) =>
+                        (a.name || "").localeCompare(b.name || "") ||
+                        (a.cognome || "").localeCompare(b.cognome || "")
+                      )
+                      .map((u) => ({
+                        value: u.id,
+                        label: formatUserName(u, users),
+                      }))}
                   />
                 </div>
               )}
@@ -563,6 +529,45 @@ export default function UnavailabilitiesPage() {
                   </div>
                 </div>
               )}
+              {formTimeMode === "all_day" ? (
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Data inizio *</label>
+                    <input
+                      type="date"
+                      value={formDateStart}
+                      onChange={(e) => setFormDateStart(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Data fine *</label>
+                    <input
+                      type="date"
+                      value={formDateEnd}
+                      onChange={(e) => setFormDateEnd(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                      required
+                    />
+                  </div>
+                </div>
+              ) : (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Data *</label>
+                  <input
+                    type="date"
+                    value={formDateStart}
+                    onChange={(e) => {
+                      const v = e.target.value;
+                      setFormDateStart(v);
+                      setFormDateEnd(v);
+                    }}
+                    className="w-full max-w-xs px-3 py-2 border border-gray-300 rounded-lg"
+                    required
+                  />
+                </div>
+              )}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Note</label>
                 <textarea
@@ -610,7 +615,7 @@ export default function UnavailabilitiesPage() {
                       {formatDateFromPart(u.dateStart)}
                       {u.dateStart.split("T")[0] !== u.dateEnd.split("T")[0] && ` → ${formatDateFromPart(u.dateEnd)}`}
                     </td>
-                    <td className="px-6 py-4 text-sm text-gray-700">{formatTimeRange(u.startTime, u.endTime)}</td>
+                    <td className="px-6 py-4 text-sm text-gray-700">{formatUnavailabilityTimeRange(u.startTime, u.endTime)}</td>
                     <td className="px-6 py-4 text-sm">
                       <span className={`px-2 py-1 rounded text-xs ${u.status === "PENDING_APPROVAL" ? "bg-amber-100 text-amber-800" : "bg-green-100 text-green-800"}`}>
                         {u.status === "PENDING_APPROVAL" ? "In attesa approvazione" : "Approvata"}
@@ -666,6 +671,12 @@ export default function UnavailabilitiesPage() {
         onCancel={() => setDeleteTarget(null)}
       />
 
+      <AlertDialog
+        isOpen={!!alertMessage}
+        message={alertMessage || ""}
+        onClose={() => setAlertMessage(null)}
+      />
+
       {overlapConflict && (
         <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg p-6 max-w-lg w-full mx-4 shadow-xl">
@@ -680,7 +691,7 @@ export default function UnavailabilitiesPage() {
                     {formatDateFromPart(u.dateStart)}
                     {u.dateStart.split("T")[0] !== u.dateEnd.split("T")[0] && ` → ${formatDateFromPart(u.dateEnd)}`}
                     {" · "}
-                    {formatTimeRange(u.startTime, u.endTime)}
+                    {formatUnavailabilityTimeRange(u.startTime, u.endTime)}
                   </span>
                   <button
                     type="button"

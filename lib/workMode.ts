@@ -16,6 +16,12 @@ export function getWorkModeCookie(): WorkMode {
   return value === "worker" ? "worker" : "admin";
 }
 
+/** Verifica se il cookie workMode è impostato */
+export function hasWorkModeCookie(): boolean {
+  if (typeof document === "undefined") return false;
+  return new RegExp(`(?:^|; )${COOKIE_NAME}=`).test(document.cookie);
+}
+
 /** Nome dell'evento dispatchato quando cambia la modalità (per aggiornare la UI senza ricaricare) */
 export const WORK_MODE_CHANGED_EVENT = "workModeChanged";
 

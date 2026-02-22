@@ -8,7 +8,9 @@
     "postinstall": "prisma generate",
     "start": "next start",
     "lint": "eslint",
-    "seed": "tsx prisma/seed.ts"
+    "seed": "tsx prisma/seed.ts",
+    "force-migrate-metadata": "tsx scripts/force-notification-metadata.ts",
+    "verify-notifications": "tsx scripts/verify-notifications-consistency.ts"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"
@@ -37,6 +39,7 @@
     "react": "19.2.0",
     "react-dom": "19.2.0",
     "react-rnd": "^10.5.2",
+    "resend": "^6.9.2",
     "signature_pad": "^5.1.1",
     "uuid": "^13.0.0",
     "xlsx": "^0.18.5",

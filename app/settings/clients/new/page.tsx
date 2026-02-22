@@ -424,7 +424,8 @@ export default function NewClientPage() {
           <h1 className="text-3xl font-bold">Nuovo Cliente</h1>
         </div>
 
-        <form onSubmit={handleSubmit} className="max-w-2xl space-y-4">
+        <div className="bg-white rounded-lg shadow p-6 border border-gray-200 max-w-xl mb-6">
+        <form onSubmit={handleSubmit} className="space-y-4">
           {/* Selezione tipo cliente */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -883,6 +884,7 @@ export default function NewClientPage() {
             </button>
           </div>
         </form>
+        </div>
       </div>
     </DashboardShell>
   );

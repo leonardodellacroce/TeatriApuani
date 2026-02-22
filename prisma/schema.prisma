@@ -24,6 +24,9 @@ model User {
   isActive      Boolean   @default(true)
   isArchived    Boolean   @default(false)
   mustChangePassword Boolean @default(true)
+  lastPasswordChangeAt DateTime?
+  lockedUntil    DateTime?
+  failedLoginAttempts Int @default(0)
   companyId     String?
   company       Company?  @relation(fields: [companyId], references: [id], onDelete: SetNull)
   cognome       String?
@@ -37,6 +40,23 @@ model User {
   assignments   Assignment[]
   timeEntries   TimeEntry[] // Ore inserite dall'utente
   unavailabilities Unavailability[]
+  notifications Notification[]
+}
+
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      String   // es. MISSING_HOURS_REMINDER
+  title     String   // Titolo mostrato nella card (es. "Orari da inserire")
+  message   String   // Messaggio dettagliato (es. elenco date)
+  metadata  Json?    // es. { dates: ["2026-02-21"] } per validare notifiche obsolete
+  read      Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([userId, read])
+  @@index([createdAt])
 }
 
 model Company {
@@ -188,9 +208,10 @@ model Assignment {
   personnelRequests String?  // JSON: [{"dutyId": "...", "quantity": 5}, ...]
   assignedUsers     String?  // JSON: [{"userId":"...","dutyId":"optional"}, ...]
   note        String?
-  hasScheduledBreak Boolean  @default(false) // Flag per indicare se c'è una pausa prevista
-  scheduledBreakStartTime String?  // HH:MM - Orario inizio pausa prevista
-  scheduledBreakEndTime String?    // HH:MM - Orario fine pausa prevista
+  hasScheduledBreak Boolean  @default(false) // Deprecato: usare scheduledBreaks
+  scheduledBreakStartTime String?  // Deprecato
+  scheduledBreakEndTime String?    // Deprecato
+  scheduledBreaks String?  // JSON: [{"start":"11:00","end":"11:30"}, ...] - pause previste
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
   timeEntries TimeEntry[] // Ore effettive inserite dall'utente
@@ -246,9 +267,10 @@ model TimeEntry {
   hoursWorked Float    // Ore effettive lavorate (può essere diverso da quelle programmate)
   startTime   String?  // HH:MM - Orario di inizio effettivo (opzionale)
   endTime     String?  // HH:MM - Orario di fine effettivo (opzionale)
-  hasTakenBreak Boolean?  // Se l'utente ha fatto la pausa (null se non prevista, true/false se prevista)
-  actualBreakStartTime String?  // HH:MM - Orario inizio pausa effettiva
-  actualBreakEndTime String?    // HH:MM - Orario fine pausa effettiva
+  hasTakenBreak Boolean?  // Deprecato: usare actualBreaks
+  actualBreakStartTime String?  // Deprecato
+  actualBreakEndTime String?    // Deprecato
+  actualBreaks String?  // JSON: [{"start":"11:05","end":"11:32"}, ...] - pause effettive
   notes       String?  // Note aggiuntive (es. "Straordinario per emergenza")
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
@@ -275,6 +297,13 @@ model Unavailability {
   @@index([userId])
   @@index([dateStart, dateEnd])
   @@index([status])
+}
+
+model SystemSetting {
+  id        String   @id @default(cuid())
+  key       String   @unique
+  value     String
+  updatedAt DateTime @updatedAt
 }
 
 enum UserRole {

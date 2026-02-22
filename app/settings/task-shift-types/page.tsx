@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import DashboardShell from "@/components/DashboardShell";
 import PageSkeleton from "@/components/PageSkeleton";
 import ConfirmDialog from "@/components/ConfirmDialog";
+import { COLOR_PALETTE, getColorName } from "@/lib/color-palette";
 
 interface TaskType {
   id: string;
@@ -55,40 +56,7 @@ export default function TaskTypesPage() {
   const [sortOrder, setSortOrder] = useState<SortOrder>("asc");
   const [areaFilter, setAreaFilter] = useState<string | null>(null);
 
-  const colorPalette = [
-    "#EF4444", // rosso
-    "#F97316", // arancione
-    "#EAB308", // giallo
-    "#22C55E", // verde medio
-    "#84CC16", // lime
-    "#06B6D4", // ciano/blu cielo
-    "#A16207", // marrone
-    "#2563EB", // blu reale
-    "#1E40AF", // blu scuro/indaco
-    "#A78BFA", // lavanda/viola chiaro
-    "#EC4899", // rosa
-    "#6B7280", // grigio scuro
-  ];
-
-  const colorNames: Record<string, string> = {
-    "#EF4444": "Rosso",
-    "#F97316": "Arancione",
-    "#EAB308": "Giallo",
-    "#22C55E": "Verde",
-    "#84CC16": "Verde Chiaro",
-    "#06B6D4": "Cyan",
-    "#A16207": "Marrone",
-    "#2563EB": "Blu",
-    "#1E40AF": "Blu Scuro",
-    "#A78BFA": "Viola",
-    "#EC4899": "Rosa",
-    "#6B7280": "Grigio",
-  };
-
-  const getColorName = (color: string | null): string => {
-    if (!color) return "";
-    return colorNames[color] || color;
-  };
+  const colorPalette = COLOR_PALETTE.map((c) => c.value);
 
   // Confirm dialog states
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
@@ -449,11 +417,13 @@ export default function TaskTypesPage() {
               className="px-4 py-2 h-10 border border-gray-300 rounded-lg text-sm bg-white text-gray-700 hover:border-gray-400 hover:shadow-md hover:bg-gray-50 focus:ring-2 focus:ring-gray-900 focus:border-transparent transition-all duration-200 cursor-pointer"
             >
               <option value="">Tutte le aree</option>
-              {areas.map((area) => (
-                <option key={area.id} value={area.id}>
-                  {area.name}
-                </option>
-              ))}
+              {[...areas]
+                .sort((a, b) => (a.code || "").localeCompare(b.code || ""))
+                .map((area) => (
+                  <option key={area.id} value={area.id}>
+                    {area.name}
+                  </option>
+                ))}
             </select>
           </div>
 
@@ -790,7 +760,7 @@ export default function TaskTypesPage() {
                   </button>
                   {showColorPicker && (
                     <div className="absolute z-10 w-full mt-2 bg-white border border-gray-300 rounded-lg shadow-lg p-4">
-                      <div className="grid grid-cols-7 gap-2 mb-3">
+                      <div className="grid grid-cols-8 gap-2 mb-3">
                         {colorPalette.map((color) => (
                           <button
                             key={color}

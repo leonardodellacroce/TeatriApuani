@@ -96,6 +96,7 @@ export default function ChangePasswordPage() {
           const result = await signIn("credentials", {
             email,
             password: newPassword,
+            rememberMe: "true",
             redirect: false,
           });
           

@@ -168,21 +168,25 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const isStandardUser = !["SUPER_ADMIN", "ADMIN", "RESPONSABILE"].includes((session.user as any).role || "");
+    const userRole = (session.user as any).role || "";
+    const isAdmin = ["SUPER_ADMIN", "ADMIN", "RESPONSABILE"].includes(userRole);
+    const isStandardUser = !isAdmin;
     const isWorker = (session.user as any).isWorker === true;
     const isNonStandardWorker = !isStandardUser && isWorker;
     const workMode = getWorkModeFromRequest(req);
 
-    if (!isStandardUser && !isWorker) {
+    if (!isAdmin && !isStandardUser && !isWorker) {
       return NextResponse.json({ error: "Forbidden - Accesso non consentito" }, { status: 403 });
     }
-    if (isNonStandardWorker && workMode === "admin") {
+    if (!isAdmin && isNonStandardWorker && workMode === "admin") {
       return NextResponse.json({ error: "Forbidden - Passa in modalità lavoratore per accedere" }, { status: 403 });
     }
 
-    const userId = session.user.id;
+    const sessionUserId = session.user.id;
     const body = await req.json();
-    const { assignmentId, hoursWorked, startTime, endTime, hasTakenBreak, actualBreakStartTime, actualBreakEndTime, notes } = body;
+    const { assignmentId, userId: bodyUserId, hoursWorked, startTime, endTime, hasTakenBreak, actualBreakStartTime, actualBreakEndTime, actualBreaks, notes } = body;
+
+    const userId = (isAdmin && bodyUserId) ? bodyUserId : sessionUserId;
 
     // Validazione input
     if (!assignmentId || !hoursWorked) {
@@ -214,6 +218,22 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    if (isAdmin && bodyUserId) {
+      const targetUser = await prisma.user.findUnique({
+        where: { id: bodyUserId },
+        select: { companyId: true },
+      });
+      if (userRole === "RESPONSABILE") {
+        const currentUser = await prisma.user.findUnique({
+          where: { id: sessionUserId },
+          select: { companyId: true },
+        });
+        if (!targetUser || !currentUser?.companyId || targetUser.companyId !== currentUser.companyId) {
+          return NextResponse.json({ error: "Non autorizzato a inserire ore per questo dipendente" }, { status: 403 });
+        }
+      }
+    }
+
     // Verifica che l'utente sia assegnato
     if (assignment.userId !== userId) {
       // Controlla anche in assignedUsers (JSON array)
@@ -221,8 +241,8 @@ export async function POST(req: NextRequest) {
       if (assignment.assignedUsers) {
         try {
           const assignedUsers = JSON.parse(assignment.assignedUsers);
-          userAssigned = Array.isArray(assignedUsers) && 
-            assignedUsers.some((u: any) => u.userId === userId);
+          userAssigned = Array.isArray(assignedUsers) &&
+            assignedUsers.some((u: any) => (typeof u === "string" ? u === userId : u?.userId === userId));
         } catch (e) {
           // Ignora errori di parsing
         }
@@ -232,6 +252,30 @@ export async function POST(req: NextRequest) {
         return NextResponse.json(
           { error: "You are not assigned to this assignment" },
           { status: 403 }
+        );
+      }
+    }
+
+    // Non consentire inserimento ore per turni futuri (oggi e passato consentiti)
+    const workdayDate = assignment.workday?.date;
+    if (workdayDate) {
+      const d = workdayDate instanceof Date ? workdayDate : new Date(workdayDate);
+      const dateStr = new Intl.DateTimeFormat("en-CA", {
+        timeZone: "Europe/Rome",
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+      }).format(d);
+      const todayStr = new Intl.DateTimeFormat("en-CA", {
+        timeZone: "Europe/Rome",
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+      }).format(new Date());
+      if (dateStr > todayStr) {
+        return NextResponse.json(
+          { error: "Non è possibile inserire ore per turni futuri" },
+          { status: 400 }
         );
       }
     }
@@ -272,54 +316,30 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // Validazione pausa se presente
-    if (hasTakenBreak !== undefined && hasTakenBreak !== null) {
-      if (hasTakenBreak === true && (!actualBreakStartTime || !actualBreakEndTime)) {
-        return NextResponse.json(
-          { error: "actualBreakStartTime and actualBreakEndTime are required when hasTakenBreak is true" },
-          { status: 400 }
-        );
-      }
-      
-      if (actualBreakStartTime && actualBreakEndTime) {
-        const [breakStartH, breakStartM] = actualBreakStartTime.split(":").map(Number);
-        const [breakEndH, breakEndM] = actualBreakEndTime.split(":").map(Number);
-        const breakStartMinutes = breakStartH * 60 + breakStartM;
-        let breakEndMinutes = breakEndH * 60 + breakEndM;
-        
-        if (breakEndMinutes <= breakStartMinutes) {
-          breakEndMinutes += 24 * 60;
-        }
-        
-        if (breakEndMinutes <= breakStartMinutes) {
-          return NextResponse.json(
-            { error: "actualBreakEndTime must be after actualBreakStartTime" },
-            { status: 400 }
-          );
-        }
-        
-        // Verifica che la pausa sia dentro l'intervallo lavorativo
-        if (startTime && endTime) {
-          const [startH, startM] = startTime.split(":").map(Number);
-          const [endH, endM] = endTime.split(":").map(Number);
-          const startMinutes = startH * 60 + startM;
-          let endMinutes = endH * 60 + endM;
-          
-          if (endMinutes <= startMinutes) {
-            endMinutes += 24 * 60;
-          }
-          
-          if (breakStartMinutes < startMinutes || breakEndMinutes > endMinutes) {
-            return NextResponse.json(
-              { error: "Break time must be within work time range" },
-              { status: 400 }
-            );
-          }
+    // Normalizza actualBreaks
+    let breaksArray: Array<{ start: string; end: string }> = [];
+    if (Array.isArray(actualBreaks) && actualBreaks.length > 0) {
+      breaksArray = actualBreaks.filter((b: any) => b && typeof b.start === "string" && typeof b.end === "string");
+    } else if (hasTakenBreak === true && actualBreakStartTime && actualBreakEndTime) {
+      breaksArray = [{ start: actualBreakStartTime, end: actualBreakEndTime }];
+    }
+
+    if (breaksArray.length > 0 && startTime && endTime) {
+      const toMin = (t: string) => { const [h, m] = t.split(":").map(Number); return (h || 0) * 60 + (m || 0); };
+      const startMin = toMin(startTime);
+      let endMin = toMin(endTime);
+      if (endMin <= startMin) endMin += 24 * 60;
+      for (const b of breaksArray) {
+        let bs = toMin(b.start);
+        let be = toMin(b.end);
+        if (be <= bs) be += 24 * 60;
+        if (bs < startMin || be > endMin) {
+          return NextResponse.json({ error: "Ogni pausa deve essere dentro l'orario di lavoro" }, { status: 400 });
         }
       }
     }
 
-    // Crea time entry
+    const { serializeBreaks } = await import("@/lib/breaks");
     const timeEntry = await prisma.timeEntry.create({
       data: {
         assignmentId,
@@ -328,9 +348,10 @@ export async function POST(req: NextRequest) {
         hoursWorked: parseFloat(hoursWorked),
         startTime: startTime || null,
         endTime: endTime || null,
-        hasTakenBreak: hasTakenBreak !== undefined ? hasTakenBreak : null,
-        actualBreakStartTime: actualBreakStartTime || null,
-        actualBreakEndTime: actualBreakEndTime || null,
+        hasTakenBreak: breaksArray.length > 0 ? true : (hasTakenBreak ?? null),
+        actualBreakStartTime: breaksArray[0]?.start ?? null,
+        actualBreakEndTime: breaksArray[0]?.end ?? null,
+        actualBreaks: serializeBreaks(breaksArray),
         notes: notes || null,
       },
       include: {

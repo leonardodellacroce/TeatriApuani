@@ -349,7 +349,8 @@ export default function EditCompanyPage() {
           <h1 className="text-3xl font-bold">Modifica Azienda</h1>
         </div>
 
-        <form onSubmit={handleSubmit} className="max-w-2xl space-y-4">
+        <div className="bg-white rounded-lg shadow p-6 border border-gray-200 mb-6 max-w-xl">
+        <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label
               htmlFor="ragioneSociale"
@@ -611,6 +612,7 @@ export default function EditCompanyPage() {
             </button>
           </div>
         </form>
+        </div>
 
         <ConfirmEditDialog
           isOpen={showConfirmDialog}

@@ -37,6 +37,22 @@ git push
 
 ---
 
+## Recupero emergenza (Super Admin bloccato)
+
+Il Super Admin non viene mai bloccato dal sistema (può continuare a provare senza limiti). Per sbloccare altri utenti bloccati, usa lo **script da terminale** (richiede accesso al progetto):
+
+```bash
+npx tsx scripts/unlock-user.ts email@utente.com
+```
+
+Oppure per resettare anche la password:
+
+```bash
+npx tsx scripts/reset-superadmin-password.ts email@utente.com nuova_password
+```
+
+---
+
 ## Note
 
 - **`git add .`** – aggiunge tutto dalla cartella corrente in giù

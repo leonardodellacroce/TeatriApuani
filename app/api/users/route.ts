@@ -2,6 +2,19 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { hash } from "bcryptjs";
+import { sendEmail } from "@/lib/email";
+import { passwordResetEmail } from "@/lib/email-templates";
+import crypto from "crypto";
+
+function generateTempPassword(length = 12): string {
+  const chars = "abcdefghjkmnpqrstuvwxyzABCDEFGHJKMNPQRSTUVWXYZ23456789";
+  let result = "";
+  const bytes = crypto.randomBytes(length);
+  for (let i = 0; i < length; i++) {
+    result += chars[bytes[i] % chars.length];
+  }
+  return result;
+}
 
 // GET /api/users
 export async function GET(req: NextRequest) {
@@ -45,10 +58,11 @@ export async function GET(req: NextRequest) {
     } else if (archived === "false") {
       whereClause.isArchived = false;
     } else {
-      // Se standard=true (per selezionare utenti per nuovi turni), escludi archiviati
+      // Se standard=true (per selezionare utenti per nuovi turni), escludi archiviati e disattivati
       // Altrimenti (per visualizzare turni esistenti), includi tutti
       if (standard === "true") {
         whereClause.isArchived = false;
+        whereClause.isActive = true;
       } else {
         // Di default mostra solo elementi non archiviati
         whereClause.isArchived = false;
@@ -173,7 +187,7 @@ export async function POST(req: NextRequest) {
     console.log("Body received:", body);
     let { name, cognome, email, password, isSuperAdmin, isAdmin, isResponsabile, isCoordinatore, isWorker, codiceFiscale, companyId, areas, roles, mustChangePassword } = body;
 
-    // Email obbligatoria; se la password non è fornita, usa quella di default
+    // Email obbligatoria; se la password non è fornita, genera temp e invia via email
     if (!email) {
       return NextResponse.json(
         { error: "Email è obbligatoria" },
@@ -181,9 +195,16 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const effectivePassword = (typeof password === "string" && password.trim().length > 0)
-      ? password
-      : "password123";
+    const useCustomPassword = typeof password === "string" && password.trim().length > 0;
+    const effectivePassword = useCustomPassword ? password : null;
+
+    if (useCustomPassword && effectivePassword) {
+      const { validatePassword } = await import("@/lib/passwordValidation");
+      const validation = await validatePassword(effectivePassword);
+      if (!validation.valid) {
+        return NextResponse.json({ error: validation.error }, { status: 400 });
+      }
+    }
 
     const workerFlag = isWorker === true || isWorker === "true";
 
@@ -270,8 +291,15 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // Hash password (usa la di default se non specificata)
-    const hashedPassword = await hash(effectivePassword, 10);
+    // Hash password: se non specificata, genera temp e invia via email
+    let hashedPassword: string;
+    let tempPasswordToSend: string | null = null;
+    if (effectivePassword) {
+      hashedPassword = await hash(effectivePassword, 10);
+    } else {
+      tempPasswordToSend = generateTempPassword();
+      hashedPassword = await hash(tempPasswordToSend, 10);
+    }
 
     // Calcola il prossimo codice progressivo basandoti sull'ultimo codice esistente
     // Evita collisioni quando ci sono cancellazioni/archiviazioni
@@ -302,11 +330,16 @@ export async function POST(req: NextRequest) {
       companyId: isSuperAdmin || isAdmin || isResponsabile ? (isResponsabile ? companyId : undefined) : companyId,
       areas: areas || null,
       roles: roles || null,
+      lastPasswordChangeAt: effectivePassword ? new Date() : null,
     };
-    
+
+    if (tempPasswordToSend) {
+      userData.mustChangePassword = true;
+    }
+
     // Aggiungi mustChangePassword solo se il campo esiste nel database
     // (per retrocompatibilità prima della migrazione)
-    if (mustChangePassword !== undefined) {
+    if (mustChangePassword !== undefined && !tempPasswordToSend) {
       userData.mustChangePassword = mustChangePassword;
     }
     
@@ -314,7 +347,20 @@ export async function POST(req: NextRequest) {
       const user = await prisma.user.create({
         data: userData,
       });
-      
+
+      if (tempPasswordToSend) {
+        const userName = [user.name, user.cognome].filter(Boolean).join(" ") || user.email || "Utente";
+        const { subject, html, text } = passwordResetEmail({
+          userName,
+          tempPassword: tempPasswordToSend,
+          isNewUser: true,
+        });
+        const sent = await sendEmail({ to: user.email, subject, html, text });
+        if (!sent) {
+          console.warn("[users] Email con password temporanea non inviata, ma utente creato");
+        }
+      }
+
       // Rimuovi password dalla risposta
       const { password: _, ...userWithoutPassword } = user;
       console.log("User created:", userWithoutPassword);
@@ -332,7 +378,20 @@ export async function POST(req: NextRequest) {
         const user = await prisma.user.create({
           data: userData,
         });
-        
+
+        if (tempPasswordToSend) {
+          const userName = [user.name, user.cognome].filter(Boolean).join(" ") || user.email || "Utente";
+          const { subject, html, text } = passwordResetEmail({
+            userName,
+            tempPassword: tempPasswordToSend,
+            isNewUser: true,
+          });
+          const sent = await sendEmail({ to: user.email, subject, html, text });
+          if (!sent) {
+            console.warn("[users] Email con password temporanea non inviata, ma utente creato");
+          }
+        }
+
         const { password: _, ...userWithoutPassword } = user;
         console.log("User created:", userWithoutPassword);
         return NextResponse.json(userWithoutPassword, { status: 201 });

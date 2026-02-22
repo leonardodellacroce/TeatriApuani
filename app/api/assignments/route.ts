@@ -260,9 +260,9 @@ export async function POST(req: NextRequest) {
 
   try {
     const body = await req.json();
-    const { workdayId, userId, taskTypeId, clientId, startTime, endTime, area, note, hasScheduledBreak, scheduledBreakStartTime, scheduledBreakEndTime } = body;
+    const { workdayId, userId, taskTypeId, clientId, startTime, endTime, area, note, hasScheduledBreak, scheduledBreakStartTime, scheduledBreakEndTime, scheduledBreaks } = body;
 
-    console.log("[POST /api/assignments] Request body:", { workdayId, taskTypeId, startTime, endTime, area, hasScheduledBreak });
+    console.log("[POST /api/assignments] Request body:", { workdayId, taskTypeId, startTime, endTime, area, hasScheduledBreak, scheduledBreaks });
 
     if (!workdayId || !taskTypeId || !startTime || !endTime || !area) {
       return NextResponse.json(
@@ -359,62 +359,41 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Validazione pausa se presente
-    if (hasScheduledBreak === true) {
-      if (!scheduledBreakStartTime || !scheduledBreakEndTime) {
-        return NextResponse.json(
-          { error: "scheduledBreakStartTime and scheduledBreakEndTime are required when hasScheduledBreak is true" },
-          { status: 400 }
-        );
-      }
-      
-      // Verifica che la pausa sia dentro l'intervallo lavorativo
-      const timeToMinutes = (timeStr: string): number => {
-        if (!timeStr || typeof timeStr !== 'string') {
-          throw new Error(`Invalid time string: ${timeStr}`);
-        }
-        const [hours, minutes] = timeStr.split(':').map(Number);
-        if (isNaN(hours) || isNaN(minutes)) {
-          throw new Error(`Invalid time format: ${timeStr}`);
-        }
-        return hours * 60 + minutes;
-      };
-      
+    // Normalizza scheduledBreaks: da array o da legacy
+    let breaksArray: Array<{ start: string; end: string }> = [];
+    if (Array.isArray(scheduledBreaks) && scheduledBreaks.length > 0) {
+      breaksArray = scheduledBreaks.filter((b: any) => b && typeof b.start === "string" && typeof b.end === "string");
+    } else if (hasScheduledBreak === true && scheduledBreakStartTime && scheduledBreakEndTime) {
+      breaksArray = [{ start: scheduledBreakStartTime, end: scheduledBreakEndTime }];
+    }
+
+    // Validazione pause
+    const timeToMinutes = (timeStr: string): number => {
+      if (!timeStr || typeof timeStr !== "string") throw new Error(`Invalid time: ${timeStr}`);
+      const [hours, minutes] = timeStr.split(":").map(Number);
+      if (isNaN(hours) || isNaN(minutes)) throw new Error(`Invalid format: ${timeStr}`);
+      return hours * 60 + minutes;
+    };
+    for (const b of breaksArray) {
       try {
-        const breakStartMinutes = timeToMinutes(scheduledBreakStartTime);
-        let breakEndMinutes = timeToMinutes(scheduledBreakEndTime);
-        const shiftStartMinutes = timeToMinutes(startTime);
-        let shiftEndMinutes = timeToMinutes(endTime);
-        
-        if (breakEndMinutes <= breakStartMinutes) {
-          breakEndMinutes += 24 * 60;
+        const breakStart = timeToMinutes(b.start);
+        let breakEnd = timeToMinutes(b.end);
+        const shiftStart = timeToMinutes(startTime);
+        let shiftEnd = timeToMinutes(endTime);
+        if (breakEnd <= breakStart) breakEnd += 24 * 60;
+        if (shiftEnd <= shiftStart) shiftEnd += 24 * 60;
+        if (breakEnd <= breakStart) {
+          return NextResponse.json({ error: "La fine pausa deve essere dopo l'inizio" }, { status: 400 });
         }
-        if (shiftEndMinutes <= shiftStartMinutes) {
-          shiftEndMinutes += 24 * 60;
-        }
-        
-        if (breakEndMinutes <= breakStartMinutes) {
-          return NextResponse.json(
-            { error: "scheduledBreakEndTime must be after scheduledBreakStartTime" },
-            { status: 400 }
-          );
-        }
-        
-        if (breakStartMinutes < shiftStartMinutes || breakEndMinutes > shiftEndMinutes) {
-          return NextResponse.json(
-            { error: "Scheduled break must be within work time range" },
-            { status: 400 }
-          );
+        if (breakStart < shiftStart || breakEnd > shiftEnd) {
+          return NextResponse.json({ error: "Ogni pausa deve essere dentro l'orario del turno" }, { status: 400 });
         }
       } catch (e: any) {
-        return NextResponse.json(
-          { error: `Invalid time format: ${e.message}` },
-          { status: 400 }
-        );
+        return NextResponse.json({ error: `Orario non valido: ${e.message}` }, { status: 400 });
       }
     }
 
-    // Prepara i dati per la creazione, gestendo correttamente i campi opzionali
+    const { serializeBreaks } = await import("@/lib/breaks");
     const assignmentData: any = {
       workdayId,
       userId: userId || null,
@@ -424,17 +403,11 @@ export async function POST(req: NextRequest) {
       endTime,
       area,
       note: note || null,
-      hasScheduledBreak: Boolean(hasScheduledBreak === true),
+      hasScheduledBreak: breaksArray.length > 0,
+      scheduledBreakStartTime: breaksArray[0]?.start ?? null,
+      scheduledBreakEndTime: breaksArray[0]?.end ?? null,
+      scheduledBreaks: serializeBreaks(breaksArray),
     };
-    
-    // Aggiungi i campi pausa solo se hasScheduledBreak è true
-    if (hasScheduledBreak === true) {
-      assignmentData.scheduledBreakStartTime = scheduledBreakStartTime || null;
-      assignmentData.scheduledBreakEndTime = scheduledBreakEndTime || null;
-    } else {
-      assignmentData.scheduledBreakStartTime = null;
-      assignmentData.scheduledBreakEndTime = null;
-    }
 
     console.log("[POST /api/assignments] Creating assignment with data:", assignmentData);
 

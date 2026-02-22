@@ -68,6 +68,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     const { status: newStatus, dateStart, dateEnd, startTime, endTime, note } = body;
 
     const updates: any = {};
+    let removedFromAssignments: string[] = [];
     if (newStatus === "APPROVED" && isAdminUser && u.status === "PENDING_APPROVAL") {
       updates.status = "APPROVED";
       // Rimuovi l'utente dai turni in conflitto
@@ -87,7 +88,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
         const assignments = await prisma.assignment.findMany({
           where: {
             workdayId: wd.id,
-            taskType: { type: "SHIFT" },
+            taskType: { is: { type: "SHIFT" } },
             OR: [
               { userId: u.userId },
               { assignedUsers: { contains: u.userId } },
@@ -111,6 +112,8 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
               where: { id: a.id },
               data: { userId: null },
             });
+            removedFromAssignments.push(a.id);
+            console.log(`[Unavailability] Rimosso userId da assignment ${a.id} (approvazione indisponibilità ${id})`);
           } else if (a.assignedUsers) {
             try {
               const arr = JSON.parse(a.assignedUsers) as Array<{ userId: string; dutyId?: string }>;
@@ -119,7 +122,11 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
                 where: { id: a.id },
                 data: { assignedUsers: JSON.stringify(filtered) },
               });
-            } catch {}
+              removedFromAssignments.push(a.id);
+              console.log(`[Unavailability] Rimosso utente ${u.userId} da assignedUsers assignment ${a.id} (approvazione indisponibilità ${id})`);
+            } catch (e) {
+              console.error(`[Unavailability] Errore rimozione da assignment ${a.id}:`, e);
+            }
           }
         }
       }
@@ -144,7 +151,11 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       data: updates,
       include: { user: { select: { id: true, name: true, cognome: true, code: true } } },
     });
-    return NextResponse.json(updated);
+    const res: Record<string, unknown> = { ...updated };
+    if (removedFromAssignments.length > 0) {
+      res.removedFromAssignments = removedFromAssignments;
+    }
+    return NextResponse.json(res);
   } catch (e) {
     console.error("PATCH /api/unavailabilities error", e);
     return NextResponse.json({ error: "Server error" }, { status: 500 });

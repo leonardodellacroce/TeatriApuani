@@ -2,32 +2,105 @@
 
 import Container from "@/components/Container";
 import Navbar from "@/components/Navbar";
-import { signIn, useSession } from "next-auth/react";
+import { signIn } from "next-auth/react";
 import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
+
+const ACCOUNT_LOCKED_MSG =
+  "Account temporaneamente bloccato. Riprova più tardi o contatta l'amministratore.";
+
+const USER_DEACTIVATED_MSG = "Utente disattivato.";
+
+const FORGOT_PASSWORD_SUCCESS_MSG =
+  "Se l'indirizzo email è registrato, riceverai una mail con la nuova password provvisoria. Controlla anche la cartella spam.";
 
 export default function Login() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [rememberMe, setRememberMe] = useState(true);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [loginFailed, setLoginFailed] = useState(false);
+  const [isAccountLocked, setIsAccountLocked] = useState(false);
+  const [isSuperAdminRecovery, setIsSuperAdminRecovery] = useState(false);
+  const [forgotPasswordLoading, setForgotPasswordLoading] = useState(false);
+  const [forgotPasswordMessage, setForgotPasswordMessage] = useState("");
+
+  useEffect(() => {
+    const err = searchParams.get("error");
+    const code = searchParams.get("code");
+    if (err?.toUpperCase().includes("DEACTIVATED") || code?.toUpperCase().includes("DEACTIVATED")) {
+      setError(USER_DEACTIVATED_MSG);
+      setIsAccountLocked(false);
+      setIsSuperAdminRecovery(false);
+    } else if (
+      err?.toUpperCase().includes("SUPERADMIN") ||
+      code?.toUpperCase().includes("SUPERADMIN") ||
+      err?.toLowerCase().includes("recupero account notificata")
+    ) {
+      setError(FORGOT_PASSWORD_SUCCESS_MSG);
+      setIsAccountLocked(true);
+      setIsSuperAdminRecovery(true);
+      setLoginFailed(true);
+    } else if (
+      err?.toUpperCase().includes("LOCKED") ||
+      code?.toUpperCase().includes("LOCKED") ||
+      err?.toLowerCase().includes("bloccato")
+    ) {
+      setError(ACCOUNT_LOCKED_MSG);
+      setIsAccountLocked(true);
+      setIsSuperAdminRecovery(false);
+      setLoginFailed(true);
+    }
+  }, [searchParams]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
+    setForgotPasswordMessage("");
     setLoading(true);
 
     try {
       const result = await signIn("credentials", {
         email,
         password,
+        rememberMe: String(rememberMe),
         redirect: false,
       });
 
-      if (result?.error) {
-        setError("Credenziali non valide");
+      if (result?.error || result?.code) {
+        const errStr = String(result.error || "");
+        const codeStr = String(result.code || "");
+        const isDeactivated =
+          errStr.toUpperCase().includes("DEACTIVATED") ||
+          codeStr.toUpperCase().includes("DEACTIVATED") ||
+          errStr.toLowerCase().includes("disattivato");
+        const isSuperAdminRecovery =
+          errStr.toUpperCase().includes("SUPERADMIN") ||
+          codeStr.toUpperCase().includes("SUPERADMIN") ||
+          errStr.toLowerCase().includes("recupero account notificata");
+        const isLocked =
+          errStr.toUpperCase().includes("LOCKED") ||
+          codeStr.toUpperCase().includes("LOCKED") ||
+          errStr.toLowerCase().includes("bloccato");
+        setLoginFailed(true);
+        setIsAccountLocked(isLocked || isSuperAdminRecovery);
+        setIsSuperAdminRecovery(isSuperAdminRecovery);
+        setError(
+          isDeactivated
+            ? USER_DEACTIVATED_MSG
+            : isSuperAdminRecovery
+              ? FORGOT_PASSWORD_SUCCESS_MSG
+              : isLocked
+                ? ACCOUNT_LOCKED_MSG
+                : "Credenziali non valide"
+        );
       } else {
+        setLoginFailed(false);
+        setIsAccountLocked(false);
+        setIsSuperAdminRecovery(false);
         // Aspetta che la sessione si aggiorni e controlla il flag
         router.refresh();
         
@@ -105,8 +178,66 @@ export default function Login() {
                   placeholder="••••••••"
                 />
               </div>
+              <div className="flex items-center gap-2">
+                <input
+                  id="rememberMe"
+                  name="rememberMe"
+                  type="checkbox"
+                  checked={rememberMe}
+                  onChange={(e) => setRememberMe(e.target.checked)}
+                  className="h-4 w-4 rounded border-gray-300 text-gray-900 focus:ring-gray-500"
+                />
+                <label htmlFor="rememberMe" className="text-sm text-gray-700 cursor-pointer">
+                  Ricordami (resta connesso per 30 giorni)
+                </label>
+              </div>
               {error && (
-                <div className="text-red-600 text-sm">{error}</div>
+                <div
+                  className={`text-sm ${
+                    isSuperAdminRecovery ? "text-green-600 bg-green-50 p-3 rounded-lg" : "text-red-600"
+                  }`}
+                >
+                  {error}
+                </div>
+              )}
+              {loginFailed && !isAccountLocked && !isSuperAdminRecovery && (
+                <div className="text-center">
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      if (!email.trim()) {
+                        setError("Inserisci l'email per richiedere il reset della password");
+                        return;
+                      }
+                      setForgotPasswordMessage("");
+                      setForgotPasswordLoading(true);
+                      try {
+                        const res = await fetch("/api/auth/forgot-password", {
+                          method: "POST",
+                          headers: { "Content-Type": "application/json" },
+                          body: JSON.stringify({ email: email.trim() }),
+                        });
+                        const data = await res.json();
+                        setForgotPasswordMessage(
+                          data.message || FORGOT_PASSWORD_SUCCESS_MSG
+                        );
+                      } catch {
+                        setForgotPasswordMessage("Errore di connessione. Riprova.");
+                      } finally {
+                        setForgotPasswordLoading(false);
+                      }
+                    }}
+                    disabled={forgotPasswordLoading}
+                    className="text-sm text-gray-600 hover:text-gray-900 underline disabled:opacity-50"
+                  >
+                    {forgotPasswordLoading ? "Invio in corso..." : "Ho dimenticato la password"}
+                  </button>
+                </div>
+              )}
+              {forgotPasswordMessage && (
+                <div className="text-green-600 text-sm bg-green-50 p-3 rounded-lg">
+                  {forgotPasswordMessage}
+                </div>
               )}
               <button
                 type="submit"

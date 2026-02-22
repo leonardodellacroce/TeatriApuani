@@ -376,7 +376,8 @@ export default function NewUserPage() {
           </div>
         )}
 
-        <form onSubmit={handleSubmit} className="max-w-2xl space-y-4">
+        <div className="bg-white rounded-lg shadow p-6 border border-gray-200 mb-6 max-w-xl">
+        <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label
@@ -622,6 +623,7 @@ export default function NewUserPage() {
             </button>
           </div>
         </form>
+        </div>
       </div>
     </DashboardShell>
   );

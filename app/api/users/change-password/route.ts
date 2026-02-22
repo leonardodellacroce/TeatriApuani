@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/auth';
 import { prisma } from '@/lib/prisma';
 import bcrypt from 'bcrypt';
+import { validatePassword } from '@/lib/passwordValidation';
 
 export async function POST(req: NextRequest) {
   try {
@@ -21,11 +22,9 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    if (newPassword.length < 8) {
-      return NextResponse.json(
-        { error: 'La nuova password deve essere di almeno 8 caratteri' },
-        { status: 400 }
-      );
+    const validation = await validatePassword(newPassword);
+    if (!validation.valid) {
+      return NextResponse.json({ error: validation.error }, { status: 400 });
     }
 
     // Recupera l'utente dal database
@@ -62,12 +61,13 @@ export async function POST(req: NextRequest) {
     // Hash della nuova password
     const hashedPassword = await bcrypt.hash(newPassword, 10);
 
-    // Aggiorna la password e rimuovi il flag mustChangePassword
+    // Aggiorna la password, rimuovi il flag mustChangePassword e imposta lastPasswordChangeAt
     await prisma.user.update({
       where: { id: session.user.id },
       data: {
         password: hashedPassword,
         mustChangePassword: false,
+        lastPasswordChangeAt: new Date(),
       },
     });
 

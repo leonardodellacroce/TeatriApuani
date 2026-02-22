@@ -99,7 +99,7 @@ export async function POST(req: NextRequest) {
     // Verifica conflitti con turni assegnati
     const assignments = await prisma.assignment.findMany({
       where: {
-        taskType: { type: "SHIFT" },
+        taskType: { is: { type: "SHIFT" } },
         OR: [
           { userId: effectiveUserId },
           { assignedUsers: { contains: effectiveUserId } },

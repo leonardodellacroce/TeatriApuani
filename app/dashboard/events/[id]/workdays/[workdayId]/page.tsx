@@ -9,6 +9,8 @@ import ConfirmDialog from "@/components/ConfirmDialog";
 import { getIncompleteScheduleInfo } from "@/app/dashboard/events/utils";
 import { getWorkModeCookie } from "@/lib/workMode";
 import { formatUserName, type UserLike } from "@/lib/formatUserName";
+import { formatUnavailabilityTimeRange, unavailabilityOverlapsShift } from "@/lib/unavailabilityTime";
+import { parseScheduledBreaks } from "@/lib/breaks";
 
 interface Event {
   id: string;
@@ -102,7 +104,7 @@ export default function WorkdayViewPage() {
   const [selectedShiftTypes, setSelectedShiftTypes] = useState<string[]>([]);
   const [shiftTimes, setShiftTimes] = useState<Record<string, { start: string; end: string }[]>>({});
   const [shiftClients, setShiftClients] = useState<Record<string, string[]>>({});  // taskTypeId -> array di clientId per ogni intervallo
-  const [shiftBreaks, setShiftBreaks] = useState<Record<string, Array<{ hasScheduledBreak: boolean; scheduledBreakStartTime: string; scheduledBreakEndTime: string }>>>({}); // taskTypeId -> array di pause per ogni intervallo
+  const [shiftBreaks, setShiftBreaks] = useState<Record<string, Array<Array<{ start: string; end: string }>>>>({}); // taskTypeId -> [intervallo][pausa]
   const [shiftTimeErrors, setShiftTimeErrors] = useState<Record<string, Record<number, { start?: string; end?: string; message?: string }>>>({});
   const [ignoreOverlaps, setIgnoreOverlaps] = useState(false);
   const [eventClients, setEventClients] = useState<Array<{ id: string; name: string }>>([]);
@@ -237,13 +239,11 @@ export default function WorkdayViewPage() {
       const res = await fetch('/api/users?standard=true');
       if (res.ok) {
         const users = await res.json();
-        // Ordina per codice crescente (numerico se possibile)
-        users.sort((a: any, b: any) => {
-          const an = parseInt((a.code || '').replace(/\D/g, ''), 10);
-          const bn = parseInt((b.code || '').replace(/\D/g, ''), 10);
-          if (!isNaN(an) && !isNaN(bn)) return an - bn;
-          return String(a.code || '').localeCompare(String(b.code || ''));
-        });
+        // Ordina alfabeticamente per nome (solo nelle tendine/filtri)
+        users.sort((a: any, b: any) =>
+          (a.name || '').localeCompare(b.name || '') ||
+          (a.cognome || '').localeCompare(b.cognome || '')
+        );
         setAllUsers(users);
         
         // Controlla tutti gli utenti per conflitti in altre location
@@ -259,16 +259,14 @@ export default function WorkdayViewPage() {
               const unavList: Array<{ id: string; userId: string; startTime: string | null; endTime: string | null }> = await ures.json();
               const msgs: Record<string, string> = {};
               const ids: Record<string, string[]> = {};
+              const assignStart = assignment.startTime;
+              const assignEnd = assignment.endTime;
               const buildMsg = (u: { startTime: string | null; endTime: string | null }) => {
-                if (!u.startTime && !u.endTime) return "tutto il giorno";
-                if (u.startTime === "06:00" && u.endTime) return `fino alle ${u.endTime}`;
-                if (u.startTime && u.endTime === "24:00") return `dalle ${u.startTime}`;
-                if (u.startTime && u.endTime) return `fascia ${u.startTime}-${u.endTime}`;
-                if (u.startTime) return `dalle ${u.startTime}`;
-                if (u.endTime) return `fino alle ${u.endTime}`;
-                return "tutto il giorno";
+                const s = formatUnavailabilityTimeRange(u.startTime, u.endTime);
+                return s === "Tutto il giorno" ? "tutto il giorno" : s.toLowerCase();
               };
               unavList.forEach((u) => {
+                if (!assignStart || !assignEnd || !unavailabilityOverlapsShift(u.startTime, u.endTime, assignStart, assignEnd)) return;
                 const msg = buildMsg(u);
                 if (!ids[u.userId]) ids[u.userId] = [];
                 ids[u.userId].push(u.id);
@@ -825,14 +823,14 @@ export default function WorkdayViewPage() {
     const preSelectedTypes: string[] = [];
     const preSelectedTimes: Record<string, { start: string; end: string }[]> = {};
     const preSelectedClients: Record<string, string[]> = {};
-    const preSelectedBreaks: Record<string, Array<{ hasScheduledBreak: boolean; scheduledBreakStartTime: string; scheduledBreakEndTime: string }>> = {};
+    const preSelectedBreaks: Record<string, Array<Array<{ start: string; end: string }>>> = {};
     const disabledTypes: Record<string, boolean> = {};
     const disabledIntervals: Record<string, boolean> = {};
     
     // Raggruppa le Assignment per taskTypeId per creare array di intervalli
     const assignmentsByType: Record<string, Array<{ start: string; end: string }>> = {};
     const clientsByType: Record<string, string[]> = {};
-    const breaksByType: Record<string, Array<{ hasScheduledBreak: boolean; scheduledBreakStartTime: string; scheduledBreakEndTime: string }>> = {};
+    const breaksByType: Record<string, Array<Array<{ start: string; end: string }>>> = {};
     
     existingAssignments.forEach(assignment => {
       if (assignment.taskType && assignment.taskType.type === "SHIFT") {
@@ -849,12 +847,19 @@ export default function WorkdayViewPage() {
         });
         // Aggiungi il clientId (può essere null)
         clientsByType[taskTypeId].push((assignment as any).clientId || "");
-        // Aggiungi dati pausa
-        breaksByType[taskTypeId].push({
-          hasScheduledBreak: (assignment as any).hasScheduledBreak || false,
-          scheduledBreakStartTime: (assignment as any).scheduledBreakStartTime || "",
-          scheduledBreakEndTime: (assignment as any).scheduledBreakEndTime || "",
-        });
+        // Aggiungi pause (scheduledBreaks o legacy)
+        let breaksArr: Array<{ start: string; end: string }> = [];
+        const sb = (assignment as any).scheduledBreaks;
+        if (sb) {
+          try {
+            const parsed = JSON.parse(sb);
+            if (Array.isArray(parsed)) breaksArr = parsed.filter((b: any) => b?.start && b?.end);
+          } catch {}
+        }
+        if (breaksArr.length === 0 && (assignment as any).hasScheduledBreak && (assignment as any).scheduledBreakStartTime && (assignment as any).scheduledBreakEndTime) {
+          breaksArr = [{ start: (assignment as any).scheduledBreakStartTime, end: (assignment as any).scheduledBreakEndTime }];
+        }
+        breaksByType[taskTypeId].push(breaksArr);
         // Se ci sono tipologie personale o utenti assegnati, disabilita il checkbox e l'intervallo
         let hasPersonnel = false;
         try {
@@ -961,7 +966,7 @@ export default function WorkdayViewPage() {
             
             reordered[taskTypeId] = sortedIndices.map(x => x.item);
             reorderedClients[taskTypeId] = sortedIndices.map(x => (preSelectedClients[taskTypeId] || [])[x.idx] || "");
-            reorderedBreaks[taskTypeId] = sortedIndices.map(x => (preSelectedBreaks[taskTypeId] || [])[x.idx] || { hasScheduledBreak: false, scheduledBreakStartTime: "", scheduledBreakEndTime: "" });
+            reorderedBreaks[taskTypeId] = sortedIndices.map(x => (preSelectedBreaks[taskTypeId] || [])[x.idx] || []);
           }
         });
         Object.assign(preSelectedTimes, reordered);
@@ -1288,21 +1293,10 @@ export default function WorkdayViewPage() {
           const ex = existing[i];
           const clientId = clientsForType[i] || null;
           if (d && ex) {
-            const breakData = (shiftBreaks[tid] || [])[i];
+            const breakData = (shiftBreaks[tid] || [])[i] || [];
             const patchPayload: any = { startTime: d.start, endTime: d.end };
-            // Includi clientId solo se è cambiato o se c'è un valore
-            if (clientId !== (ex as any).clientId) {
-              patchPayload.clientId = clientId || null;
-            }
-            // Aggiungi o aggiorna dati pausa
-            if (breakData?.hasScheduledBreak) {
-              patchPayload.hasScheduledBreak = true;
-              patchPayload.scheduledBreakStartTime = breakData.scheduledBreakStartTime || null;
-              patchPayload.scheduledBreakEndTime = breakData.scheduledBreakEndTime || null;
-            } else {
-              // Se non c'è pausa, imposta a false per rimuoverla
-              patchPayload.hasScheduledBreak = false;
-            }
+            if (clientId !== (ex as any).clientId) patchPayload.clientId = clientId || null;
+            patchPayload.scheduledBreaks = breakData.length > 0 ? breakData : [];
             const res = await fetch(`/api/assignments/${ex.id}`, {
               method: 'PATCH',
               headers: { 'Content-Type':'application/json' },
@@ -1310,7 +1304,7 @@ export default function WorkdayViewPage() {
             });
             if (!res.ok) console.error('Error patching assignment', await res.text());
           } else if (d && !ex) {
-            const breakData = (shiftBreaks[tid] || [])[i];
+            const breakData = (shiftBreaks[tid] || [])[i] || [];
             const payload = { 
               workdayId: workday.id, 
               taskTypeId: tid, 
@@ -1318,13 +1312,9 @@ export default function WorkdayViewPage() {
               startTime: d.start, 
               endTime: d.end, 
               area: area.name, 
-              note: null 
+              note: null,
+              scheduledBreaks: breakData.length > 0 ? breakData : []
             } as any;
-            if (breakData?.hasScheduledBreak && breakData.scheduledBreakStartTime && breakData.scheduledBreakEndTime) {
-              payload.hasScheduledBreak = true;
-              payload.scheduledBreakStartTime = breakData.scheduledBreakStartTime;
-              payload.scheduledBreakEndTime = breakData.scheduledBreakEndTime;
-            }
             const response = await fetch('/api/assignments', { method: 'POST', headers: { 'Content-Type':'application/json' }, body: JSON.stringify(payload) });
             if (!response.ok) console.error('Error creating shift assignment', await response.text());
           } else if (!d && ex) {
@@ -2862,9 +2852,14 @@ export default function WorkdayViewPage() {
                                         </div>
                                         <span className="text-gray-600">
                                           {assignment.startTime} - {assignment.endTime}
-                                          {(assignment as any).hasScheduledBreak && (assignment as any).scheduledBreakStartTime && (assignment as any).scheduledBreakEndTime && (
-                                            <span className="text-gray-400 ml-1">(Pausa: {(assignment as any).scheduledBreakStartTime} - {(assignment as any).scheduledBreakEndTime})</span>
-                                          )}
+                                          {(() => {
+                                            const breaks = parseScheduledBreaks((assignment as any).scheduledBreaks) ||
+                                              (((assignment as any).hasScheduledBreak && (assignment as any).scheduledBreakStartTime && (assignment as any).scheduledBreakEndTime)
+                                                ? [{ start: (assignment as any).scheduledBreakStartTime, end: (assignment as any).scheduledBreakEndTime }]
+                                                : []);
+                                            if (breaks.length === 0) return null;
+                                            return <span className="text-gray-400 ml-1">(Pausa: {breaks.map(b => `${b.start}-${b.end}`).join(", ")})</span>;
+                                          })()}
                                           {/* Cliente visibile solo a ruoli di gestione */}
                                           {canEditEvents && (
                                             <>
@@ -2928,80 +2923,56 @@ export default function WorkdayViewPage() {
                                             }}
                                             onMouseLeave={() => setTooltip(null)}
                                           />
-                                          {/* Visualizzazione pausa prevista */}
-                                          {(assignment as any).hasScheduledBreak && (assignment as any).scheduledBreakStartTime && (assignment as any).scheduledBreakEndTime && (() => {
-                                            const breakStartMinutes = parseTimeToMinutesHelper((assignment as any).scheduledBreakStartTime);
-                                            const breakEndMinutes = parseTimeToMinutesHelper((assignment as any).scheduledBreakEndTime);
-                                            
-                                            if (breakStartMinutes === null || breakEndMinutes === null) return null;
-                                            
-                                            // Per turni normali (non notturni): la pausa deve essere tra startMinutes e endMinutes
-                                            // Per turni notturni: la pausa può essere tra startMinutes e 24:00 (se nel giorno attuale) 
-                                            // o tra 00:00 e endMinutes (se nel giorno successivo)
-                                            
-                                            // Verifica se la pausa è nel giorno attuale (per turni notturni)
-                                            if (isOvernight && breakStartMinutes < startMinutes) {
-                                              // La pausa è nel giorno successivo, viene gestita nella timeline del giorno successivo
-                                              return null;
-                                            }
-                                            
-                                            // Verifica che la pausa sia all'interno della parte visibile del turno nel giorno attuale
-                                            const dayEnd = isOvernight ? 24 * 60 : endMinutes;
-                                            if (breakStartMinutes < startMinutes || breakStartMinutes >= dayEnd) {
-                                              return null;
-                                            }
-                                            
-                                            // Limita la fine della pausa al termine del giorno attuale
-                                            const visibleBreakEnd = Math.min(breakEndMinutes, dayEnd);
-                                            
-                                            // Calcola la posizione della pausa nella timeline (0-100% del giorno)
-                                            const breakLeftPct = (breakStartMinutes / (24 * 60)) * 100;
-                                            const breakWidthPct = ((visibleBreakEnd - breakStartMinutes) / (24 * 60)) * 100;
-                                            
-                                            // Verifica che la pausa sia all'interno della barra del turno visibile
-                                            const breakRightPct = breakLeftPct + breakWidthPct;
-                                            if (breakRightPct <= leftPctMain || breakLeftPct >= leftPctMain + widthPctMain) {
-                                              return null;
-                                            }
-                                            
-                                            // Calcola la posizione e larghezza relative all'interno della barra del turno
-                                            const breakLeftRelative = Math.max(0, ((breakLeftPct - leftPctMain) / widthPctMain) * 100);
-                                            const breakRightRelative = Math.min(100, ((breakRightPct - leftPctMain) / widthPctMain) * 100);
-                                            const breakWidthRelative = breakRightRelative - breakLeftRelative;
-                                            
-                                            // Converti il colore hex in rgba per l'opacità
+                                          {/* Visualizzazione pause previste */}
+                                          {(() => {
+                                            const breaks = parseScheduledBreaks((assignment as any).scheduledBreaks) ||
+                                              (((assignment as any).hasScheduledBreak && (assignment as any).scheduledBreakStartTime && (assignment as any).scheduledBreakEndTime)
+                                                ? [{ start: (assignment as any).scheduledBreakStartTime, end: (assignment as any).scheduledBreakEndTime }]
+                                                : []);
                                             const hexToRgba = (hex: string, alpha: number) => {
                                               const r = parseInt(hex.slice(1, 3), 16);
                                               const g = parseInt(hex.slice(3, 5), 16);
                                               const b = parseInt(hex.slice(5, 7), 16);
                                               return `rgba(${r}, ${g}, ${b}, ${alpha})`;
                                             };
-                                            
-                                            return (
-                                              <div
-                                                className="absolute top-0 bottom-0 rounded"
-                                                style={{
-                                                  left: `${leftPctMain + (widthPctMain * breakLeftRelative / 100)}%`,
-                                                  width: `${widthPctMain * breakWidthRelative / 100}%`,
-                                                  backgroundImage: `repeating-linear-gradient(
-                                                    45deg,
-                                                    ${hexToRgba(color, 0.85)},
-                                                    ${hexToRgba(color, 0.85)} 8px,
-                                                    transparent 8px,
-                                                    transparent 16px
-                                                  )`,
-                                                }}
-                                                onMouseEnter={(e) => {
-                                                  const rect = e.currentTarget.getBoundingClientRect();
-                                                  setTooltip({ 
-                                                    text: `Pausa: ${(assignment as any).scheduledBreakStartTime} - ${(assignment as any).scheduledBreakEndTime}`, 
-                                                    x: rect.left + rect.width / 2, 
-                                                    y: rect.top 
-                                                  });
-                                                }}
-                                                onMouseLeave={() => setTooltip(null)}
-                                              />
-                                            );
+                                            const dayEnd = isOvernight ? 24 * 60 : endMinutes;
+                                            return breaks.map((brk, idx) => {
+                                              const breakStartMinutes = parseTimeToMinutesHelper(brk.start);
+                                              const breakEndMinutes = parseTimeToMinutesHelper(brk.end);
+                                              if (breakStartMinutes === null || breakEndMinutes === null) return null;
+                                              if (isOvernight && breakStartMinutes < startMinutes) return null;
+                                              if (breakStartMinutes < startMinutes || breakStartMinutes >= dayEnd) return null;
+                                              const visibleBreakEnd = Math.min(breakEndMinutes, dayEnd);
+                                              const breakLeftPct = (breakStartMinutes / (24 * 60)) * 100;
+                                              const breakWidthPct = ((visibleBreakEnd - breakStartMinutes) / (24 * 60)) * 100;
+                                              const breakRightPct = breakLeftPct + breakWidthPct;
+                                              if (breakRightPct <= leftPctMain || breakLeftPct >= leftPctMain + widthPctMain) return null;
+                                              const breakLeftRelative = Math.max(0, ((breakLeftPct - leftPctMain) / widthPctMain) * 100);
+                                              const breakRightRelative = Math.min(100, ((breakRightPct - leftPctMain) / widthPctMain) * 100);
+                                              const breakWidthRelative = breakRightRelative - breakLeftRelative;
+                                              return (
+                                                <div
+                                                  key={idx}
+                                                  className="absolute top-0 bottom-0 rounded"
+                                                  style={{
+                                                    left: `${leftPctMain + (widthPctMain * breakLeftRelative / 100)}%`,
+                                                    width: `${widthPctMain * breakWidthRelative / 100}%`,
+                                                    backgroundImage: `repeating-linear-gradient(
+                                                      45deg,
+                                                      ${hexToRgba(color, 0.85)},
+                                                      ${hexToRgba(color, 0.85)} 8px,
+                                                      transparent 8px,
+                                                      transparent 16px
+                                                    )`,
+                                                  }}
+                                                  onMouseEnter={(e) => {
+                                                    const rect = e.currentTarget.getBoundingClientRect();
+                                                    setTooltip({ text: `Pausa: ${brk.start} - ${brk.end}`, x: rect.left + rect.width / 2, y: rect.top });
+                                                  }}
+                                                  onMouseLeave={() => setTooltip(null)}
+                                                />
+                                              );
+                                            });
                                           })()}
                                         </div>
                                         <div className="mt-1 grid grid-cols-7 gap-0 text-xs text-gray-500 lg:hidden">
@@ -3065,77 +3036,52 @@ export default function WorkdayViewPage() {
                                                 }}
                                                 onMouseLeave={() => setTooltip(null)}
                                               />
-                                              {/* Visualizzazione pausa prevista nel giorno successivo */}
-                                              {(assignment as any).hasScheduledBreak && (assignment as any).scheduledBreakStartTime && (assignment as any).scheduledBreakEndTime && (() => {
-                                                const breakStartMinutes = parseTimeToMinutesHelper((assignment as any).scheduledBreakStartTime);
-                                                const breakEndMinutes = parseTimeToMinutesHelper((assignment as any).scheduledBreakEndTime);
-                                                
-                                                if (breakStartMinutes === null || breakEndMinutes === null) return null;
-                                                
-                                                // Per turni notturni, verifica se la pausa è nel giorno successivo
-                                                if (!isOvernight) return null;
-                                                
-                                                // La pausa è nel giorno successivo se inizia prima della mezzanotte ma è minore di startMinutes
-                                                // oppure se inizia dopo la mezzanotte
-                                                if (breakStartMinutes >= startMinutes) {
-                                                  // La pausa è nel giorno attuale, già gestita
-                                                  return null;
-                                                }
-                                                
-                                                // Verifica che la pausa sia all'interno della parte del turno nel giorno successivo (00:00 - endMinutes)
-                                                if (breakEndMinutes > endMinutes || breakEndMinutes <= 0) {
-                                                  return null;
-                                                }
-                                                
-                                                // Calcola la posizione della pausa nella timeline (0-100% del giorno)
-                                                // Per il giorno successivo, breakStartMinutes è < startMinutes, quindi rappresenta un'ora dopo la mezzanotte
-                                                // Es: se startMinutes = 1320 (22:00) e breakStartMinutes = 30 (00:30), la pausa inizia a 30 minuti del nuovo giorno
-                                                const breakLeftPct = (breakStartMinutes / (24 * 60)) * 100;
-                                                const breakWidthPct = ((breakEndMinutes - breakStartMinutes) / (24 * 60)) * 100;
-                                                
-                                                // La barra del turno nel giorno successivo inizia a 0% e va fino a widthPctNext%
-                                                // Verifica che la pausa sia all'interno di questa barra
-                                                if (breakLeftPct + breakWidthPct > widthPctNext) {
-                                                  return null;
-                                                }
-                                                
-                                                // Calcola la posizione e larghezza relative all'interno della barra del turno
-                                                const breakLeftRelative = (breakLeftPct / widthPctNext) * 100;
-                                                const breakWidthRelative = (breakWidthPct / widthPctNext) * 100;
-                                                
-                                                // Converti il colore hex in rgba per l'opacità
+                                              {/* Visualizzazione pause previste nel giorno successivo */}
+                                              {!isOvernight ? null : (() => {
+                                                const breaks = parseScheduledBreaks((assignment as any).scheduledBreaks) ||
+                                                  (((assignment as any).hasScheduledBreak && (assignment as any).scheduledBreakStartTime && (assignment as any).scheduledBreakEndTime)
+                                                    ? [{ start: (assignment as any).scheduledBreakStartTime, end: (assignment as any).scheduledBreakEndTime }]
+                                                    : []);
                                                 const hexToRgba = (hex: string, alpha: number) => {
                                                   const r = parseInt(hex.slice(1, 3), 16);
                                                   const g = parseInt(hex.slice(3, 5), 16);
                                                   const b = parseInt(hex.slice(5, 7), 16);
                                                   return `rgba(${r}, ${g}, ${b}, ${alpha})`;
                                                 };
-                                                
-                                                return (
-                                                  <div
-                                                    className="absolute top-0 bottom-0 rounded"
-                                                    style={{
-                                                      left: `${widthPctNext * breakLeftRelative / 100}%`,
-                                                      width: `${widthPctNext * breakWidthRelative / 100}%`,
-                                                      backgroundImage: `repeating-linear-gradient(
-                                                        45deg,
-                                                        ${hexToRgba(color, 0.3)},
-                                                        ${hexToRgba(color, 0.3)} 10px,
-                                                        transparent 10px,
-                                                        transparent 20px
-                                                      )`,
-                                                    }}
-                                                    onMouseEnter={(e) => {
-                                                      const rect = e.currentTarget.getBoundingClientRect();
-                                                      setTooltip({ 
-                                                        text: `Pausa: ${(assignment as any).scheduledBreakStartTime} - ${(assignment as any).scheduledBreakEndTime}`, 
-                                                        x: rect.left + rect.width / 2, 
-                                                        y: rect.top 
-                                                      });
-                                                    }}
-                                                    onMouseLeave={() => setTooltip(null)}
-                                                  />
-                                                );
+                                                return breaks.map((brk, idx) => {
+                                                  const breakStartMinutes = parseTimeToMinutesHelper(brk.start);
+                                                  const breakEndMinutes = parseTimeToMinutesHelper(brk.end);
+                                                  if (breakStartMinutes === null || breakEndMinutes === null) return null;
+                                                  if (breakStartMinutes >= startMinutes) return null;
+                                                  if (breakEndMinutes > endMinutes || breakEndMinutes <= 0) return null;
+                                                  const breakLeftPct = (breakStartMinutes / (24 * 60)) * 100;
+                                                  const breakWidthPct = ((breakEndMinutes - breakStartMinutes) / (24 * 60)) * 100;
+                                                  if (breakLeftPct + breakWidthPct > widthPctNext) return null;
+                                                  const breakLeftRelative = (breakLeftPct / widthPctNext) * 100;
+                                                  const breakWidthRelative = (breakWidthPct / widthPctNext) * 100;
+                                                  return (
+                                                    <div
+                                                      key={idx}
+                                                      className="absolute top-0 bottom-0 rounded"
+                                                      style={{
+                                                        left: `${widthPctNext * breakLeftRelative / 100}%`,
+                                                        width: `${widthPctNext * breakWidthRelative / 100}%`,
+                                                        backgroundImage: `repeating-linear-gradient(
+                                                          45deg,
+                                                          ${hexToRgba(color, 0.3)},
+                                                          ${hexToRgba(color, 0.3)} 10px,
+                                                          transparent 10px,
+                                                          transparent 20px
+                                                        )`,
+                                                      }}
+                                                      onMouseEnter={(e) => {
+                                                        const rect = e.currentTarget.getBoundingClientRect();
+                                                        setTooltip({ text: `Pausa: ${brk.start} - ${brk.end}`, x: rect.left + rect.width / 2, y: rect.top });
+                                                      }}
+                                                      onMouseLeave={() => setTooltip(null)}
+                                                    />
+                                                  );
+                                                });
                                               })()}
                                             </div>
                                             <div className="mt-1 grid grid-cols-7 gap-0 text-xs text-gray-400 lg:hidden">
@@ -3495,7 +3441,7 @@ export default function WorkdayViewPage() {
                           className="w-4 h-4 text-gray-900 border-gray-300 rounded focus:ring-gray-500"
                         />
                         <span className={`text-sm ${unavMsg ? 'text-gray-500' : 'text-gray-800'}`}>
-                          {u.code} — {formatUserName(u, allUsers)}
+                          {formatUserName(u, allUsers)}
                         </span>
                         {disabledByOverlap && (
                           <div className="absolute left-0 bottom-full mb-2 hidden group-hover:flex items-center px-3 py-1.5 bg-gray-900 text-white text-xs rounded-lg shadow-lg whitespace-nowrap z-50">
@@ -3655,7 +3601,7 @@ export default function WorkdayViewPage() {
                                 });
                                 setShiftBreaks({
                                   ...shiftBreaks,
-                                  [shiftType.id]: [...currentBreaks, { hasScheduledBreak: false, scheduledBreakStartTime: "", scheduledBreakEndTime: "" }]
+                                  [shiftType.id]: [...currentBreaks, []]
                                 });
                                 // Re-validate
                                 setTimeout(() => {
@@ -3844,40 +3790,14 @@ export default function WorkdayViewPage() {
                                       className="w-full px-3 py-2 h-10 border border-gray-300 rounded-lg text-sm"
                                     >
                                       <option value="">Seleziona cliente...</option>
-                                      {eventClients.map(client => (
-                                        <option key={client.id} value={client.id}>
-                                          {client.name}
-                                        </option>
-                                      ))}
+                                      {[...eventClients]
+                                        .sort((a, b) => (a.name || "").localeCompare(b.name || ""))
+                                        .map((client) => (
+                                          <option key={client.id} value={client.id}>
+                                            {client.name}
+                                          </option>
+                                        ))}
                                     </select>
-                                  </div>
-                                )}
-                                {/* Checkbox Pausa prevista - mobile: al posto di Cliente sulla riga degli orari */}
-                                {eventClients.length > 0 && (
-                                  <div className="flex-1 lg:hidden flex items-center">
-                                    <label className="flex items-center space-x-2 cursor-pointer">
-                                      <input
-                                        type="checkbox"
-                                        checked={(shiftBreaks[shiftType.id] || [])[intervalIdx]?.hasScheduledBreak || false}
-                                        onChange={(e) => {
-                                          const currentBreaks = [...(shiftBreaks[shiftType.id] || [])];
-                                          while (currentBreaks.length <= intervalIdx) {
-                                            currentBreaks.push({ hasScheduledBreak: false, scheduledBreakStartTime: "", scheduledBreakEndTime: "" });
-                                          }
-                                          currentBreaks[intervalIdx] = {
-                                            hasScheduledBreak: e.target.checked,
-                                            scheduledBreakStartTime: e.target.checked ? currentBreaks[intervalIdx]?.scheduledBreakStartTime || "" : "",
-                                            scheduledBreakEndTime: e.target.checked ? currentBreaks[intervalIdx]?.scheduledBreakEndTime || "" : "",
-                                          };
-                                          setShiftBreaks({
-                                            ...shiftBreaks,
-                                            [shiftType.id]: currentBreaks
-                                          });
-                                        }}
-                                        className="w-4 h-4 text-gray-900 border-gray-300 rounded focus:ring-gray-900"
-                                      />
-                                      <span className="text-xs text-gray-500">Pausa prevista</span>
-                                    </label>
                                   </div>
                                 )}
                                 {/* Pulsante rimuovi intervallo - mostrato solo se ci sono più intervalli */}
@@ -3904,7 +3824,7 @@ export default function WorkdayViewPage() {
                                        });
                                        setShiftBreaks({
                                          ...shiftBreaks,
-                                         [shiftType.id]: currentBreaks.length > 0 ? currentBreaks : [{ hasScheduledBreak: false, scheduledBreakStartTime: "", scheduledBreakEndTime: "" }]
+                                         [shiftType.id]: currentBreaks.length > 0 ? currentBreaks : [[]]
                                        });
                                        // Remove errors for this interval
                                        const errors = { ...shiftTimeErrors };
@@ -3968,107 +3888,91 @@ export default function WorkdayViewPage() {
                                     className="w-full px-3 py-2 h-10 border border-gray-300 rounded-lg text-sm"
                                   >
                                     <option value="">Seleziona cliente...</option>
-                                    {eventClients.map(client => (
-                                      <option key={client.id} value={client.id}>
-                                        {client.name}
-                                      </option>
-                                    ))}
+                                    {[...eventClients]
+                                      .sort((a, b) => (a.name || "").localeCompare(b.name || ""))
+                                      .map((client) => (
+                                        <option key={client.id} value={client.id}>
+                                          {client.name}
+                                        </option>
+                                      ))}
                                   </select>
                                 </div>
                               )}
-                              {/* Seconda riga: campi pausa */}
-                              <div className="flex gap-2 items-start">
-                                {/* Spazio per pulsanti su/giù per allineamento */}
-                                {(shiftTimes[shiftType.id] || []).length > 1 && (
-                                  <div className="w-[33px]"></div>
-                                )}
-                                {/* Inizio pausa - sotto Ora Inizio */}
-                                {(shiftBreaks[shiftType.id] || [])[intervalIdx]?.hasScheduledBreak ? (
-                                  <div className="flex-1">
-                                    <label className="block text-xs text-gray-500 mb-1">Inizio pausa</label>
-                                    <input
-                                      type="time"
-                                      value={(shiftBreaks[shiftType.id] || [])[intervalIdx]?.scheduledBreakStartTime || ""}
-                                      onChange={(e) => {
-                                        const currentBreaks = [...(shiftBreaks[shiftType.id] || [])];
-                                        while (currentBreaks.length <= intervalIdx) {
-                                          currentBreaks.push({ hasScheduledBreak: false, scheduledBreakStartTime: "", scheduledBreakEndTime: "" });
-                                        }
-                                        currentBreaks[intervalIdx] = {
-                                          ...currentBreaks[intervalIdx],
-                                          scheduledBreakStartTime: e.target.value
-                                        };
-                                        setShiftBreaks({
-                                          ...shiftBreaks,
-                                          [shiftType.id]: currentBreaks
-                                        });
-                                      }}
-                                      className="w-full px-3 py-2 h-10 border border-gray-300 rounded-lg text-sm"
-                                    />
-                                  </div>
-                                ) : (
-                                  <div className="flex-1"></div>
-                                )}
-                                {/* Fine pausa - sotto Ora Fine */}
-                                {(shiftBreaks[shiftType.id] || [])[intervalIdx]?.hasScheduledBreak ? (
-                                  <div className="flex-1">
-                                    <label className="block text-xs text-gray-500 mb-1">Fine pausa</label>
-                                    <input
-                                      type="time"
-                                      value={(shiftBreaks[shiftType.id] || [])[intervalIdx]?.scheduledBreakEndTime || ""}
-                                      onChange={(e) => {
-                                        const currentBreaks = [...(shiftBreaks[shiftType.id] || [])];
-                                        while (currentBreaks.length <= intervalIdx) {
-                                          currentBreaks.push({ hasScheduledBreak: false, scheduledBreakStartTime: "", scheduledBreakEndTime: "" });
-                                        }
-                                        currentBreaks[intervalIdx] = {
-                                          ...currentBreaks[intervalIdx],
-                                          scheduledBreakEndTime: e.target.value
-                                        };
-                                        setShiftBreaks({
-                                          ...shiftBreaks,
-                                          [shiftType.id]: currentBreaks
-                                        });
-                                      }}
-                                      className="w-full px-3 py-2 h-10 border border-gray-300 rounded-lg text-sm"
-                                    />
-                                  </div>
-                                ) : (
-                                  <div className="flex-1"></div>
-                                )}
-                                {/* Checkbox Pausa prevista - desktop: sotto Cliente; mobile: nella riga degli orari */}
-                                {eventClients.length > 0 && (
-                                  <div className="flex-1 hidden lg:block">
-                                    <label className="flex items-center space-x-2 cursor-pointer mb-1">
+                              {/* Pause per intervallo */}
+                              <div className="space-y-2">
+                                {(shiftTimes[shiftType.id] || []).length > 1 && <div className="w-[33px]"></div>}
+                                <div className="text-xs text-gray-500 font-medium">Pause</div>
+                                {((shiftBreaks[shiftType.id] || [])[intervalIdx] || []).map((brk, brkIdx) => (
+                                  <div key={brkIdx} className="flex gap-2 items-end">
+                                    {(shiftTimes[shiftType.id] || []).length > 1 && <div className="w-[33px]"></div>}
+                                    <div className="flex-1">
+                                      <label className="block text-xs text-gray-500 mb-1">Inizio</label>
                                       <input
-                                        type="checkbox"
-                                        checked={(shiftBreaks[shiftType.id] || [])[intervalIdx]?.hasScheduledBreak || false}
+                                        type="time"
+                                        value={brk.start}
                                         onChange={(e) => {
-                                          const currentBreaks = [...(shiftBreaks[shiftType.id] || [])];
-                                          while (currentBreaks.length <= intervalIdx) {
-                                            currentBreaks.push({ hasScheduledBreak: false, scheduledBreakStartTime: "", scheduledBreakEndTime: "" });
-                                          }
-                                          currentBreaks[intervalIdx] = {
-                                            hasScheduledBreak: e.target.checked,
-                                            scheduledBreakStartTime: e.target.checked ? currentBreaks[intervalIdx]?.scheduledBreakStartTime || "" : "",
-                                            scheduledBreakEndTime: e.target.checked ? currentBreaks[intervalIdx]?.scheduledBreakEndTime || "" : "",
-                                          };
-                                          setShiftBreaks({
-                                            ...shiftBreaks,
-                                            [shiftType.id]: currentBreaks
-                                          });
+                                          const current = [...((shiftBreaks[shiftType.id] || [])[intervalIdx] || [])];
+                                          while (current.length <= brkIdx) current.push({ start: "", end: "" });
+                                          current[brkIdx] = { ...current[brkIdx], start: e.target.value };
+                                          const all = [...(shiftBreaks[shiftType.id] || [])];
+                                          while (all.length <= intervalIdx) all.push([]);
+                                          all[intervalIdx] = current;
+                                          setShiftBreaks({ ...shiftBreaks, [shiftType.id]: all });
                                         }}
-                                        className="w-4 h-4 text-gray-900 border-gray-300 rounded focus:ring-gray-900"
+                                        className="w-full px-3 py-2 h-10 border border-gray-300 rounded-lg text-sm"
                                       />
-                                      <span className="text-xs text-gray-500">Pausa prevista</span>
-                                    </label>
-                                    <div className="h-[42px]"></div>
+                                    </div>
+                                    <div className="flex-1">
+                                      <label className="block text-xs text-gray-500 mb-1">Fine</label>
+                                      <input
+                                        type="time"
+                                        value={brk.end}
+                                        onChange={(e) => {
+                                          const current = [...((shiftBreaks[shiftType.id] || [])[intervalIdx] || [])];
+                                          while (current.length <= brkIdx) current.push({ start: "", end: "" });
+                                          current[brkIdx] = { ...current[brkIdx], end: e.target.value };
+                                          const all = [...(shiftBreaks[shiftType.id] || [])];
+                                          while (all.length <= intervalIdx) all.push([]);
+                                          all[intervalIdx] = current;
+                                          setShiftBreaks({ ...shiftBreaks, [shiftType.id]: all });
+                                        }}
+                                        className="w-full px-3 py-2 h-10 border border-gray-300 rounded-lg text-sm"
+                                      />
+                                    </div>
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        const current = [...((shiftBreaks[shiftType.id] || [])[intervalIdx] || [])];
+                                        current.splice(brkIdx, 1);
+                                        const all = [...(shiftBreaks[shiftType.id] || [])];
+                                        while (all.length <= intervalIdx) all.push([]);
+                                        all[intervalIdx] = current;
+                                        setShiftBreaks({ ...shiftBreaks, [shiftType.id]: all });
+                                      }}
+                                      className="px-2 py-2 text-red-600 hover:text-red-800"
+                                      title="Rimuovi pausa"
+                                    >
+                                      ×
+                                    </button>
                                   </div>
-                                )}
-                                {/* Spazio per pulsante rimuovi per allineamento */}
-                                {(shiftTimes[shiftType.id] || []).length > 1 && (
-                                  <div className="w-[33px]"></div>
-                                )}
+                                ))}
+                                <div className="flex gap-2">
+                                  {(shiftTimes[shiftType.id] || []).length > 1 && <div className="w-[33px]"></div>}
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      const current = [...((shiftBreaks[shiftType.id] || [])[intervalIdx] || [])];
+                                      current.push({ start: interval.start || "", end: interval.end || "" });
+                                      const all = [...(shiftBreaks[shiftType.id] || [])];
+                                      while (all.length <= intervalIdx) all.push([]);
+                                      all[intervalIdx] = current;
+                                      setShiftBreaks({ ...shiftBreaks, [shiftType.id]: all });
+                                    }}
+                                    className="text-xs px-2 py-1 bg-gray-200 text-gray-700 rounded hover:bg-gray-300"
+                                  >
+                                    + Aggiungi pausa
+                                  </button>
+                                </div>
                               </div>
                               {/* Errori validazione */}
                               {(shiftTimeErrors[shiftType.id]?.[intervalIdx]?.start || 

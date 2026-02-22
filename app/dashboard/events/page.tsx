@@ -9,6 +9,7 @@ import ConfirmDialog from "@/components/ConfirmDialog";
 import { getIncompleteScheduleInfo, getWorkdayAlertStates, getPersonnelAlertState, getClientAlertState } from "./utils";
 import { getWorkModeCookie } from "@/lib/workMode";
 import { formatUserName, type UserLike } from "@/lib/formatUserName";
+import { formatUnavailabilityTimeRange } from "@/lib/unavailabilityTime";
 
 interface AssignmentWithUsers {
   id: string;
@@ -569,12 +570,8 @@ const ProgrammaView = ({
             const userLike = u.user ? { name: u.user.name, cognome: u.user.cognome, code: u.user.code } : null;
             const name = userLike ? formatUserName(userLike, unavUsers) : "-";
             if (!u.startTime && !u.endTime) return name;
-            if (u.startTime === "06:00" && u.endTime) return `${name} (fino alle ${u.endTime})`;
-            if (u.startTime && u.endTime === "24:00") return `${name} (dalle ${u.startTime})`;
-            if (u.startTime && u.endTime) return `${name} (${u.startTime}-${u.endTime})`;
-            if (u.startTime) return `${name} (dalle ${u.startTime})`;
-            if (u.endTime) return `${name} (fino alle ${u.endTime})`;
-            return name;
+            const timeStr = formatUnavailabilityTimeRange(u.startTime, u.endTime);
+            return timeStr === "Tutto il giorno" ? name : `${name} (${timeStr})`;
           });
           personeMancanti = parts.length ? parts.join(", ") : "-";
         }
@@ -1095,7 +1092,7 @@ export default function EventsPage() {
               <select
                 value={filterStatus}
                 onChange={(e) => setFilterStatus(e.target.value as "open" | "closed" | "all")}
-                className="px-4 py-2 h-10 border border-gray-300 rounded-lg text-sm hover:border-gray-400 hover:shadow-md hover:bg-gray-50 focus:ring-2 focus:ring-gray-900 focus:border-transparent transition-all duration-200 cursor-pointer"
+                className="pl-4 py-2 h-10 border border-gray-300 rounded-lg text-sm hover:border-gray-400 hover:shadow-md hover:bg-gray-50 focus:ring-2 focus:ring-gray-900 focus:border-transparent transition-all duration-200 cursor-pointer"
               >
                 <option value="open">Solo Aperti</option>
                 <option value="closed">Solo Chiusi</option>
@@ -1107,7 +1104,7 @@ export default function EventsPage() {
               <button
                 type="button"
                 onClick={() => setShowClientDropdown(!showClientDropdown)}
-                className="px-4 py-2 h-10 border border-gray-300 rounded-lg text-sm hover:bg-gray-50 hover:border-gray-400 hover:shadow-md hover:scale-[1.02] active:scale-100 transition-all duration-200 cursor-pointer w-64 text-left flex justify-between items-center"
+                className="pl-4 pr-3 py-2 h-10 border border-gray-300 rounded-lg text-sm hover:bg-gray-50 hover:border-gray-400 hover:shadow-md hover:scale-[1.02] active:scale-100 transition-all duration-200 cursor-pointer w-64 text-left flex justify-between items-center"
               >
                 <span>
                   {selectedClients.length === 0

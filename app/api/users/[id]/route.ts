@@ -193,14 +193,14 @@ export async function PATCH(
       }
       // Se la password è stata fornita e non è vuota, aggiornala
       if (body.password && body.password.length > 0) {
-        if (body.password.length < 8) {
-          return NextResponse.json(
-            { error: "La password deve essere di almeno 8 caratteri" },
-            { status: 400 }
-          );
+        const { validatePassword } = await import("@/lib/passwordValidation");
+        const validation = await validatePassword(body.password);
+        if (!validation.valid) {
+          return NextResponse.json({ error: validation.error }, { status: 400 });
         }
         const hashedPassword = await hash(body.password, 10);
         updateData.password = hashedPassword;
+        updateData.lastPasswordChangeAt = new Date();
       }
 
       // Inizializza i campi di gestione con i valori correnti
@@ -241,14 +241,14 @@ export async function PATCH(
     // Se è SUPER_ADMIN e sta modificando un utente normale, può modificare anche la password
     if (session.user.role === "SUPER_ADMIN" && !currentUser.isSuperAdmin && !currentUser.isAdmin && !currentUser.isResponsabile) {
       if (body.password && body.password.length > 0) {
-        if (body.password.length < 8) {
-          return NextResponse.json(
-            { error: "La password deve essere di almeno 8 caratteri" },
-            { status: 400 }
-          );
+        const { validatePassword } = await import("@/lib/passwordValidation");
+        const validation = await validatePassword(body.password);
+        if (!validation.valid) {
+          return NextResponse.json({ error: validation.error }, { status: 400 });
         }
         const hashedPassword = await hash(body.password, 10);
         updateData.password = hashedPassword;
+        updateData.lastPasswordChangeAt = new Date();
       }
     }
 

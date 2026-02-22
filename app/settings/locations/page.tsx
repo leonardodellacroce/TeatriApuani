@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import DashboardShell from "@/components/DashboardShell";
 import PageSkeleton from "@/components/PageSkeleton";
+import SearchableSelect from "@/components/SearchableSelect";
 import ConfirmDialog from "@/components/ConfirmDialog";
 
 interface Location {
@@ -188,37 +189,27 @@ export default function LocationsPage() {
             <label htmlFor="province-filter" className="block text-sm font-medium text-gray-700 mb-2">
               Filtra per Provincia
             </label>
-            <select
+            <SearchableSelect
               id="province-filter"
               value={provinceFilter}
-              onChange={(e) => setProvinceFilter(e.target.value)}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg hover:border-gray-400 hover:shadow-md hover:bg-gray-50 focus:ring-2 focus:ring-gray-500 focus:border-transparent transition-all duration-200 cursor-pointer"
-            >
-              <option value="">Tutte le province</option>
-              {uniqueProvinces.sort().map(province => (
-                <option key={province} value={province!}>
-                  {province}
-                </option>
-              ))}
-            </select>
+              onChange={setProvinceFilter}
+              placeholder="Cerca provincia..."
+              emptyOption={{ value: "", label: "Tutte le province" }}
+              options={[...uniqueProvinces].sort().map((p) => ({ value: p!, label: p! }))}
+            />
           </div>
           <div className="flex-1">
             <label htmlFor="city-filter" className="block text-sm font-medium text-gray-700 mb-2">
               Filtra per Città
             </label>
-            <select
+            <SearchableSelect
               id="city-filter"
               value={cityFilter}
-              onChange={(e) => setCityFilter(e.target.value)}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg hover:border-gray-400 hover:shadow-md hover:bg-gray-50 focus:ring-2 focus:ring-gray-500 focus:border-transparent transition-all duration-200 cursor-pointer"
-            >
-              <option value="">Tutte le città</option>
-              {uniqueCities.sort().map(city => (
-                <option key={city} value={city!}>
-                  {city}
-                </option>
-              ))}
-            </select>
+              onChange={setCityFilter}
+              placeholder="Cerca città..."
+              emptyOption={{ value: "", label: "Tutte le città" }}
+              options={[...uniqueCities].sort().map((c) => ({ value: c!, label: c! }))}
+            />
           </div>
           <div className="flex items-end">
             <button
@@ -242,16 +233,40 @@ export default function LocationsPage() {
                 <thead className="bg-gray-50">
                   <tr>
                     <th 
-                      className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                      className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors"
                       onClick={() => handleSort("code")}
                     >
-                      Codice
+                      <div className="flex items-center gap-2">
+                        Codice
+                        {sortField === "code" && (
+                          <svg 
+                            className={`w-4 h-4 ${sortOrder === "asc" ? "" : "rotate-180"}`}
+                            fill="none" 
+                            stroke="currentColor" 
+                            viewBox="0 0 24 24"
+                          >
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 15l7-7 7 7" />
+                          </svg>
+                        )}
+                      </div>
                     </th>
                     <th 
-                      className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                      className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors"
                       onClick={() => handleSort("name")}
                     >
-                      Nome
+                      <div className="flex items-center gap-2">
+                        Nome
+                        {sortField === "name" && (
+                          <svg 
+                            className={`w-4 h-4 ${sortOrder === "asc" ? "" : "rotate-180"}`}
+                            fill="none" 
+                            stroke="currentColor" 
+                            viewBox="0 0 24 24"
+                          >
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 15l7-7 7 7" />
+                          </svg>
+                        )}
+                      </div>
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Città

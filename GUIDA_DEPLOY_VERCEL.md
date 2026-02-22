@@ -236,6 +236,7 @@ Le "variabili d’ambiente" sono dati che il sito deve conoscere (es. dove trova
 | `DATABASE_URL` | Incolla la connection string di **appteatri-prod** con **Connection pooling** attivato (vedi sotto) |
 | `NEXTAUTH_SECRET` | La stessa stringa che hai messo in `.env.local` (quella generata con `openssl rand -base64 32`) |
 | `NEXTAUTH_URL` | Per ora lascia vuoto o scrivi `https://appteatri.vercel.app` – lo sistemeremo dopo |
+| `CRON_SECRET` | Una stringa segreta (es. `openssl rand -base64 32`) per proteggere il job che invia le notifiche ore mancanti ogni giorno alle 8:00 |
 
 4. **Importante per le performance:** usa la connection string con **Connection pooling**. In Neon Console, quando copi la connection string, clicca su **"Connection pooling"** (o aggiungi `-pooler` al nome host, es. `ep-xxx-123456-pooler.eu-central-1.aws.neon.tech`). Senza pooling il sito sarà molto lento online.
 

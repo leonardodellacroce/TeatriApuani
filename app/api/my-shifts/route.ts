@@ -58,6 +58,21 @@ export async function GET(req: NextRequest) {
           },
         },
         taskType: { select: { id: true, name: true, type: true } },
+        timeEntries: {
+          where: { userId },
+          select: {
+            id: true,
+            hoursWorked: true,
+            startTime: true,
+            endTime: true,
+            notes: true,
+            hasTakenBreak: true,
+            actualBreakStartTime: true,
+            actualBreakEndTime: true,
+            actualBreaks: true,
+            date: true,
+          },
+        },
       },
       orderBy: [{ workday: { date: "desc" } }, { startTime: "asc" }],
     });
@@ -105,6 +120,7 @@ export async function GET(req: NextRequest) {
         } catch {}
       }
 
+      const timeEntry = assignment.timeEntries?.[0] ?? null;
       return {
         id: assignment.id,
         workdayId: assignment.workdayId,
@@ -120,6 +136,7 @@ export async function GET(req: NextRequest) {
         hasScheduledBreak: assignment.hasScheduledBreak,
         scheduledBreakStartTime: assignment.scheduledBreakStartTime,
         scheduledBreakEndTime: assignment.scheduledBreakEndTime,
+        scheduledBreaks: assignment.scheduledBreaks,
         dutyName,
         workday: assignment.workday
           ? {
@@ -129,6 +146,20 @@ export async function GET(req: NextRequest) {
             }
           : null,
         taskType: assignment.taskType,
+        timeEntry: timeEntry
+          ? {
+              id: timeEntry.id,
+              hoursWorked: timeEntry.hoursWorked,
+              startTime: timeEntry.startTime,
+              endTime: timeEntry.endTime,
+              notes: timeEntry.notes,
+              hasTakenBreak: timeEntry.hasTakenBreak,
+              actualBreakStartTime: timeEntry.actualBreakStartTime,
+              actualBreakEndTime: timeEntry.actualBreakEndTime,
+              actualBreaks: timeEntry.actualBreaks,
+              date: timeEntry.date instanceof Date ? timeEntry.date.toISOString() : timeEntry.date,
+            }
+          : null,
       };
     });
 

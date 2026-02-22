@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useSession } from "next-auth/react";
 import DashboardShell from "@/components/DashboardShell";
+import SearchableSelect from "@/components/SearchableSelect";
 import { useRouter } from "next/navigation";
 import { getWorkModeCookie } from "@/lib/workMode";
 import { exportReportToExcel } from "@/lib/exportReportToExcel";
@@ -899,7 +900,7 @@ export default function ReportsPage() {
             const displayHours = hasOnlyShiftServices ? 0 : (employee.totalHours || 0);
             return (
             <div key={index} className="bg-white rounded-lg shadow p-6">
-              <h3 className="text-xl font-bold mb-2">{employee.userCode} - {employee.userName}</h3>
+              <h3 className="text-xl font-bold mb-2">{employee.userName}</h3>
               <div className="flex flex-wrap gap-4 mb-4">
                 <p className="text-lg font-semibold text-gray-900"><strong>Ore Totali:</strong> {formatHours(displayHours)}</p>
                 <p className="text-lg font-semibold text-gray-900"><strong>Turni Totali:</strong> {employee.totalShifts ?? 0} {(employee.totalShifts ?? 0) === 1 ? 'turno' : 'turni'}</p>
@@ -1214,23 +1215,24 @@ export default function ReportsPage() {
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Cliente *
                 </label>
-                <select
+                <SearchableSelect
                   value={selectedClientId}
-                  onChange={(e) => setSelectedClientId(e.target.value)}
-                  className="w-full px-4 py-2 h-10 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-gray-500 focus:border-transparent"
-                >
-                  <option value="">Seleziona cliente</option>
-                  {clients.map((client) => {
-                    const displayName = client.type === "PRIVATO"
-                      ? `${client.nome || ""} ${client.cognome || ""}`.trim()
-                      : client.ragioneSociale || "";
-                    return (
-                      <option key={client.id} value={client.id}>
-                        {displayName}
-                      </option>
-                    );
-                  })}
-                </select>
+                  onChange={setSelectedClientId}
+                  placeholder="Cerca cliente..."
+                  emptyOption={{ value: "", label: "Seleziona cliente" }}
+                  options={[...clients]
+                    .sort((a, b) => {
+                      const nameA = a.type === "PRIVATO" ? `${a.nome || ""} ${a.cognome || ""}`.trim() : (a.ragioneSociale || "");
+                      const nameB = b.type === "PRIVATO" ? `${b.nome || ""} ${b.cognome || ""}`.trim() : (b.ragioneSociale || "");
+                      return nameA.localeCompare(nameB);
+                    })
+                    .map((client) => {
+                      const displayName = client.type === "PRIVATO"
+                        ? `${client.nome || ""} ${client.cognome || ""}`.trim()
+                        : client.ragioneSociale || "";
+                      return { value: client.id, label: displayName || client.id };
+                    })}
+                />
               </div>
             )}
 
@@ -1240,55 +1242,48 @@ export default function ReportsPage() {
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Evento *
                   </label>
-                  <select
+                  <SearchableSelect
                     value={selectedEventId}
-                    onChange={async (e) => {
-                      setSelectedEventId(e.target.value);
-                      setSelectedEventClientId(""); // Reset cliente quando cambia evento
-                      setEventClients([]); // Reset lista clienti
-                      
-                      // Se un evento è selezionato, recupera i clienti associati
-                      if (e.target.value) {
+                    onChange={async (val) => {
+                      setSelectedEventId(val);
+                      setSelectedEventClientId("");
+                      setEventClients([]);
+                      if (val) {
                         try {
-                          const res = await fetch(`/api/reports/evento?eventId=${e.target.value}`);
+                          const res = await fetch(`/api/reports/evento?eventId=${val}`);
                           if (res.ok) {
                             const data = await res.json();
-                            if (data.clients) {
-                              setEventClients(data.clients);
-                            }
+                            if (data.clients) setEventClients(data.clients);
                           }
                         } catch (error) {
                           console.error("Error fetching event clients:", error);
                         }
                       }
                     }}
-                    className="w-full px-4 py-2 h-10 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-gray-500 focus:border-transparent"
-                  >
-                    <option value="">Seleziona evento</option>
-                    {events.map((event) => (
-                      <option key={event.id} value={event.id}>
-                        {event.title} ({new Date(event.startDate).toLocaleDateString('it-IT')} - {new Date(event.endDate).toLocaleDateString('it-IT')})
-                      </option>
-                    ))}
-                  </select>
+                    placeholder="Cerca evento..."
+                    emptyOption={{ value: "", label: "Seleziona evento" }}
+                    options={[...events]
+                      .sort((a, b) => (a.title || "").localeCompare(b.title || ""))
+                      .map((event) => ({
+                        value: event.id,
+                        label: `${event.title} (${new Date(event.startDate).toLocaleDateString("it-IT")} - ${new Date(event.endDate).toLocaleDateString("it-IT")})`,
+                      }))}
+                  />
                 </div>
                 {eventClients.length > 0 && (
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       Cliente (opzionale)
                     </label>
-                    <select
+                    <SearchableSelect
                       value={selectedEventClientId}
-                      onChange={(e) => setSelectedEventClientId(e.target.value)}
-                      className="w-full px-4 py-2 h-10 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-gray-500 focus:border-transparent"
-                    >
-                      <option value="">Tutti i clienti</option>
-                      {eventClients.map((client) => (
-                        <option key={client.id} value={client.id}>
-                          {client.name}
-                        </option>
-                      ))}
-                    </select>
+                      onChange={setSelectedEventClientId}
+                      placeholder="Cerca cliente..."
+                      emptyOption={{ value: "", label: "Tutti i clienti" }}
+                      options={[...eventClients]
+                        .sort((a, b) => (a.name || "").localeCompare(b.name || ""))
+                        .map((client) => ({ value: client.id, label: client.name }))}
+                    />
                   </div>
                 )}
               </>
@@ -1300,57 +1295,62 @@ export default function ReportsPage() {
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Mansione *
                   </label>
-                  <select
+                  <SearchableSelect
                     value={selectedDutyId}
-                    onChange={(e) => setSelectedDutyId(e.target.value)}
-                    className="w-full px-4 py-2 h-10 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-gray-500 focus:border-transparent"
-                  >
-                    <option value="">Seleziona mansione</option>
-                    {duties.map((duty) => (
-                      <option key={duty.id} value={duty.id}>
-                        {duty.code} - {duty.name} ({duty.area})
-                      </option>
-                    ))}
-                  </select>
+                    onChange={setSelectedDutyId}
+                    placeholder="Cerca mansione..."
+                    emptyOption={{ value: "", label: "Seleziona mansione" }}
+                    options={[...duties]
+                      .sort((a, b) => {
+                        const areaCmp = (a.area || "").localeCompare(b.area || "");
+                        if (areaCmp !== 0) return areaCmp;
+                        return (a.code || "").localeCompare(b.code || "");
+                      })
+                      .map((duty) => ({
+                        value: duty.id,
+                        label: `${duty.code} - ${duty.name} (${duty.area})`,
+                      }))}
+                  />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Cliente (opzionale)
                   </label>
-                  <select
+                  <SearchableSelect
                     value={selectedClientId}
-                    onChange={(e) => setSelectedClientId(e.target.value)}
-                    className="w-full px-4 py-2 h-10 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-gray-500 focus:border-transparent"
-                  >
-                    <option value="">Tutti i clienti</option>
-                    {clients.map((client) => {
-                      const displayName = client.type === "PRIVATO"
-                        ? `${client.nome || ""} ${client.cognome || ""}`.trim()
-                        : client.ragioneSociale || "";
-                      return (
-                        <option key={client.id} value={client.id}>
-                          {displayName}
-                        </option>
-                      );
-                    })}
-                  </select>
+                    onChange={setSelectedClientId}
+                    placeholder="Cerca cliente..."
+                    emptyOption={{ value: "", label: "Tutti i clienti" }}
+                    options={[...clients]
+                      .sort((a, b) => {
+                        const nameA = a.type === "PRIVATO" ? `${a.nome || ""} ${a.cognome || ""}`.trim() : (a.ragioneSociale || "");
+                        const nameB = b.type === "PRIVATO" ? `${b.nome || ""} ${b.cognome || ""}`.trim() : (b.ragioneSociale || "");
+                        return nameA.localeCompare(nameB);
+                      })
+                      .map((client) => {
+                        const displayName = client.type === "PRIVATO"
+                          ? `${client.nome || ""} ${client.cognome || ""}`.trim()
+                          : client.ragioneSociale || "";
+                        return { value: client.id, label: displayName || client.id };
+                      })}
+                  />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Location (opzionale)
                   </label>
-                  <select
+                  <SearchableSelect
                     value={selectedLocationId}
-                    onChange={(e) => setSelectedLocationId(e.target.value)}
-                    className="w-full px-4 py-2 h-10 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-gray-500 focus:border-transparent"
-                  >
-                    <option value="">Tutte le location</option>
-                    {locations.map((location) => (
-                      <option key={location.id} value={location.id}>
-                        {location.name} {location.city ? `(${location.city})` : ''}
-                      </option>
-                    ))}
-                  </select>
+                    onChange={setSelectedLocationId}
+                    placeholder="Cerca location..."
+                    emptyOption={{ value: "", label: "Tutte le location" }}
+                    options={[...locations]
+                      .sort((a, b) => (a.name || "").localeCompare(b.name || ""))
+                      .map((location) => ({
+                        value: location.id,
+                        label: `${location.name}${location.city ? ` (${location.city})` : ""}`.trim(),
+                      }))}
+                  />
                 </div>
               </>
             )}
@@ -1397,18 +1397,21 @@ export default function ReportsPage() {
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Dipendente (opzionale - lascia vuoto per tutti)
                   </label>
-                  <select
+                  <SearchableSelect
                     value={selectedUserId}
-                    onChange={(e) => setSelectedUserId(e.target.value)}
-                    className="w-full px-4 py-2 h-10 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-gray-500 focus:border-transparent"
-                  >
-                    <option value="">Tutti i dipendenti</option>
-                    {users.map((user) => (
-                      <option key={user.id} value={user.id}>
-                        {user.code} - {user.name} {user.cognome}
-                      </option>
-                    ))}
-                  </select>
+                    onChange={setSelectedUserId}
+                    placeholder="Cerca dipendente..."
+                    emptyOption={{ value: "", label: "Tutti i dipendenti" }}
+                    options={[...users]
+                      .sort((a, b) =>
+                        (a.name || "").localeCompare(b.name || "") ||
+                        (a.cognome || "").localeCompare(b.cognome || "")
+                      )
+                      .map((user) => ({
+                        value: user.id,
+                        label: `${user.name || ""} ${user.cognome || ""}`.trim() || user.id,
+                      }))}
+                  />
                 </div>
                 <label className="flex items-center gap-2 cursor-pointer">
                   <input

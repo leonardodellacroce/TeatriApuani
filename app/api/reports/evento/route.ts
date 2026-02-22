@@ -20,14 +20,15 @@ function calculateHoursFromTimeRange(startTime: string | null, endTime: string |
   return (endMinutes - startMinutes) / 60;
 }
 
-// Helper per calcolare le ore di pausa
-function calculateBreakHours(
-  hasScheduledBreak: boolean,
-  breakStartTime: string | null,
-  breakEndTime: string | null
-): number {
-  if (!hasScheduledBreak || !breakStartTime || !breakEndTime) return 0;
-  return calculateHoursFromTimeRange(breakStartTime, breakEndTime);
+// Helper per calcolare le ore di pausa (usa scheduledBreaks o legacy)
+function getBreakHours(assignment: { scheduledBreaks?: string | null; hasScheduledBreak?: boolean; scheduledBreakStartTime?: string | null; scheduledBreakEndTime?: string | null }): number {
+  const { calculateBreakHours } = require("@/lib/breaks");
+  return calculateBreakHours(
+    assignment.scheduledBreaks ?? null,
+    assignment.hasScheduledBreak,
+    assignment.scheduledBreakStartTime,
+    assignment.scheduledBreakEndTime
+  );
 }
 
 // Helper per calcolare turni e straordinari per servizi a turno
@@ -185,6 +186,7 @@ export async function GET(req: NextRequest) {
         hasScheduledBreak: true,
         scheduledBreakStartTime: true,
         scheduledBreakEndTime: true,
+        scheduledBreaks: true,
         assignedUsers: true,
         personnelRequests: true,
         timeEntries: {
@@ -298,13 +300,7 @@ export async function GET(req: NextRequest) {
         
         for (const timeEntry of assignment.timeEntries) {
           let hours = timeEntry.hoursWorked;
-          const breakHours = assignment.hasScheduledBreak
-            ? calculateBreakHours(
-                assignment.hasScheduledBreak,
-                assignment.scheduledBreakStartTime,
-                assignment.scheduledBreakEndTime
-              )
-            : 0;
+          const breakHours = getBreakHours(assignment);
           
           if (includeBreaksForAssignment && breakHours > 0) {
             hours = hours + breakHours;
@@ -434,13 +430,9 @@ export async function GET(req: NextRequest) {
           assignment.endTime
         );
         
-        if (!includeBreaksForAssignment && assignment.hasScheduledBreak) {
-          const breakHours = calculateBreakHours(
-            assignment.hasScheduledBreak,
-            assignment.scheduledBreakStartTime,
-            assignment.scheduledBreakEndTime
-          );
-          hours = Math.max(0, hours - breakHours);
+        if (!includeBreaksForAssignment) {
+          const breakHours = getBreakHours(assignment);
+          if (breakHours > 0) hours = Math.max(0, hours - breakHours);
         }
         
         shiftHours = hours;

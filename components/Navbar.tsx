@@ -5,7 +5,7 @@ import { signOut, useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { useState, useTransition, useEffect } from "react";
 import { hasRole } from "@/lib/authz";
-import { getWorkModeCookie, setWorkModeCookie, type WorkMode } from "@/lib/workMode";
+import { getWorkModeCookie, setWorkModeCookie, hasWorkModeCookie, WORK_MODE_CHANGED_EVENT, type WorkMode } from "@/lib/workMode";
 
 export default function Navbar() {
   const router = useRouter();
@@ -16,8 +16,12 @@ export default function Navbar() {
   const [profileDropdownOpen, setProfileDropdownOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [pendingUnavailCount, setPendingUnavailCount] = useState(0);
+  const [unreadNotificationsCount, setUnreadNotificationsCount] = useState(0);
 
-  const userRole = session?.user?.role as string | undefined;
+  const userRole =
+    (session?.user as any)?.role ||
+    ((session?.user as any)?.isSuperAdmin ? "SUPER_ADMIN" : (session?.user as any)?.isAdmin ? "ADMIN" : (session?.user as any)?.isResponsabile ? "RESPONSABILE" : "") ||
+    "";
   const isStandardUser = !["SUPER_ADMIN", "ADMIN", "RESPONSABILE"].includes(userRole || "");
   const isWorker = (session?.user as any)?.isWorker === true;
   const isNonStandardWorker = !isStandardUser && isWorker;
@@ -32,12 +36,26 @@ export default function Navbar() {
     isStandardUser ||
     (isWorker && (!isNonStandardWorker || workMode === "worker"));
   const canSeeIndisponibilita = canSeeMyShiftsAndHours || canAccessUsers;
+  const canSeeNotifications =
+    canSeeMyShiftsAndHours ||
+    ["SUPER_ADMIN", "ADMIN", "RESPONSABILE"].includes(userRole || "");
 
   useEffect(() => {
     if (isNonStandardWorker) {
+      if (!hasWorkModeCookie()) {
+        setWorkModeCookie("admin");
+      }
       setWorkMode(getWorkModeCookie());
     }
   }, [isNonStandardWorker, session]);
+  useEffect(() => {
+    const handler = () => {
+      setWorkMode(getWorkModeCookie());
+      refreshNotificationsCount();
+    };
+    window.addEventListener(WORK_MODE_CHANGED_EVENT, handler);
+    return () => window.removeEventListener(WORK_MODE_CHANGED_EVENT, handler);
+  }, []);
 
   const refreshPendingCount = () => {
     if (canAccessUsers) {
@@ -57,6 +75,24 @@ export default function Navbar() {
     window.addEventListener("unavailabilitiesUpdated", handler);
     return () => window.removeEventListener("unavailabilitiesUpdated", handler);
   }, [canAccessUsers]);
+
+  const refreshNotificationsCount = () => {
+    if (session?.user) {
+      fetch("/api/notifications?unreadOnly=true")
+        .then((r) => (r.ok ? r.json() : []))
+        .then((data) => setUnreadNotificationsCount(Array.isArray(data) ? data.length : 0))
+        .catch(() => setUnreadNotificationsCount(0));
+    }
+  };
+  useEffect(() => {
+    if (!session?.user) return;
+    const t = setTimeout(refreshNotificationsCount, 500);
+    return () => clearTimeout(t);
+  }, [session?.user]);
+  useEffect(() => {
+    window.addEventListener("notificationsUpdated", refreshNotificationsCount);
+    return () => window.removeEventListener("notificationsUpdated", refreshNotificationsCount);
+  }, []);
 
   const handleLogout = async () => {
     if (loggingOut) return;
@@ -117,25 +153,23 @@ export default function Navbar() {
                   </Link>
                 )}
                 {canSeeMyShiftsAndHours && (
-                  <>
-                    <Link
-                      href="/dashboard/time-entries"
-                      className="text-gray-700 hover:text-gray-900 font-medium transition-colors"
-                    >
-                      Le Mie Ore
-                    </Link>
-                    <Link
-                      href="/dashboard/my-shifts"
-                      className="text-gray-700 hover:text-gray-900 font-medium transition-colors"
-                    >
-                      I Miei Turni
-                    </Link>
-                  </>
+                  <Link
+                    href="/dashboard/my-shifts"
+                    className="text-gray-700 hover:text-gray-900 font-medium transition-colors"
+                  >
+                    I Miei Turni
+                  </Link>
                 )}
               </>
             )}
             {canAccessUsers && (
               <>
+                <Link
+                  href="/dashboard/admin/shifts-hours"
+                  className="text-gray-700 hover:text-gray-900 font-medium transition-colors"
+                >
+                  Turni e Ore
+                </Link>
                 <Link
                   href="/dashboard/reports"
                   className="text-gray-700 hover:text-gray-900 font-medium transition-colors"
@@ -162,6 +196,28 @@ export default function Navbar() {
                   </Link>
                 )}
               </>
+            )}
+            {canSeeNotifications && (
+              <Link
+                href={
+                  ["SUPER_ADMIN", "ADMIN", "RESPONSABILE"].includes(
+                    userRole || ""
+                  ) && workMode === "admin"
+                    ? "/dashboard/admin-notifications"
+                    : "/dashboard/notifications"
+                }
+                className="relative inline-flex items-center text-gray-700 hover:text-gray-900 font-medium transition-colors"
+                aria-label="Notifiche"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+                </svg>
+                {unreadNotificationsCount > 0 && (
+                  <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 flex items-center justify-center text-[10px] font-bold text-white bg-amber-500 rounded-full">
+                    {unreadNotificationsCount > 99 ? "99+" : unreadNotificationsCount}
+                  </span>
+                )}
+              </Link>
             )}
             {session ? (
               <>
@@ -324,25 +380,23 @@ export default function Navbar() {
                     </Link>
                   )}
                   {canSeeMyShiftsAndHours && (
-                    <>
-                      <Link
-                        href="/dashboard/time-entries"
-                        onClick={() => setMobileMenuOpen(false)}
-                        className="block px-4 py-3 rounded-lg text-gray-700 hover:bg-gray-100 font-medium"
-                      >
-                        Le Mie Ore
-                      </Link>
-                      <Link
-                        href="/dashboard/my-shifts"
-                        onClick={() => setMobileMenuOpen(false)}
-                        className="block px-4 py-3 rounded-lg text-gray-700 hover:bg-gray-100 font-medium"
-                      >
-                        I Miei Turni
-                      </Link>
-                    </>
+                    <Link
+                      href="/dashboard/my-shifts"
+                      onClick={() => setMobileMenuOpen(false)}
+                      className="block px-4 py-3 rounded-lg text-gray-700 hover:bg-gray-100 font-medium"
+                    >
+                      I Miei Turni
+                    </Link>
                   )}
                   {canAccessUsers && (
                     <>
+                      <Link
+                        href="/dashboard/admin/shifts-hours"
+                        onClick={() => setMobileMenuOpen(false)}
+                        className="block px-4 py-3 rounded-lg text-gray-700 hover:bg-gray-100 font-medium"
+                      >
+                        Turni e Ore
+                      </Link>
                       <Link
                         href="/dashboard/reports"
                         onClick={() => setMobileMenuOpen(false)}
@@ -368,6 +422,26 @@ export default function Navbar() {
                         </Link>
                       )}
                     </>
+                  )}
+                  {canSeeNotifications && (
+                    <Link
+                      href={
+                        ["SUPER_ADMIN", "ADMIN", "RESPONSABILE"].includes(
+                          userRole || ""
+                        ) && workMode === "admin"
+                          ? "/dashboard/admin-notifications"
+                          : "/dashboard/notifications"
+                      }
+                      onClick={() => setMobileMenuOpen(false)}
+                      className="flex items-center px-4 py-3 rounded-lg text-gray-700 hover:bg-gray-100 font-medium"
+                    >
+                      Notifiche
+                      {unreadNotificationsCount > 0 && (
+                        <span className="ml-2 min-w-[18px] h-[18px] px-1 flex items-center justify-center text-[10px] font-bold text-white bg-amber-500 rounded-full">
+                          {unreadNotificationsCount > 99 ? "99+" : unreadNotificationsCount}
+                        </span>
+                      )}
+                    </Link>
                   )}
                   <div className="border-t border-gray-200 pt-3 mt-3">
                     <p className="px-4 py-2 text-sm text-gray-500">{session.user?.name}</p>

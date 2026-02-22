@@ -22,6 +22,7 @@ interface User {
   codiceFiscale: string | null;
   areas: string | null;
   roles: string | null;
+  lockedUntil: string | null;
   company: {
     id: string;
     ragioneSociale: string;
@@ -29,6 +30,10 @@ interface User {
   createdAt: string;
   hasAssignments?: boolean;
   assignmentsCount?: number;
+}
+
+function isAccountLocked(user: User): boolean {
+  return !!(user.lockedUntil && new Date(user.lockedUntil) > new Date());
 }
 
 interface Company {
@@ -49,7 +54,7 @@ export default function UsersPage() {
   const [sortField, setSortField] = useState<SortField>("code");
   const [sortOrder, setSortOrder] = useState<SortOrder>("asc");
   const [companyFilter, setCompanyFilter] = useState("");
-  const [statusFilter, setStatusFilter] = useState<"active" | "inactive" | "all">("active");
+  const [statusFilter, setStatusFilter] = useState<"active" | "inactive" | "blocked" | "all">("active");
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
   const [pendingToggle, setPendingToggle] = useState<{ id: string; isActive: boolean } | null>(null);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
@@ -121,9 +126,11 @@ export default function UsersPage() {
     
     // Filtra per stato
     if (statusFilter === "active") {
-      filtered = filtered.filter(user => user.isActive);
+      filtered = filtered.filter(user => user.isActive && !isAccountLocked(user));
     } else if (statusFilter === "inactive") {
       filtered = filtered.filter(user => !user.isActive);
+    } else if (statusFilter === "blocked") {
+      filtered = filtered.filter(user => isAccountLocked(user));
     }
     
     // Ordina
@@ -315,11 +322,12 @@ export default function UsersPage() {
             <select
               id="status-filter"
               value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value as "active" | "inactive" | "all")}
+              onChange={(e) => setStatusFilter(e.target.value as "active" | "inactive" | "blocked" | "all")}
               className="px-4 py-2 border border-gray-300 rounded-lg hover:border-gray-400 hover:shadow-md hover:bg-gray-50 focus:ring-2 focus:ring-gray-900 focus:border-transparent transition-all duration-200 cursor-pointer"
             >
               <option value="active">Attivi</option>
               <option value="inactive">Disattivati</option>
+              <option value="blocked">Bloccati</option>
               <option value="all">Tutti</option>
             </select>
           </div>
@@ -355,25 +363,46 @@ export default function UsersPage() {
               <thead className="bg-gray-50">
                 <tr>
                   <th 
-                    className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                    className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors"
                     onClick={() => handleSort("code")}
                   >
-                    Codice
+                    <div className="flex items-center gap-2">
+                      Codice
+                      {sortField === "code" && (
+                        <svg className={`w-4 h-4 ${sortOrder === "asc" ? "" : "rotate-180"}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 15l7-7 7 7" />
+                        </svg>
+                      )}
+                    </div>
                   </th>
                   <th 
-                    className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                    className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors"
                     onClick={() => handleSort("name")}
                   >
-                    Nome e Cognome
+                    <div className="flex items-center gap-2">
+                      Nome e Cognome
+                      {sortField === "name" && (
+                        <svg className={`w-4 h-4 ${sortOrder === "asc" ? "" : "rotate-180"}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 15l7-7 7 7" />
+                        </svg>
+                      )}
+                    </div>
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Email
                   </th>
                   <th
-                    className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                    className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors"
                     onClick={() => handleSort("company")}
                   >
-                    Azienda
+                    <div className="flex items-center gap-2">
+                      Azienda
+                      {sortField === "company" && (
+                        <svg className={`w-4 h-4 ${sortOrder === "asc" ? "" : "rotate-180"}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 15l7-7 7 7" />
+                        </svg>
+                      )}
+                    </div>
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Stato
@@ -384,8 +413,10 @@ export default function UsersPage() {
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {users.map((user) => (
-                  <tr key={user.id}>
+                {users.map((user) => {
+                  const locked = isAccountLocked(user);
+                  return (
+                  <tr key={user.id} className={locked ? "opacity-60" : ""}>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                       {user.code}
                     </td>
@@ -401,7 +432,15 @@ export default function UsersPage() {
                       {user.company?.ragioneSociale || "-"}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm">
-                      {session?.user?.id === user.id ? (
+                      {locked ? (
+                        <button
+                          onClick={() => router.push("/settings/technical")}
+                          className="px-2 py-1 text-xs font-semibold rounded-full cursor-pointer bg-yellow-100 text-yellow-800 hover:bg-yellow-200 transition-colors"
+                          title="Account bloccato per troppi tentativi. Clicca per sbloccare nelle impostazioni tecniche"
+                        >
+                          Bloccato
+                        </button>
+                      ) : session?.user?.id === user.id ? (
                         <span
                           className={`px-2 py-1 text-xs font-semibold rounded-full cursor-not-allowed ${
                             user.isActive
@@ -426,36 +465,44 @@ export default function UsersPage() {
                     </td>
                     <td className="px-6 py-2 whitespace-nowrap text-right text-sm font-medium">
                       <div className="inline-flex items-center gap-2">
-                        <button onClick={() => router.push(`/settings/users/${user.id}/view`)} aria-label="Visualizza" title="Visualizza" className="h-8 w-8 inline-flex items-center justify-center rounded-lg bg-gray-900 text-white hover:bg-gray-800 hover:shadow-lg transition-colors">
-                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.477 0 8.268 2.943 9.542 7-1.274 4.057-5.065 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
-                        </button>
-                        <button onClick={() => router.push(`/settings/users/${user.id}`)} aria-label="Modifica" title="Modifica" className="h-8 w-8 inline-flex items-center justify-center rounded-lg bg-gray-900 text-white hover:bg-gray-800 hover:shadow-lg transition-colors">
-                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.232 5.232l3.536 3.536M4 20h4l10.293-10.293a1 1 0 000-1.414l-2.586-2.586a1 1 0 00-1.414 0L4 16v4z" /></svg>
-                        </button>
-                        {(session?.user?.role === "SUPER_ADMIN" || session?.user?.role === "ADMIN") && (
+                        {locked ? (
+                          <span className="text-gray-400 text-xs" title="Account bloccato: sblocca nelle impostazioni tecniche">
+                            Azioni non disponibili
+                          </span>
+                        ) : (
                           <>
-                            <button onClick={isArchiveDisabled(user.id) ? undefined : () => handleArchive(user.id)} disabled={isArchiveDisabled(user.id)} aria-label="Archivia" title={isArchiveDisabled(user.id) ? "Non puoi archiviare il tuo stesso utente" : "Archivia"} className={`h-8 w-8 inline-flex items-center justify-center rounded-lg ${isArchiveDisabled(user.id) ? 'bg-gray-400 text-white opacity-50 cursor-not-allowed' : 'bg-gray-900 text-white hover:bg-gray-800 hover:shadow-lg'} transition-colors`}>
-                              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M20 7H4l2-2h12l2 2zM4 7v10a2 2 0 002 2h12a2 2 0 002-2V7M9 12h6" /></svg>
+                            <button onClick={() => router.push(`/settings/users/${user.id}/view`)} aria-label="Visualizza" title="Visualizza" className="h-8 w-8 inline-flex items-center justify-center rounded-lg bg-gray-900 text-white hover:bg-gray-800 hover:shadow-lg transition-colors">
+                              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.477 0 8.268 2.943 9.542 7-1.274 4.057-5.065 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
                             </button>
-                            <button 
-                              onClick={user.hasAssignments ? undefined : () => handleDelete(user.id)} 
-                              disabled={user.hasAssignments}
-                              aria-label="Elimina" 
-                              title={user.hasAssignments ? `Impossibile eliminare: l'utente è associato a ${user.assignmentsCount || 0} turno/i o giornata/e. È possibile solo archiviare l'utente.` : "Elimina"} 
-                              className={`h-8 w-8 inline-flex items-center justify-center rounded-lg transition-colors ${
-                                user.hasAssignments 
-                                  ? 'bg-gray-400 text-white opacity-50 cursor-not-allowed' 
-                                  : 'bg-red-600 text-white hover:bg-red-700 hover:shadow-lg'
-                              }`}
-                            >
-                              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6M9 7h6m-1-2H10l1-1h2l1 1z" /></svg>
+                            <button onClick={() => router.push(`/settings/users/${user.id}`)} aria-label="Modifica" title="Modifica" className="h-8 w-8 inline-flex items-center justify-center rounded-lg bg-gray-900 text-white hover:bg-gray-800 hover:shadow-lg transition-colors">
+                              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.232 5.232l3.536 3.536M4 20h4l10.293-10.293a1 1 0 000-1.414l-2.586-2.586a1 1 0 00-1.414 0L4 16v4z" /></svg>
                             </button>
+                            {(session?.user?.role === "SUPER_ADMIN" || session?.user?.role === "ADMIN") && (
+                              <>
+                                <button onClick={isArchiveDisabled(user.id) ? undefined : () => handleArchive(user.id)} disabled={isArchiveDisabled(user.id)} aria-label="Archivia" title={isArchiveDisabled(user.id) ? "Non puoi archiviare il tuo stesso utente" : "Archivia"} className={`h-8 w-8 inline-flex items-center justify-center rounded-lg ${isArchiveDisabled(user.id) ? 'bg-gray-400 text-white opacity-50 cursor-not-allowed' : 'bg-gray-900 text-white hover:bg-gray-800 hover:shadow-lg'} transition-colors`}>
+                                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M20 7H4l2-2h12l2 2zM4 7v10a2 2 0 002 2h12a2 2 0 002-2V7M9 12h6" /></svg>
+                                </button>
+                                <button 
+                                  onClick={user.hasAssignments ? undefined : () => handleDelete(user.id)} 
+                                  disabled={user.hasAssignments}
+                                  aria-label="Elimina" 
+                                  title={user.hasAssignments ? `Impossibile eliminare: l'utente è associato a ${user.assignmentsCount || 0} turno/i o giornata/e. È possibile solo archiviare l'utente.` : "Elimina"} 
+                                  className={`h-8 w-8 inline-flex items-center justify-center rounded-lg transition-colors ${
+                                    user.hasAssignments 
+                                      ? 'bg-gray-400 text-white opacity-50 cursor-not-allowed' 
+                                      : 'bg-red-600 text-white hover:bg-red-700 hover:shadow-lg'
+                                  }`}
+                                >
+                                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6M9 7h6m-1-2H10l1-1h2l1 1z" /></svg>
+                                </button>
+                              </>
+                            )}
                           </>
                         )}
                       </div>
                     </td>
                   </tr>
-                ))}
+                );})}
               </tbody>
             </table>
           </div>

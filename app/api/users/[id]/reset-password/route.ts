@@ -2,8 +2,19 @@ import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/auth';
 import { prisma } from '@/lib/prisma';
 import { hash } from 'bcryptjs';
+import { sendEmail } from '@/lib/email';
+import { passwordResetEmail } from '@/lib/email-templates';
+import crypto from 'crypto';
 
-const DEFAULT_PASSWORD = 'password123';
+function generateTempPassword(length = 12): string {
+  const chars = 'abcdefghjkmnpqrstuvwxyzABCDEFGHJKMNPQRSTUVWXYZ23456789';
+  let result = '';
+  const bytes = crypto.randomBytes(length);
+  for (let i = 0; i < length; i++) {
+    result += chars[bytes[i] % chars.length];
+  }
+  return result;
+}
 
 export async function POST(
   req: NextRequest,
@@ -53,10 +64,10 @@ export async function POST(
       return NextResponse.json({ error: 'Utente non trovato' }, { status: 404 });
     }
 
-    // Hash della password di default
-    const hashedPassword = await hash(DEFAULT_PASSWORD, 10);
+    // Sempre: genera password temporanea e invia via email
+    const tempPassword = generateTempPassword();
+    const hashedPassword = await hash(tempPassword, 10);
 
-    // Aggiorna la password e imposta mustChangePassword a true
     await prisma.user.update({
       where: { id },
       data: {
@@ -65,8 +76,25 @@ export async function POST(
       },
     });
 
+    const userName = [user.name, user.cognome].filter(Boolean).join(' ') || user.email || 'Utente';
+    const { subject, html, text } = passwordResetEmail({
+      userName,
+      tempPassword,
+    });
+    const sent = await sendEmail({
+      to: user.email,
+      subject,
+      html,
+      text,
+    });
+    if (!sent) {
+      console.warn('[reset-password] Email non inviata, ma password aggiornata');
+    }
+
+    const message = "Password resettata con successo. L'utente riceverà la nuova password via email e dovrà cambiarla al primo accesso.";
+
     return NextResponse.json(
-      { message: 'Password resettata con successo. L\'utente dovrà cambiare la password al prossimo accesso.' },
+      { message },
       { status: 200 }
     );
   } catch (error: any) {
@@ -80,15 +108,19 @@ export async function POST(
       // Se il campo non esiste, aggiorna solo la password
       try {
         const { id } = await params;
-        const hashedPassword = await hash(DEFAULT_PASSWORD, 10);
-        await prisma.user.update({
-          where: { id },
-          data: {
-            password: hashedPassword,
-          },
-        });
+        const tempPw = generateTempPassword();
+        const hashedPassword = await hash(tempPw, 10);
+        const user = await prisma.user.findUnique({ where: { id } });
+        if (user) {
+          await prisma.user.update({ where: { id }, data: { password: hashedPassword } });
+          const { subject, html, text } = passwordResetEmail({
+            userName: [user.name, user.cognome].filter(Boolean).join(' ') || user.email || 'Utente',
+            tempPassword: tempPw,
+          });
+          await sendEmail({ to: user.email, subject, html, text });
+        }
         return NextResponse.json(
-          { message: 'Password resettata con successo.' },
+          { message: "Password resettata con successo. L'utente riceverà la nuova password via email." },
           { status: 200 }
         );
       } catch (retryError) {
