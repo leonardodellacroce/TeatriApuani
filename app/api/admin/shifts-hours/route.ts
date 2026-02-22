@@ -121,6 +121,7 @@ export async function GET(req: NextRequest) {
         hasScheduledBreak: boolean | null;
         scheduledBreakStartTime: string | null;
         scheduledBreakEndTime: string | null;
+        scheduledBreaks: string | null;
         workday: {
           date: string;
           event: { id: string; title: string };
@@ -141,6 +142,7 @@ export async function GET(req: NextRequest) {
         hasTakenBreak: boolean | null;
         actualBreakStartTime: string | null;
         actualBreakEndTime: string | null;
+        actualBreaks: string | null;
         date: string;
       } | null;
     };
