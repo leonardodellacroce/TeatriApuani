@@ -266,6 +266,8 @@ export default function Dashboard() {
     setWorkerModalNotification(null);
     if (n.type === "MISSING_HOURS_REMINDER") {
       router.push(buildMyShiftsUrlWithDates(n.message, n.metadata));
+    } else if (n.type === "DAILY_SHIFT_REMINDER") {
+      router.push("/dashboard/my-shifts");
     } else if (["UNAVAILABILITY_CREATED_BY_ADMIN", "UNAVAILABILITY_MODIFIED_BY_ADMIN", "UNAVAILABILITY_DELETED_BY_ADMIN", "UNAVAILABILITY_APPROVED", "UNAVAILABILITY_REJECTED"].includes(n.type)) {
       router.push("/dashboard/unavailabilities");
     } else if (["ORE_INSERITE_DA_ADMIN", "ORE_MODIFICATE_DA_ADMIN", "ORE_ELIMINATE_DA_ADMIN"].includes(n.type)) {
@@ -581,11 +583,13 @@ export default function Dashboard() {
               >
                 {workerModalNotification.type === "MISSING_HOURS_REMINDER"
                   ? "Inserisci"
-                  : ["UNAVAILABILITY_CREATED_BY_ADMIN", "UNAVAILABILITY_MODIFIED_BY_ADMIN", "UNAVAILABILITY_DELETED_BY_ADMIN", "UNAVAILABILITY_APPROVED", "UNAVAILABILITY_REJECTED"].includes(workerModalNotification.type)
-                    ? "Vai alle indisponibilità"
-                    : ["ORE_INSERITE_DA_ADMIN", "ORE_MODIFICATE_DA_ADMIN", "ORE_ELIMINATE_DA_ADMIN"].includes(workerModalNotification.type)
-                      ? "Visualizza"
-                      : "Vai"}
+                  : workerModalNotification.type === "DAILY_SHIFT_REMINDER"
+                    ? "Vai ai turni"
+                    : ["UNAVAILABILITY_CREATED_BY_ADMIN", "UNAVAILABILITY_MODIFIED_BY_ADMIN", "UNAVAILABILITY_DELETED_BY_ADMIN", "UNAVAILABILITY_APPROVED", "UNAVAILABILITY_REJECTED"].includes(workerModalNotification.type)
+                      ? "Vai alle indisponibilità"
+                      : ["ORE_INSERITE_DA_ADMIN", "ORE_MODIFICATE_DA_ADMIN", "ORE_ELIMINATE_DA_ADMIN"].includes(workerModalNotification.type)
+                        ? "Visualizza"
+                        : "Vai"}
               </button>
             </div>
           </div>

@@ -11,6 +11,7 @@ Visualizzate in **Dashboard → Notifiche** (`/dashboard/notifications`).
 | Tipo | Titolo | Come testarla |
 |------|--------|---------------|
 | `MISSING_HOURS_REMINDER` | Orari da inserire | 1. Assegna un turno a un lavoratore per una data passata (ieri o prima).<br>2. Chiama il cron `GET /api/cron/notify-missing-hours` con header `Authorization: Bearer <CRON_SECRET>` **oppure** usa il pulsante **"Notifica inserimento ore"** in Dashboard Admin → Turni e ore (`/dashboard/admin/shifts-hours`). |
+| `DAILY_SHIFT_REMINDER` | Promemoria turni di oggi | 1. Assegna un turno a un lavoratore per la giornata odierna.<br>2. Chiama il cron `GET /api/cron/notify-daily-shift-reminder` con header `Authorization: Bearer <CRON_SECRET>`.<br>Il cron viene eseguito automaticamente ogni mattina alle 7:00 UTC. Se il lavoratore non ha turni oggi, la notifica non viene inviata. |
 | `UNAVAILABILITY_CREATED_BY_ADMIN` | Indisponibilità inserita | Come admin, crea un'indisponibilità per un lavoratore dalla sezione **Indisponibilità**. |
 | `UNAVAILABILITY_MODIFIED_BY_ADMIN` | Indisponibilità modificata | Come admin, modifica un'indisponibilità esistente di un lavoratore dalla sezione **Indisponibilità**. |
 | `UNAVAILABILITY_DELETED_BY_ADMIN` | Indisponibilità eliminata | Come admin, elimina un'indisponibilità di un lavoratore dalla sezione **Indisponibilità**. |

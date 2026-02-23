@@ -21,6 +21,7 @@ type Notification = {
 
 const TITLE_BY_TYPE: Record<string, string> = {
   MISSING_HOURS_REMINDER: "Orari da inserire",
+  DAILY_SHIFT_REMINDER: "Promemoria turni di oggi",
   UNAVAILABILITY_CREATED_BY_ADMIN: "Indisponibilità inserita",
   UNAVAILABILITY_MODIFIED_BY_ADMIN: "Indisponibilità modificata",
   UNAVAILABILITY_DELETED_BY_ADMIN: "Indisponibilità eliminata",
@@ -101,9 +102,10 @@ export default function NotificationsPage() {
   }, [status, session?.user, router]);
 
   const handleInserisci = async (n: Notification) => {
-    const url = n.type === "MISSING_HOURS_REMINDER"
-      ? buildMyShiftsUrlWithDates(n.message, n.metadata)
-      : "/dashboard/my-shifts";
+    const url =
+      n.type === "MISSING_HOURS_REMINDER"
+        ? buildMyShiftsUrlWithDates(n.message, n.metadata)
+        : "/dashboard/my-shifts";
     try {
       await fetch(`/api/notifications/${n.id}`, { method: "PATCH" });
       setNotifications((prev) =>
@@ -298,6 +300,14 @@ export default function NotificationsPage() {
                           className="px-4 py-2 bg-gray-900 text-white text-sm font-medium rounded-lg hover:bg-gray-800"
                         >
                           Inserisci
+                        </button>
+                      )}
+                      {!n.read && n.type === "DAILY_SHIFT_REMINDER" && (
+                        <button
+                          onClick={() => handleInserisci(n)}
+                          className="px-4 py-2 bg-gray-900 text-white text-sm font-medium rounded-lg hover:bg-gray-800"
+                        >
+                          Vai ai turni
                         </button>
                       )}
                       {!n.read && UNAVAILABILITY_TYPES.includes(n.type) && (

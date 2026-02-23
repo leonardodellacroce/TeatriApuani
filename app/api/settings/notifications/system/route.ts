@@ -13,6 +13,7 @@ const KEY_REQUIRE_MODAL_ACTION = "notifications_require_modal_action_to_mark_rea
 
 const LABELS: Record<string, string> = {
   MISSING_HOURS_REMINDER: "Orari da inserire",
+  DAILY_SHIFT_REMINDER: "Promemoria turni di oggi",
   UNAVAILABILITY_CREATED_BY_ADMIN: "Indisponibilità inserita",
   UNAVAILABILITY_MODIFIED_BY_ADMIN: "Indisponibilità modificata",
   UNAVAILABILITY_DELETED_BY_ADMIN: "Indisponibilità eliminata",
@@ -28,7 +29,7 @@ const LABELS: Record<string, string> = {
   WORKDAY_ISSUES: "Problemi programmazione",
 };
 
-const TYPES_WITH_PARAMS = ["WORKDAY_ISSUES", "MISSING_HOURS_REMINDER"];
+const TYPES_WITH_PARAMS = ["WORKDAY_ISSUES", "MISSING_HOURS_REMINDER", "DAILY_SHIFT_REMINDER"];
 
 /** Impostazioni di default per ogni tipo (priorità, modal, metadata) */
 function getDefaultSettings(): Array<{
@@ -41,6 +42,7 @@ function getDefaultSettings(): Array<{
   const allTypes = [...WORKER_NOTIFICATION_TYPES, ...ADMIN_NOTIFICATION_TYPES];
   const defaults: Record<string, { priority: string; showInDashboardModal: boolean }> = {
     MISSING_HOURS_REMINDER: { priority: "HIGH", showInDashboardModal: true },
+    DAILY_SHIFT_REMINDER: { priority: "MEDIUM", showInDashboardModal: false },
     UNAVAILABILITY_CREATED_BY_ADMIN: { priority: "MEDIUM", showInDashboardModal: false },
     UNAVAILABILITY_MODIFIED_BY_ADMIN: { priority: "MEDIUM", showInDashboardModal: true },
     UNAVAILABILITY_DELETED_BY_ADMIN: { priority: "MEDIUM", showInDashboardModal: true },
@@ -66,6 +68,9 @@ function getDefaultSettings(): Array<{
       metadata.cronHour = 7;
       metadata.giorniIndietro = 60;
       metadata.giorniEsclusi = 1;
+    }
+    if (type === "DAILY_SHIFT_REMINDER") {
+      metadata.cronHour = 7;
     }
     return {
       type,

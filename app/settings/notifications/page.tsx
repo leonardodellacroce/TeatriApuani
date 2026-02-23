@@ -12,6 +12,10 @@ const NOTIFICATION_INFO: Record<string, { desc: string; example: string }> = {
     desc: "Notifica inviata ai lavoratori che non hanno inserito le ore lavorate per i turni già svolti. Viene inviata automaticamente ogni giorno (cron) e può essere inviata manualmente dalla sezione Turni e Ore.\nIl parametro «Ora cron» è in UTC: per le 8:00 in Italia, usa 7 in inverno (CET) o 6 in estate (CEST).\n«Giorni indietro»: quanti giorni controllare (es. 60 = ultimi 60 giorni).\n«Giorni da escludere»: quanti giorni recenti non considerare per dare tempo di inserire le ore; Es. 1 = non considerare ieri, 2 = escludi ieri e l'altro ieri.",
     example: "Mario Rossi ha svolto un turno tre giorni fa ma non ha ancora inserito le ore. Riceve una notifica: «Hai turni con ore non inserite. Inserisci le ore dalla sezione I miei turni.»\nCon Giorni da escludere = 1 il cron non notifica per i turni di ieri.\nEsempio orario: 7 UTC = 8:00 Italia (inverno), 9:00 Italia (estate).",
   },
+  DAILY_SHIFT_REMINDER: {
+    desc: "Notifica inviata ai lavoratori ogni mattina per ricordare i turni della giornata odierna. Viene inviata automaticamente dal cron alle 7:00 UTC. Se il lavoratore non ha turni oggi, la notifica non viene inviata.\nIl parametro «Ora cron» è in UTC: 7 = 8:00 Italia (inverno), 8:00 Italia (estate).",
+    example: "Mario Rossi ha un turno oggi 18 febbraio. Alle 7 UTC riceve: «Hai turni oggi. Controlla i dettagli su I Miei Turni.» Se non ha turni, non riceve alcuna notifica.",
+  },
   UNAVAILABILITY_CREATED_BY_ADMIN: {
     desc: "Notifica inviata al lavoratore quando un amministratore inserisce un'indisponibilità al suo posto (es. ferie, malattia).",
     example: "L'admin inserisce per Mario Rossi un'indisponibilità dal 20 al 25 marzo. Mario riceve: «Un amministratore ha inserito un'indisponibilità per te. Periodo: 20/03 - 25/03».",
@@ -178,13 +182,32 @@ export default function NotificationsSettingsPage() {
     }
   };
 
-  const handleResetUserDefaults = () => {
+  const handleResetUserDefaults = async () => {
     setUserResetConfirmOpen(false);
     const defaultCompanyIds = userCompanyId ? [userCompanyId] : companies.map((c) => c.id);
     const defaultAreaIds = areas.map((a) => a.id);
     setCompanyIds(defaultCompanyIds);
     setAreaIds(defaultAreaIds);
-    setSuccess("Impostazioni ripristinate ai valori di default. Clicca Salva per confermare.");
+    setError("");
+    setSuccess("");
+    setSaving(true);
+    try {
+      const res = await fetch("/api/settings/notifications", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ companyIds: defaultCompanyIds, areaIds: defaultAreaIds }),
+      });
+      if (res.ok) {
+        setSuccess("Impostazioni ripristinate ai valori di default");
+      } else {
+        const data = await res.json().catch(() => ({}));
+        setError(data.details ? `${data.error}: ${data.details}` : (data.error || "Errore nel salvataggio"));
+      }
+    } catch (err) {
+      setError("Errore nel salvataggio");
+    } finally {
+      setSaving(false);
+    }
   };
 
   const handleSaveAreasCompanies = async (e: React.FormEvent) => {
@@ -734,6 +757,7 @@ export default function NotificationsSettingsPage() {
         {paramsModal && (() => {
           const meta = paramsModalDraft as { cronHour?: number; giorniIndietro?: number; giorniEsclusi?: number; workdayIssuesDaysAhead?: number };
           const isMissingHours = paramsModal.type === "MISSING_HOURS_REMINDER";
+          const isDailyShiftReminder = paramsModal.type === "DAILY_SHIFT_REMINDER";
           const isWorkday = paramsModal.type === "WORKDAY_ISSUES";
           const info = NOTIFICATION_INFO[paramsModal.type];
           return (
@@ -755,6 +779,24 @@ export default function NotificationsSettingsPage() {
                   )}
                 </div>
                 <div className="space-y-4 mb-6">
+                  {isDailyShiftReminder && (
+                    <div className="flex items-center justify-between gap-4">
+                      <label className="text-sm text-gray-700">Ora cron (UTC):</label>
+                      <input
+                        type="number"
+                        min={0}
+                        max={23}
+                        value={meta.cronHour ?? 7}
+                        onChange={(e) =>
+                          setParamsModalDraft((prev) => ({
+                            ...prev,
+                            cronHour: Math.max(0, Math.min(23, parseInt(e.target.value, 10) || 7)),
+                          }))
+                        }
+                        className="w-20 px-2 py-1.5 border border-gray-300 rounded text-sm"
+                      />
+                    </div>
+                  )}
                   {isMissingHours && (
                     <>
                       <div className="flex items-center justify-between gap-4">
@@ -763,7 +805,7 @@ export default function NotificationsSettingsPage() {
                           type="number"
                           min={0}
                           max={23}
-                          value={meta.cronHour ?? 8}
+                          value={meta.cronHour ?? 7}
                           onChange={(e) =>
                             setParamsModalDraft((prev) => ({
                               ...prev,
