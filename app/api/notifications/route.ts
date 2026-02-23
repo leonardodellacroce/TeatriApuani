@@ -15,7 +15,7 @@ import { userHasMissingShiftsForDates } from "@/lib/missingHoursNotification";
 export async function GET(req: NextRequest) {
   try {
     const session = await auth();
-    const userId = session?.user?.id;
+    const userId = (session?.user as any)?.id ?? session?.user?.id;
     if (!userId || typeof userId !== "string" || userId.trim() === "") {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
@@ -76,7 +76,17 @@ export async function GET(req: NextRequest) {
 
     const notifications = await prisma.notification.findMany({
       where,
-      orderBy: { createdAt: "desc" },
+      orderBy: [{ read: "asc" }, { createdAt: "desc" }],
+    });
+
+    const priorityOrder = (p: string | null) =>
+      p === "HIGH" ? 0 : p === "MEDIUM" ? 1 : 2;
+    notifications.sort((a, b) => {
+      if (a.read !== b.read) return a.read ? 1 : -1;
+      const pa = priorityOrder(a.priority);
+      const pb = priorityOrder(b.priority);
+      if (pa !== pb) return pa - pb;
+      return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
     });
 
     // Filtra notifiche MISSING_HOURS_REMINDER obsolete (utente non ha più turni per quelle date)

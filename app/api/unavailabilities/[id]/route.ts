@@ -2,11 +2,22 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { getWorkModeFromRequest } from "@/lib/workMode";
+import {
+  notifyWorkerUnavailability,
+  notifyWorkerUnavailabilityApproved,
+  notifyWorkerUnavailabilityRejected,
+  notifyAdminsUnavailabilityChangedByWorker,
+  hasWorkdaysInDateRange,
+} from "@/lib/notifications";
+import { formatUnavailabilityDateRange, formatUnavailabilityTimeRange } from "@/lib/unavailabilityTime";
 
 const ADMIN_ROLES = ["SUPER_ADMIN", "ADMIN", "RESPONSABILE"];
 
-function isAdmin(session: { user?: { role?: string } }) {
-  return ADMIN_ROLES.includes(session?.user?.role || "");
+function isAdmin(session: { user?: unknown }) {
+  const u = session?.user as { role?: string; isSuperAdmin?: boolean; isAdmin?: boolean; isResponsabile?: boolean } | undefined;
+  if (!u) return false;
+  const role = u.role || (u.isSuperAdmin ? "SUPER_ADMIN" : u.isAdmin ? "ADMIN" : u.isResponsabile ? "RESPONSABILE" : "");
+  return ADMIN_ROLES.includes(role);
 }
 
 function parseTimeToMinutes(timeStr: string): number {
@@ -27,7 +38,8 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
 
   const { id } = await params;
   const workMode = getWorkModeFromRequest(req);
-  const isNonStandardWorker = !["SUPER_ADMIN", "ADMIN", "RESPONSABILE"].includes(session?.user?.role || "") === false && (session?.user as any)?.isWorker === true;
+  const userRole = (session?.user as any)?.role || ((session?.user as any)?.isSuperAdmin ? "SUPER_ADMIN" : (session?.user as any)?.isAdmin ? "ADMIN" : (session?.user as any)?.isResponsabile ? "RESPONSABILE" : "");
+  const isNonStandardWorker = ADMIN_ROLES.includes(userRole) && (session?.user as any)?.isWorker === true;
   const inWorkerMode = isNonStandardWorker && workMode === "worker";
 
   const u = await prisma.unavailability.findUnique({
@@ -36,7 +48,8 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
   });
   if (!u) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
-  const canAccess = u.userId === session.user?.id || (isAdmin(session) && !inWorkerMode);
+  const sessionUserId = (session?.user as any)?.id as string | undefined;
+  const canAccess = (sessionUserId && u.userId === sessionUserId) || (isAdmin(session) && !inWorkerMode);
   if (!canAccess) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   return NextResponse.json(u);
@@ -51,15 +64,19 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 
   const { id } = await params;
   const workMode = getWorkModeFromRequest(req);
-  const isNonStandardWorker = !["SUPER_ADMIN", "ADMIN", "RESPONSABILE"].includes(session?.user?.role || "") === false && (session?.user as any)?.isWorker === true;
+  const userRole = (session?.user as any)?.role || ((session?.user as any)?.isSuperAdmin ? "SUPER_ADMIN" : (session?.user as any)?.isAdmin ? "ADMIN" : (session?.user as any)?.isResponsabile ? "RESPONSABILE" : "");
+  const isNonStandardWorker = ADMIN_ROLES.includes(userRole) && (session?.user as any)?.isWorker === true;
   const inWorkerMode = isNonStandardWorker && workMode === "worker";
   const isAdminUser = isAdmin(session);
 
   const u = await prisma.unavailability.findUnique({ where: { id } });
   if (!u) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
-  const canEdit = u.userId === session.user?.id || isAdminUser;
-  if (!canEdit || inWorkerMode) {
+  const sessionUserId = (session?.user as any)?.id as string | undefined;
+  // Permetti: (1) utente modifica la propria, (2) admin in modalità admin modifica altre
+  const isEditingOwn = sessionUserId && u.userId === sessionUserId;
+  const canEdit = isEditingOwn || (isAdminUser && !inWorkerMode);
+  if (!canEdit) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
@@ -69,7 +86,13 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 
     const updates: any = {};
     let removedFromAssignments: string[] = [];
-    if (newStatus === "APPROVED" && isAdminUser && u.status === "PENDING_APPROVAL") {
+    if (newStatus === "REJECTED" && isAdminUser && u.status === "PENDING_APPROVAL") {
+      updates.status = "REJECTED";
+      const periodStr = formatUnavailabilityDateRange(u.dateStart, u.dateEnd);
+      const timeStr = formatUnavailabilityTimeRange(u.startTime, u.endTime);
+      const detail = `Periodo: ${periodStr}\nOrario: ${timeStr}`;
+      await notifyWorkerUnavailabilityRejected(u.userId, detail);
+    } else if (newStatus === "APPROVED" && isAdminUser && u.status === "PENDING_APPROVAL") {
       updates.status = "APPROVED";
       // Rimuovi l'utente dai turni in conflitto
       const dStart = new Date(u.dateStart);
@@ -130,6 +153,10 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
           }
         }
       }
+      const periodStr = formatUnavailabilityDateRange(u.dateStart, u.dateEnd);
+      const timeStr = formatUnavailabilityTimeRange(u.startTime, u.endTime);
+      const detail = `Periodo: ${periodStr}\nOrario: ${timeStr}`;
+      await notifyWorkerUnavailabilityApproved(u.userId, detail);
     }
 
     if (dateStart !== undefined) {
@@ -146,11 +173,102 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     if (endTime !== undefined) updates.endTime = endTime || null;
     if (note !== undefined) updates.note = note || null;
 
-    const updated = await prisma.unavailability.update({
-      where: { id },
-      data: updates,
-      include: { user: { select: { id: true, name: true, cognome: true, code: true } } },
-    });
+    const updated =
+      Object.keys(updates).length > 0
+        ? await prisma.unavailability.update({
+            where: { id },
+            data: updates,
+            include: { user: { select: { id: true, name: true, cognome: true, code: true } } },
+          })
+        : await prisma.unavailability.findUniqueOrThrow({
+            where: { id },
+            include: { user: { select: { id: true, name: true, cognome: true, code: true } } },
+          });
+
+    // Admin modifica indisponibilità di un dipendente → notifica il dipendente (priorità alta).
+    // Notifica anche quando admin modifica la propria (admin+lavoratore): la notifica apparirà solo in area lavoratore.
+    const hasDataUpdates =
+      updates.dateStart !== undefined ||
+      updates.dateEnd !== undefined ||
+      updates.startTime !== undefined ||
+      updates.endTime !== undefined ||
+      updates.note !== undefined;
+    const isStatusOnlyApprovalRejection =
+      Object.keys(updates).length === 1 && (updates.status === "APPROVED" || updates.status === "REJECTED");
+    const isAdminEditingAsAdmin = isAdminUser && !inWorkerMode;
+    if (isAdminEditingAsAdmin && hasDataUpdates && !isStatusOnlyApprovalRejection) {
+      try {
+        const oldPeriod = formatUnavailabilityDateRange(u.dateStart, u.dateEnd);
+        const newPeriod = formatUnavailabilityDateRange(updated.dateStart, updated.dateEnd);
+        const oldTime = formatUnavailabilityTimeRange(u.startTime, u.endTime);
+        const newTime = formatUnavailabilityTimeRange(updated.startTime, updated.endTime);
+        const periodChanged = oldPeriod !== newPeriod;
+        const timeChanged = oldTime !== newTime;
+        const noteChanged = (u.note ?? "") !== (updated.note ?? "");
+        let detail = "";
+        if (periodChanged) {
+          detail += `Periodo: ~~${oldPeriod}~~ ${newPeriod}`;
+        } else {
+          detail += `Periodo: ${newPeriod}`;
+        }
+        if (timeChanged) {
+          detail += `\nOrario: ~~${oldTime}~~ ${newTime}`;
+        } else {
+          detail += `\nOrario: ${newTime}`;
+        }
+        if (noteChanged) {
+          detail += `\nNote: ~~${u.note ?? "-"}~~ ${updated.note ?? "-"}`;
+        } else if (updated.note) {
+          detail += `\nNote: ${updated.note}`;
+        }
+        await notifyWorkerUnavailability(u.userId, "MODIFIED", 1, detail);
+      } catch (err) {
+        console.error("[Unavailability] notifyWorkerUnavailability MODIFIED error:", err);
+      }
+    }
+
+    // Dipendente modifica la propria indisponibilità in giornate con eventi → notifica admin
+    // Includi anche admin+worker in modalità worker: la notifica arriverà quando passa in modalità admin
+    const isWorkerEditingOwn = u.userId === sessionUserId && (inWorkerMode || !isAdminUser);
+    if (isWorkerEditingOwn && Object.keys(updates).length > 0 && newStatus !== "APPROVED" && newStatus !== "REJECTED") {
+      const hasWorkdays = await hasWorkdaysInDateRange(updated.dateStart, updated.dateEnd);
+      if (hasWorkdays) {
+        try {
+          const worker = await prisma.user.findUnique({
+            where: { id: u.userId },
+            select: { name: true, cognome: true, companyId: true },
+          });
+          const workerName = [worker?.name, worker?.cognome].filter(Boolean).join(" ") || "Un dipendente";
+          const oldPeriod = formatUnavailabilityDateRange(u.dateStart, u.dateEnd);
+          const newPeriod = formatUnavailabilityDateRange(updated.dateStart, updated.dateEnd);
+          const oldTime = formatUnavailabilityTimeRange(u.startTime, u.endTime);
+          const newTime = formatUnavailabilityTimeRange(updated.startTime, updated.endTime);
+          const periodChanged = oldPeriod !== newPeriod;
+          const timeChanged = oldTime !== newTime;
+          const noteChanged = (u.note ?? "") !== (updated.note ?? "");
+          let detail = "";
+          if (periodChanged) {
+            detail += `Periodo: ~~${oldPeriod}~~ ${newPeriod}`;
+          } else {
+            detail += `Periodo: ${newPeriod}`;
+          }
+          if (timeChanged) {
+            detail += `\nOrario: ~~${oldTime}~~ ${newTime}`;
+          } else {
+            detail += `\nOrario: ${newTime}`;
+          }
+          if (noteChanged) {
+            detail += `\nNote: ~~${u.note ?? "-"}~~ ${updated.note ?? "-"}`;
+          } else if (updated.note) {
+            detail += `\nNote: ${updated.note}`;
+          }
+          await notifyAdminsUnavailabilityChangedByWorker(workerName, "MODIFIED", detail, worker?.companyId ?? undefined);
+        } catch (err) {
+          console.error("[Unavailability] notifyAdminsUnavailabilityChangedByWorker MODIFIED error:", err);
+        }
+      }
+    }
+
     const res: Record<string, unknown> = { ...updated };
     if (removedFromAssignments.length > 0) {
       res.removedFromAssignments = removedFromAssignments;
@@ -171,15 +289,52 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
 
   const { id } = await params;
   const workMode = getWorkModeFromRequest(req);
-  const isNonStandardWorker = !["SUPER_ADMIN", "ADMIN", "RESPONSABILE"].includes(session?.user?.role || "") === false && (session?.user as any)?.isWorker === true;
+  const userRole = (session?.user as any)?.role || ((session?.user as any)?.isSuperAdmin ? "SUPER_ADMIN" : (session?.user as any)?.isAdmin ? "ADMIN" : (session?.user as any)?.isResponsabile ? "RESPONSABILE" : "");
+  const isNonStandardWorker = ADMIN_ROLES.includes(userRole) && (session?.user as any)?.isWorker === true;
   const inWorkerMode = isNonStandardWorker && workMode === "worker";
   const isAdminUser = isAdmin(session);
 
   const u = await prisma.unavailability.findUnique({ where: { id } });
   if (!u) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
-  const canDelete = u.userId === session.user?.id || (isAdminUser && !inWorkerMode);
+  const sessionUserId = (session?.user as any)?.id as string | undefined;
+  const canDelete = u.userId === sessionUserId || (isAdminUser && !inWorkerMode);
   if (!canDelete) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+
+  // Admin elimina indisponibilità → notifica il dipendente (anche se è la propria: apparirà solo in area lavoratore).
+  if (isAdminUser && !inWorkerMode) {
+    try {
+      const periodStr = formatUnavailabilityDateRange(u.dateStart, u.dateEnd);
+      const timeStr = formatUnavailabilityTimeRange(u.startTime, u.endTime);
+      const detail = `Periodo: ${periodStr}\nOrario: ${timeStr}`;
+      await notifyWorkerUnavailability(u.userId, "DELETED", 1, detail);
+    } catch (err) {
+      console.error("[Unavailability] notifyWorkerUnavailability DELETED error:", err);
+    }
+  }
+
+  // Dipendente elimina la propria indisponibilità in giornate con eventi → notifica admin
+  // Includi anche admin+worker in modalità worker: la notifica arriverà quando passa in modalità admin
+  const isWorkerDeletingOwn = u.userId === sessionUserId && (inWorkerMode || !isAdminUser);
+  if (isWorkerDeletingOwn) {
+    const hasWorkdays = await hasWorkdaysInDateRange(u.dateStart, u.dateEnd);
+    if (hasWorkdays) {
+      try {
+        const worker = await prisma.user.findUnique({
+          where: { id: u.userId },
+          select: { name: true, cognome: true, companyId: true },
+        });
+        const workerName = [worker?.name, worker?.cognome].filter(Boolean).join(" ") || "Un dipendente";
+        const periodStr = formatUnavailabilityDateRange(u.dateStart, u.dateEnd);
+        const timeStr = formatUnavailabilityTimeRange(u.startTime, u.endTime);
+        let detail = `Periodo: ${periodStr}\nOrario: ${timeStr}`;
+        if (u.note) detail += `\nNote: ${u.note}`;
+        await notifyAdminsUnavailabilityChangedByWorker(workerName, "DELETED", detail, worker?.companyId ?? undefined);
+      } catch (err) {
+        console.error("[Unavailability] notifyAdminsUnavailabilityChangedByWorker DELETED error:", err);
+      }
+    }
+  }
 
   await prisma.unavailability.delete({ where: { id } });
   return NextResponse.json({ ok: true });

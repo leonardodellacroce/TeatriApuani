@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { getWorkModeFromRequest } from "@/lib/workMode";
+import { notifyWorkerHours, buildShiftDetailForNotification, buildShiftDetailForModifiedNotification } from "@/lib/notifications";
 
 function checkWorkerAccess(session: any, req: NextRequest): NextResponse | null {
   const userRole = (session.user as any).role || "";
@@ -253,6 +254,34 @@ export async function PATCH(
       }
     }
 
+    // Admin modifica ore → notifica il proprietario (anche se è la propria: apparirà in area lavoratore)
+    if (isAdmin) {
+      const assignmentWithDetails = await prisma.assignment.findUnique({
+        where: { id: existing.assignmentId },
+        include: {
+          workday: {
+            include: {
+              event: { select: { title: true } },
+              location: { select: { name: true } },
+            },
+          },
+          taskType: { select: { name: true } },
+        },
+      });
+      if (assignmentWithDetails) {
+        const { detail, dateFrom } = buildShiftDetailForModifiedNotification(
+          assignmentWithDetails as any,
+          existing.startTime,
+          existing.endTime,
+          finalStartTime ?? null,
+          finalEndTime ?? null
+        );
+        await notifyWorkerHours(existing.userId, "MODIFIED", 1, detail, { dateFrom, dateTo: dateFrom });
+      } else {
+        await notifyWorkerHours(existing.userId, "MODIFIED", 1);
+      }
+    }
+
     const updated = await prisma.timeEntry.update({
       where: { id },
       data: updateData,
@@ -366,6 +395,28 @@ export async function DELETE(
         { error: "Non è possibile eliminare ore per turni futuri" },
         { status: 400 }
       );
+    }
+
+    // Admin elimina ore → notifica il proprietario (anche se è la propria: apparirà in area lavoratore)
+    if (isAdmin) {
+      const assignmentWithDetails = await prisma.assignment.findUnique({
+        where: { id: existing.assignmentId },
+        include: {
+          workday: {
+            include: {
+              event: { select: { title: true } },
+              location: { select: { name: true } },
+            },
+          },
+          taskType: { select: { name: true } },
+        },
+      });
+      if (assignmentWithDetails) {
+        const { detail, dateFrom } = buildShiftDetailForNotification(assignmentWithDetails as any);
+        await notifyWorkerHours(existing.userId, "DELETED", 1, detail, { dateFrom, dateTo: dateFrom });
+      } else {
+        await notifyWorkerHours(existing.userId, "DELETED", 1);
+      }
     }
 
     await prisma.timeEntry.delete({

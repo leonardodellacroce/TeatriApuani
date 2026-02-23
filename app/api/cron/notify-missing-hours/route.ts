@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { getNotificationTypeSetting } from "@/lib/notifications";
 
 // GET /api/cron/notify-missing-hours
 // Chiamato da Vercel Cron ogni giorno alle 8:00 (Europe/Rome)
@@ -13,34 +14,42 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Oggi in Europe/Rome, ieri
-    const now = new Date();
-    const romeOffset = 60; // UTC+1 in winter, UTC+2 in summer - semplificato
-    const todayRome = new Date(now.getTime() + romeOffset * 60 * 1000);
-    const yesterday = new Date(todayRome);
-    yesterday.setDate(yesterday.getDate() - 1);
-    yesterday.setUTCHours(23, 59, 59, 999);
+    const missingSetting = await getNotificationTypeSetting("MISSING_HOURS_REMINDER");
+    if (missingSetting && !missingSetting.isActive) {
+      return NextResponse.json({ ok: true, created: 0, skipped: "type_disabled" });
+    }
 
-    // 1° del mese precedente
-    const firstOfPrevMonth = new Date(todayRome.getFullYear(), todayRome.getMonth() - 1, 1);
-    firstOfPrevMonth.setUTCHours(0, 0, 0, 0);
+    const meta = (missingSetting?.metadata as { giorniIndietro?: number; giorniEsclusi?: number }) ?? {};
+    const giorniIndietro = Math.max(1, Math.min(365, meta.giorniIndietro ?? 60));
+    const giorniEsclusi = Math.max(0, Math.min(7, meta.giorniEsclusi ?? 1));
 
-    const startDate = firstOfPrevMonth;
-    const endDate = yesterday;
+    // Oggi in Europe/Rome
+    const todayStr = new Intl.DateTimeFormat("en-CA", {
+      timeZone: "Europe/Rome",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    }).format(new Date());
+    const today = new Date(todayStr + "T12:00:00.000Z");
 
-    // Utenti lavoratori: standard (non admin) O isWorker, esclusi disattivati e archiviati
+    // startDate = oggi - giorniIndietro (inizio del periodo)
+    const startDate = new Date(today);
+    startDate.setUTCDate(startDate.getUTCDate() - giorniIndietro);
+    startDate.setUTCHours(0, 0, 0, 0);
+
+    // endDate = ieri - giorniEsclusi (es. giorniEsclusi=1 → non considerare ieri, per dare tempo di inserire le ore)
+    const yesterday = new Date(today);
+    yesterday.setUTCDate(yesterday.getUTCDate() - 1);
+    const endDate = new Date(yesterday);
+    endDate.setUTCDate(endDate.getUTCDate() - giorniEsclusi);
+    endDate.setUTCHours(23, 59, 59, 999);
+
+    // Utenti lavoratori: solo isWorker=true (anche admin che sono anche lavoratori)
     const workers = await prisma.user.findMany({
       where: {
         isArchived: false,
         isActive: true,
-        OR: [
-          {
-            isSuperAdmin: false,
-            isAdmin: false,
-            isResponsabile: false,
-          },
-          { isWorker: true },
-        ],
+        isWorker: true,
       },
       select: { id: true },
     });
@@ -62,14 +71,6 @@ export async function GET(req: NextRequest) {
         timeEntries: { select: { userId: true } },
       },
     });
-
-    // Oggi in Europe/Rome - solo turni precedenti a oggi
-    const todayStr = new Intl.DateTimeFormat("en-CA", {
-      timeZone: "Europe/Rome",
-      year: "numeric",
-      month: "2-digit",
-      day: "2-digit",
-    }).format(new Date());
 
     const missingByUser = new Map<string, Set<string>>();
 
@@ -142,6 +143,7 @@ export async function GET(req: NextRequest) {
             title: "Orari da inserire",
             message,
             metadata: { dates: sortedDates },
+            priority: missingSetting?.priority ?? "HIGH",
             read: false,
           },
         });

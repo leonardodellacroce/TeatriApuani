@@ -63,6 +63,17 @@ export function unavailabilityOverlapsShift(
   return u1 < s2 && s1 < u2;
 }
 
+/** Formatta date per dettaglio notifica (es. "23/02/2026" o "23/02/2026 - 25/02/2026") */
+export function formatUnavailabilityDateRange(dateStart: Date | string, dateEnd: Date | string): string {
+  const fmt = (d: Date | string) => {
+    const x = typeof d === "string" ? new Date(d.split("T")[0] + "T12:00:00Z") : d;
+    return x.toLocaleDateString("it-IT", { day: "2-digit", month: "2-digit", year: "numeric" });
+  };
+  const s = fmt(dateStart);
+  const e = fmt(dateEnd);
+  return s === e ? s : `${s} - ${e}`;
+}
+
 /** Formatta l'intervallo per visualizzazione (valori user-friendly da valori di sistema) */
 export function formatUnavailabilityTimeRange(start: string | null, end: string | null): string {
   if (!start && !end) return "Tutto il giorno";

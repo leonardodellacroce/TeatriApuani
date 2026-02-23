@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { getWorkModeFromRequest } from "@/lib/workMode";
+import { notifyWorkerHours, buildShiftDetailForNotification } from "@/lib/notifications";
 
 // GET /api/time-entries - Lista time entries dell'utente autenticato
 // Solo utenti standard o abilitati come lavoratori (in modalità lavoratore se non-standard)
@@ -207,7 +208,13 @@ export async function POST(req: NextRequest) {
     const assignment = await prisma.assignment.findUnique({
       where: { id: assignmentId },
       include: {
-        workday: true,
+        workday: {
+          include: {
+            event: { select: { title: true } },
+            location: { select: { name: true } },
+          },
+        },
+        taskType: { select: { name: true } },
       },
     });
 
@@ -280,7 +287,15 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // Verifica che non esista già una time entry per questo assignment
+    // Normalizza actualBreaks (serve sia per create che per update)
+    let breaksArray: Array<{ start: string; end: string }> = [];
+    if (Array.isArray(actualBreaks) && actualBreaks.length > 0) {
+      breaksArray = actualBreaks.filter((b: any) => b && typeof b.start === "string" && typeof b.end === "string");
+    } else if (hasTakenBreak === true && actualBreakStartTime && actualBreakEndTime) {
+      breaksArray = [{ start: actualBreakStartTime, end: actualBreakEndTime }];
+    }
+
+    // Se esiste già una time entry, aggiorna invece di creare (upsert)
     const existing = await prisma.timeEntry.findUnique({
       where: {
         assignmentId_userId: {
@@ -291,10 +306,38 @@ export async function POST(req: NextRequest) {
     });
 
     if (existing) {
-      return NextResponse.json(
-        { error: "Time entry already exists for this assignment. Use PATCH to update." },
-        { status: 400 }
-      );
+      const { serializeBreaks } = await import("@/lib/breaks");
+      const timeEntry = await prisma.timeEntry.update({
+        where: { id: existing.id },
+        data: {
+          hoursWorked: parseFloat(hoursWorked),
+          startTime: startTime || null,
+          endTime: endTime || null,
+          hasTakenBreak: breaksArray.length > 0 ? true : (hasTakenBreak ?? null),
+          actualBreakStartTime: breaksArray[0]?.start ?? null,
+          actualBreakEndTime: breaksArray[0]?.end ?? null,
+          actualBreaks: serializeBreaks(breaksArray),
+          notes: notes || null,
+        },
+        include: {
+          assignment: {
+            include: {
+              workday: {
+                include: {
+                  event: { select: { id: true, title: true } },
+                  location: { select: { id: true, name: true } },
+                },
+              },
+              taskType: { select: { id: true, name: true, type: true } },
+            },
+          },
+        },
+      });
+      if (isAdmin && bodyUserId) {
+        const { detail, dateFrom } = buildShiftDetailForNotification(assignment as any);
+        await notifyWorkerHours(userId, "MODIFIED", 1, detail, { dateFrom, dateTo: dateFrom });
+      }
+      return NextResponse.json(timeEntry, { status: 200 });
     }
 
     // Validazione orari se presenti
@@ -316,14 +359,6 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // Normalizza actualBreaks
-    let breaksArray: Array<{ start: string; end: string }> = [];
-    if (Array.isArray(actualBreaks) && actualBreaks.length > 0) {
-      breaksArray = actualBreaks.filter((b: any) => b && typeof b.start === "string" && typeof b.end === "string");
-    } else if (hasTakenBreak === true && actualBreakStartTime && actualBreakEndTime) {
-      breaksArray = [{ start: actualBreakStartTime, end: actualBreakEndTime }];
-    }
-
     if (breaksArray.length > 0 && startTime && endTime) {
       const toMin = (t: string) => { const [h, m] = t.split(":").map(Number); return (h || 0) * 60 + (m || 0); };
       const startMin = toMin(startTime);
@@ -337,6 +372,11 @@ export async function POST(req: NextRequest) {
           return NextResponse.json({ error: "Ogni pausa deve essere dentro l'orario di lavoro" }, { status: 400 });
         }
       }
+    }
+
+    if (isAdmin && bodyUserId) {
+      const { detail, dateFrom } = buildShiftDetailForNotification(assignment as any);
+      await notifyWorkerHours(userId, "INSERTED", 1, detail, { dateFrom, dateTo: dateFrom });
     }
 
     const { serializeBreaks } = await import("@/lib/breaks");

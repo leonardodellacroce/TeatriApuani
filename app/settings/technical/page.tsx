@@ -178,6 +178,7 @@ export default function TechnicalSettingsPage() {
         setUnlockMessage({ type: "success", text: data.message || "Account sbloccato" });
         setLockedAccounts((prev) => prev.filter((u) => u.id !== unlockDialogUser.id));
         window.dispatchEvent(new Event("notificationsUpdated"));
+        window.dispatchEvent(new Event("lockedAccountsUpdated"));
         closeUnlockDialog();
       } else {
         setUnlockDialogError(data.error || "Errore nello sblocco");
@@ -217,6 +218,7 @@ export default function TechnicalSettingsPage() {
         setUnlockMessage({ type: "success", text: data.message || "Account sbloccato" });
         setLockedAccounts((prev) => prev.filter((u) => u.id !== unlockDialogUser.id));
         window.dispatchEvent(new Event("notificationsUpdated"));
+        window.dispatchEvent(new Event("lockedAccountsUpdated"));
         closeUnlockDialog();
       } else {
         setUnlockDialogError(data.error || "Errore nello sblocco");

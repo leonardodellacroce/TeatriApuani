@@ -5,24 +5,55 @@ import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import DashboardShell from "@/components/DashboardShell";
-import { buildMyShiftsUrlWithDates } from "@/lib/notificationDates";
+import { buildMyShiftsUrlWithDates, buildMyShiftsUrlForOreNotification } from "@/lib/notificationDates";
+import { getEffectivePriority, getPriorityIcon } from "@/lib/notifications";
 
 type Notification = {
   id: string;
   type: string;
   title: string;
   message: string;
-  metadata?: { dates?: string[] } | null;
+  metadata?: { dates?: string[]; dateFrom?: string; dateTo?: string } | null;
+  priority?: string | null;
   read: boolean;
   createdAt: string;
 };
 
 const TITLE_BY_TYPE: Record<string, string> = {
   MISSING_HOURS_REMINDER: "Orari da inserire",
+  UNAVAILABILITY_CREATED_BY_ADMIN: "Indisponibilità inserita",
+  UNAVAILABILITY_MODIFIED_BY_ADMIN: "Indisponibilità modificata",
+  UNAVAILABILITY_DELETED_BY_ADMIN: "Indisponibilità eliminata",
+  UNAVAILABILITY_APPROVED: "Indisponibilità approvata",
+  UNAVAILABILITY_REJECTED: "Indisponibilità non approvata",
+  ORE_INSERITE_DA_ADMIN: "Ore lavorate inserite",
+  ORE_MODIFICATE_DA_ADMIN: "Ore lavorate modificate",
+  ORE_ELIMINATE_DA_ADMIN: "Ore lavorate eliminate",
 };
 
 function getTitle(n: Notification) {
   return n.title || TITLE_BY_TYPE[n.type] || "Notifica";
+}
+
+/** Renderizza messaggio con ~~testo~~ come barrato (strikethrough) */
+function renderMessageWithStrikethrough(message: string) {
+  const parts: React.ReactNode[] = [];
+  let remaining = message;
+  let key = 0;
+  while (remaining.includes("~~")) {
+    const start = remaining.indexOf("~~");
+    const end = remaining.indexOf("~~", start + 2);
+    if (end === -1) break;
+    if (start > 0) parts.push(<span key={key++}>{remaining.slice(0, start)}</span>);
+    parts.push(
+      <span key={key++} className="line-through text-gray-500">
+        {remaining.slice(start + 2, end)}
+      </span>
+    );
+    remaining = remaining.slice(end + 2);
+  }
+  if (remaining) parts.push(<span key={key++}>{remaining}</span>);
+  return parts.length > 1 ? parts : message;
 }
 
 function formatDate(iso: string) {
@@ -77,6 +108,64 @@ export default function NotificationsPage() {
       window.dispatchEvent(new Event("notificationsUpdated"));
     } catch {}
     router.push(url);
+  };
+
+  const UNAVAILABILITY_TYPES = [
+    "UNAVAILABILITY_CREATED_BY_ADMIN",
+    "UNAVAILABILITY_MODIFIED_BY_ADMIN",
+    "UNAVAILABILITY_DELETED_BY_ADMIN",
+    "UNAVAILABILITY_APPROVED",
+    "UNAVAILABILITY_REJECTED",
+  ];
+
+  const ORE_TYPES = ["ORE_INSERITE_DA_ADMIN", "ORE_MODIFICATE_DA_ADMIN", "ORE_ELIMINATE_DA_ADMIN"];
+
+  const handleVaiAlleIndisponibilita = async (n: Notification) => {
+    try {
+      await fetch(`/api/notifications/${n.id}`, { method: "PATCH" });
+      setNotifications((prev) =>
+        prev.map((x) => (x.id === n.id ? { ...x, read: true } : x))
+      );
+      setSelectedIds((prev) => {
+        const next = new Set(prev);
+        next.delete(n.id);
+        return next;
+      });
+      window.dispatchEvent(new Event("notificationsUpdated"));
+    } catch {}
+    router.push("/dashboard/unavailabilities");
+  };
+
+  const handleVisualizza = async (n: Notification) => {
+    const url = buildMyShiftsUrlForOreNotification(n.metadata);
+    try {
+      await fetch(`/api/notifications/${n.id}`, { method: "PATCH" });
+      setNotifications((prev) =>
+        prev.map((x) => (x.id === n.id ? { ...x, read: true } : x))
+      );
+      setSelectedIds((prev) => {
+        const next = new Set(prev);
+        next.delete(n.id);
+        return next;
+      });
+      window.dispatchEvent(new Event("notificationsUpdated"));
+    } catch {}
+    router.push(url);
+  };
+
+  const handleMarkAsRead = async (n: Notification) => {
+    try {
+      await fetch(`/api/notifications/${n.id}`, { method: "PATCH" });
+      setNotifications((prev) =>
+        prev.map((x) => (x.id === n.id ? { ...x, read: true } : x))
+      );
+      setSelectedIds((prev) => {
+        const next = new Set(prev);
+        next.delete(n.id);
+        return next;
+      });
+      window.dispatchEvent(new Event("notificationsUpdated"));
+    } catch {}
   };
 
   const toggleSelect = (id: string) => {
@@ -176,26 +265,58 @@ export default function NotificationsPage() {
                       aria-label={`Seleziona notifica ${getTitle(n)}`}
                     />
                   )}
+                  <span className="text-white/80 text-xs font-mono" title={`Priorità ${getEffectivePriority(n.priority, n.type)}`}>
+                    {getPriorityIcon(getEffectivePriority(n.priority, n.type))}
+                  </span>
                   <h2 className="text-white font-semibold text-sm">
                     {getTitle(n)}
                   </h2>
                 </div>
                 <div className="px-4 py-4 bg-white/95 shadow-[0_2px_8px_rgba(0,0,0,0.06)]">
                   <p className="text-gray-700 text-sm whitespace-pre-wrap mb-3">
-                    {n.message}
+                    {n.message.includes("~~")
+                      ? renderMessageWithStrikethrough(n.message)
+                      : n.message}
                   </p>
-                  <div className="flex items-center justify-between gap-4">
+                  <div className="flex items-center justify-between gap-4 flex-wrap">
                     <span className="text-xs text-gray-500">
                       {formatDate(n.createdAt)}
                     </span>
-                    {!n.read && n.type === "MISSING_HOURS_REMINDER" && (
-                      <button
-                        onClick={() => handleInserisci(n)}
-                        className="px-4 py-2 bg-gray-900 text-white text-sm font-medium rounded-lg hover:bg-gray-800"
-                      >
-                        Inserisci
-                      </button>
-                    )}
+                    <div className="flex items-center gap-2">
+                      {!n.read && n.type === "MISSING_HOURS_REMINDER" && (
+                        <button
+                          onClick={() => handleInserisci(n)}
+                          className="px-4 py-2 bg-gray-900 text-white text-sm font-medium rounded-lg hover:bg-gray-800"
+                        >
+                          Inserisci
+                        </button>
+                      )}
+                      {!n.read && UNAVAILABILITY_TYPES.includes(n.type) && (
+                        <button
+                          onClick={() => handleVaiAlleIndisponibilita(n)}
+                          className="px-4 py-2 bg-gray-900 text-white text-sm font-medium rounded-lg hover:bg-gray-800"
+                        >
+                          Vai alle indisponibilità
+                        </button>
+                      )}
+                      {!n.read && ORE_TYPES.includes(n.type) && (
+                        <button
+                          onClick={() => handleVisualizza(n)}
+                          className="px-4 py-2 bg-gray-900 text-white text-sm font-medium rounded-lg hover:bg-gray-800"
+                        >
+                          Visualizza
+                        </button>
+                      )}
+                      {!n.read &&
+                        ["MEDIUM", "LOW"].includes(getEffectivePriority(n.priority, n.type)) && (
+                        <button
+                          onClick={() => handleMarkAsRead(n)}
+                          className="px-4 py-2 border border-gray-300 text-gray-700 text-sm font-medium rounded-lg hover:bg-gray-50"
+                        >
+                          Letta
+                        </button>
+                      )}
+                    </div>
                   </div>
                 </div>
               </div>

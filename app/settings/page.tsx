@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { hasRole } from "@/lib/authz";
 import Navbar from "@/components/Navbar";
 import { getWorkModeFromServer } from "@/lib/workMode";
+import { prisma } from "@/lib/prisma";
 
 export default async function Settings() {
   const session = await auth();
@@ -11,9 +12,9 @@ export default async function Settings() {
     redirect("/");
   }
 
-  // Verifica se l'utente ha accesso (solo admin e superadmin per la pagina impostazioni)
+  // Verifica se l'utente ha accesso (admin, superadmin, responsabile per la pagina impostazioni)
   const userRole = session.user.role as string;
-  const hasAccess = ["ADMIN", "SUPER_ADMIN"].includes(userRole);
+  const hasAccess = ["ADMIN", "SUPER_ADMIN", "RESPONSABILE"].includes(userRole);
 
   if (!hasAccess) {
     redirect("/");
@@ -30,6 +31,14 @@ export default async function Settings() {
   const isSuperAdmin = userRole === "SUPER_ADMIN";
   const canSeeManagementUsers = ["SUPER_ADMIN"].includes(userRole);
   const canSeeUsers = ["SUPER_ADMIN", "ADMIN", "RESPONSABILE"].includes(userRole);
+
+  let lockedAccountsCount = 0;
+  if (isSuperAdmin) {
+    const now = new Date();
+    lockedAccountsCount = await prisma.user.count({
+      where: { lockedUntil: { gt: now } },
+    });
+  }
 
   const userName = session.user.name || "Utente";
   const cognome = (session.user as any).cognome || "";
@@ -191,8 +200,35 @@ export default async function Settings() {
             </div>
           )}
 
-          {isSuperAdmin && (
+          {canSeeUsers && (
             <div className="border border-gray-200 rounded-lg p-6 hover:shadow-lg transition-shadow">
+              <div className="flex items-center mb-4">
+                <div className="w-10 h-10 bg-amber-100 rounded-lg flex items-center justify-center mr-3">
+                  <svg className="w-6 h-6 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+                  </svg>
+                </div>
+                <h2 className="text-2xl font-semibold">Impostazioni notifiche</h2>
+              </div>
+              <p className="text-gray-600 mb-4">
+                Configura parametri di notifica e filtra per aree e aziende
+              </p>
+              <a
+                href="/settings/notifications"
+                className="inline-block px-4 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800 hover:shadow-lg hover:scale-105 active:scale-100 transition-all duration-200 cursor-pointer"
+              >
+                Vai alle Impostazioni notifiche
+              </a>
+            </div>
+          )}
+
+          {isSuperAdmin && (
+            <div className="border border-gray-200 rounded-lg p-6 hover:shadow-lg transition-shadow relative">
+              {lockedAccountsCount > 0 && (
+                <span className="absolute top-4 right-4 min-w-[22px] h-[22px] px-1.5 flex items-center justify-center text-xs font-bold text-white bg-red-500 rounded-full">
+                  {lockedAccountsCount > 99 ? "99+" : lockedAccountsCount}
+                </span>
+              )}
               <div className="flex items-center mb-4">
                 <div className="w-10 h-10 bg-slate-100 rounded-lg flex items-center justify-center mr-3">
                   <svg className="w-6 h-6 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">

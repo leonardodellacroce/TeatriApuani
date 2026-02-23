@@ -266,6 +266,7 @@ export default function MyShiftsPage() {
       if (res.ok) {
         handleCloseHoursModal();
         fetchShifts();
+        window.dispatchEvent(new Event("timeEntriesUpdated"));
       } else {
         const err = await res.json();
         alert(`Errore: ${err.error || "Operazione fallita"}`);
@@ -289,6 +290,7 @@ export default function MyShiftsPage() {
         setShowDeleteDialog(false);
         setEntryToDelete(null);
         fetchShifts();
+        window.dispatchEvent(new Event("timeEntriesUpdated"));
       } else {
         alert("Errore durante l'eliminazione");
       }

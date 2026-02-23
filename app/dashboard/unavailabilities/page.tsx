@@ -83,6 +83,13 @@ function timeRangesOverlap(a: [number, number], b: [number, number]): boolean {
   return a1 < b2 && b1 < a2;
 }
 
+function toISODate(d: Date): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
 /** Verifica se due indisponibilità si sovrappongono (date + orari) */
 function unavailabilitiesOverlap(
   a: { dateStart: string; dateEnd: string; startTime: string | null; endTime: string | null },
@@ -114,6 +121,11 @@ export default function UnavailabilitiesPage() {
     overlapping: Unavailability[];
     payload: any;
   } | null>(null);
+  /** Admin: conflitto con turni assegnati - richiede conferma prima di procedere */
+  const [adminShiftConflictConfirm, setAdminShiftConflictConfirm] = useState<{
+    payload: any;
+    deleteOverlappingIds: string[];
+  } | null>(null);
 
   const [formUserId, setFormUserId] = useState<string>("");
   const [formDateStart, setFormDateStart] = useState("");
@@ -122,6 +134,20 @@ export default function UnavailabilitiesPage() {
   const [formStartTime, setFormStartTime] = useState("");
   const [formEndTime, setFormEndTime] = useState("");
   const [formNote, setFormNote] = useState("");
+
+  const [filterStartDate, setFilterStartDate] = useState(() => {
+    const d = new Date();
+    d.setDate(1);
+    return toISODate(d);
+  });
+  const [filterEndDate, setFilterEndDate] = useState(() => {
+    const d = new Date();
+    d.setMonth(d.getMonth() + 1);
+    d.setDate(0);
+    return toISODate(d);
+  });
+  const [filterUserId, setFilterUserId] = useState<string>("all");
+  const [saving, setSaving] = useState(false);
 
   const userRole = session?.user?.role || "";
   const isStandardUser = !ADMIN_ROLES.includes(userRole);
@@ -143,18 +169,21 @@ export default function UnavailabilitiesPage() {
     }
     fetchList();
     if (isAdmin) fetchUsers();
-  }, [status, session, router, isAdmin]);
+  }, [status, session, router, isAdmin, filterStartDate, filterEndDate, filterUserId]);
 
   const fetchList = async () => {
     setLoading(true);
     try {
       const params = new URLSearchParams();
-      if (isAdmin) params.set("all", "true");
-      const d = new Date();
-      const monthStart = new Date(d.getFullYear(), d.getMonth() - 1, 1);
-      const monthEnd = new Date(d.getFullYear(), d.getMonth() + 2, 0);
-      params.set("dateFrom", monthStart.toISOString().split("T")[0]);
-      params.set("dateTo", monthEnd.toISOString().split("T")[0]);
+      params.set("dateFrom", filterStartDate);
+      params.set("dateTo", filterEndDate);
+      if (isAdmin) {
+        if (filterUserId && filterUserId !== "all") {
+          params.set("userId", filterUserId);
+        } else {
+          params.set("all", "true");
+        }
+      }
       const res = await fetch(`/api/unavailabilities?${params}`);
       if (res.ok) {
         const data = await res.json();
@@ -179,6 +208,30 @@ export default function UnavailabilitiesPage() {
         setUsers(Array.isArray(data) ? data : []);
       }
     } catch {}
+  };
+
+  const handleFilterPrevPeriod = () => {
+    const [y, m] = filterStartDate.split("-").map(Number);
+    const start = new Date(y, m - 2, 1);
+    const end = new Date(y, m - 1, 0);
+    setFilterStartDate(toISODate(start));
+    setFilterEndDate(toISODate(end));
+  };
+
+  const handleFilterNextPeriod = () => {
+    const [y, m] = filterStartDate.split("-").map(Number);
+    const start = new Date(y, m, 1);
+    const end = new Date(y, m + 1, 0);
+    setFilterStartDate(toISODate(start));
+    setFilterEndDate(toISODate(end));
+  };
+
+  const handleFilterToday = () => {
+    const now = new Date();
+    const start = new Date(now.getFullYear(), now.getMonth(), 1);
+    const end = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+    setFilterStartDate(toISODate(start));
+    setFilterEndDate(toISODate(end));
   };
 
   const resetForm = () => {
@@ -236,16 +289,18 @@ export default function UnavailabilitiesPage() {
     setOverlapConflict(null);
   };
 
-  const doSubmit = async (payload: any, deleteOverlappingIds: string[] = []) => {
+  const doSubmit = async (payload: any, deleteOverlappingIds: string[] = [], confirmConflict = false) => {
+    setSaving(true);
     try {
       for (const id of deleteOverlappingIds) {
-        await fetch(`/api/unavailabilities/${id}`, { method: "DELETE" });
+        await fetch(`/api/unavailabilities/${id}`, { method: "DELETE", credentials: "include" });
       }
       if (editingId) {
         const res = await fetch(`/api/unavailabilities/${editingId}`, {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(payload),
+          credentials: "include",
         });
         if (res.ok) {
           fetchList();
@@ -255,31 +310,42 @@ export default function UnavailabilitiesPage() {
           setAlertMessage(err.error || "Errore durante l'aggiornamento");
         }
       } else {
+        const body = { ...payload };
+        if (confirmConflict) body.confirmConflict = true;
         const res = await fetch("/api/unavailabilities", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload),
+          body: JSON.stringify(body),
         });
         const data = await res.json();
         if (res.ok) {
           fetchList();
-          if (data.hasConflict) {
+          setAdminShiftConflictConfirm(null);
+          if (data.hasConflict && !isAdmin) {
             setConflictAlert("Sei già assegnato a un turno in questo periodo. Un amministratore è stato notificato, contattalo per l'approvazione dell'indisponibilità.");
             window.dispatchEvent(new CustomEvent("unavailabilitiesUpdated"));
           } else {
             resetForm();
           }
+          if (data.removedFromAssignments?.length) {
+            setAlertMessage(`Indisponibilità creata. Il dipendente è stato rimosso da ${data.removedFromAssignments.length} turno/i in conflitto.`);
+          }
+        } else if (res.status === 409 && data.hasConflict && isAdmin) {
+          setAdminShiftConflictConfirm({ payload, deleteOverlappingIds });
         } else {
           setAlertMessage(data.details ? `${data.error}: ${data.details}` : data.error || "Errore durante la creazione");
         }
       }
     } catch (err) {
       setAlertMessage("Errore di rete");
+    } finally {
+      setSaving(false);
     }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (saving) return;
     const dateStart = formDateStart;
     const dateEnd = formTimeMode === "all_day" ? formDateEnd : formDateStart;
     if (!dateStart || !dateEnd) return;
@@ -287,11 +353,11 @@ export default function UnavailabilitiesPage() {
       setAlertMessage("Seleziona un utente");
       return;
     }
-    let startTime: string | undefined;
-    let endTime: string | undefined;
+    let startTime: string | null | undefined;
+    let endTime: string | null | undefined;
     if (formTimeMode === "all_day") {
-      startTime = undefined;
-      endTime = undefined;
+      startTime = null;
+      endTime = null;
     } else if (formTimeMode === "until") {
       startTime = "06:00";
       endTime = formEndTime ? (timeSubtractMinute(formEndTime) ?? formEndTime) : undefined;
@@ -305,8 +371,8 @@ export default function UnavailabilitiesPage() {
     const payload: any = {
       dateStart,
       dateEnd,
-      startTime,
-      endTime,
+      startTime: startTime ?? null,
+      endTime: endTime ?? null,
       note: formNote || undefined,
     };
     if (isAdmin && formUserId) payload.userId = formUserId;
@@ -328,7 +394,11 @@ export default function UnavailabilitiesPage() {
       const res = await fetch(`/api/unavailabilities?${params}`);
       const existingList: Unavailability[] = res.ok ? await res.json() : [];
       const overlapping = existingList.filter(
-        (u) => (editingId ? u.id !== editingId : true) && u.userId === userId && unavailabilitiesOverlap(newUnav, u)
+        (u) =>
+          (editingId ? u.id !== editingId : true) &&
+          u.userId === userId &&
+          u.status !== "REJECTED" &&
+          unavailabilitiesOverlap(newUnav, u)
       );
 
       if (overlapping.length > 0) {
@@ -343,7 +413,7 @@ export default function UnavailabilitiesPage() {
   };
 
   const handleOverlapKeepNew = async () => {
-    if (!overlapConflict) return;
+    if (!overlapConflict || saving) return;
     const ids = overlapConflict.overlapping.map((u) => u.id);
     await doSubmit(overlapConflict.payload, ids);
     setOverlapConflict(null);
@@ -372,10 +442,30 @@ export default function UnavailabilitiesPage() {
     }
   };
 
+  const handleReject = async (id: string) => {
+    try {
+      const res = await fetch(`/api/unavailabilities/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: "REJECTED" }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok) {
+        fetchList();
+        window.dispatchEvent(new CustomEvent("unavailabilitiesUpdated"));
+        setAlertMessage("Indisponibilità rifiutata. Il dipendente è stato notificato.");
+      } else {
+        setAlertMessage(data.error || "Errore durante il rifiuto");
+      }
+    } catch {
+      setAlertMessage("Errore di rete");
+    }
+  };
+
   const handleDelete = async () => {
     if (!deleteTarget) return;
     try {
-      const res = await fetch(`/api/unavailabilities/${deleteTarget}`, { method: "DELETE" });
+      const res = await fetch(`/api/unavailabilities/${deleteTarget}`, { method: "DELETE", credentials: "include" });
       if (res.ok) {
         fetchList();
         setDeleteTarget(null);
@@ -408,6 +498,73 @@ export default function UnavailabilitiesPage() {
             ? "Visualizza e gestisci le indisponibilità comunicate dal personale. Puoi approvare quelle in attesa e creare indisponibilità per conto di altri."
             : "Comunica i giorni e gli orari in cui non sei disponibile per lavorare."}
         </p>
+
+        <div className="bg-white rounded-lg border border-gray-200 p-4 mb-6">
+          <div className="flex flex-wrap items-end gap-4 w-full">
+            {isAdmin && (
+              <div className="flex-1 min-w-[140px]">
+                <label className="block text-sm font-medium text-gray-700 mb-1">Dipendente</label>
+                <SearchableSelect
+                  value={filterUserId}
+                  onChange={setFilterUserId}
+                  placeholder="Cerca dipendente..."
+                  emptyOption={{ value: "all", label: "Tutti i dipendenti" }}
+                  options={[...users]
+                    .sort((a, b) =>
+                      (a.name || "").localeCompare(b.name || "") ||
+                      (a.cognome || "").localeCompare(b.cognome || "")
+                    )
+                    .map((u) => ({
+                      value: u.id,
+                      label: formatUserName(u, users),
+                    }))}
+                />
+              </div>
+            )}
+            <div className="flex-1 min-w-[140px]">
+              <label className="block text-sm font-medium text-gray-700 mb-1">Data Inizio</label>
+              <input
+                type="date"
+                value={filterStartDate}
+                onChange={(e) => setFilterStartDate(e.target.value)}
+                className="w-full px-3 py-2 h-10 border border-gray-300 rounded-lg text-sm"
+              />
+            </div>
+            <div className="flex-1 min-w-[140px]">
+              <label className="block text-sm font-medium text-gray-700 mb-1">Data Fine</label>
+              <input
+                type="date"
+                value={filterEndDate}
+                onChange={(e) => setFilterEndDate(e.target.value)}
+                min={filterStartDate || undefined}
+                className="w-full px-3 py-2 h-10 border border-gray-300 rounded-lg text-sm"
+              />
+            </div>
+            <div className="flex items-end gap-2 flex-shrink-0">
+              <button
+                type="button"
+                onClick={handleFilterPrevPeriod}
+                className="px-4 py-2 h-10 border border-gray-300 rounded-lg text-sm hover:bg-gray-50"
+              >
+                ← Precedente
+              </button>
+              <button
+                type="button"
+                onClick={handleFilterToday}
+                className="px-4 py-2 h-10 border border-gray-300 rounded-lg text-sm hover:bg-gray-50"
+              >
+                Oggi
+              </button>
+              <button
+                type="button"
+                onClick={handleFilterNextPeriod}
+                className="px-4 py-2 h-10 border border-gray-300 rounded-lg text-sm hover:bg-gray-50"
+              >
+                Successivo →
+              </button>
+            </div>
+          </div>
+        </div>
 
         {isAdmin && (
           <button
@@ -536,7 +693,13 @@ export default function UnavailabilitiesPage() {
                     <input
                       type="date"
                       value={formDateStart}
-                      onChange={(e) => setFormDateStart(e.target.value)}
+                      onChange={(e) => {
+                        const v = e.target.value;
+                        setFormDateStart(v);
+                        if (!formDateEnd || formDateEnd < v) {
+                          setFormDateEnd(v);
+                        }
+                      }}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg"
                       required
                     />
@@ -547,6 +710,7 @@ export default function UnavailabilitiesPage() {
                       type="date"
                       value={formDateEnd}
                       onChange={(e) => setFormDateEnd(e.target.value)}
+                      min={formDateStart || undefined}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg"
                       required
                     />
@@ -578,8 +742,12 @@ export default function UnavailabilitiesPage() {
                 />
               </div>
               <div className="flex gap-2">
-                <button type="submit" className="px-4 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800">
-                  {editingId ? "Salva modifiche" : "Salva"}
+                <button
+                  type="submit"
+                  disabled={saving}
+                  className="px-4 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800 disabled:opacity-60 disabled:cursor-not-allowed"
+                >
+                  {saving ? "Salvataggio..." : editingId ? "Salva modifiche" : "Salva"}
                 </button>
                 <button type="button" onClick={resetForm} className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50">
                   Annulla
@@ -617,21 +785,35 @@ export default function UnavailabilitiesPage() {
                     </td>
                     <td className="px-6 py-4 text-sm text-gray-700">{formatUnavailabilityTimeRange(u.startTime, u.endTime)}</td>
                     <td className="px-6 py-4 text-sm">
-                      <span className={`px-2 py-1 rounded text-xs ${u.status === "PENDING_APPROVAL" ? "bg-amber-100 text-amber-800" : "bg-green-100 text-green-800"}`}>
-                        {u.status === "PENDING_APPROVAL" ? "In attesa approvazione" : "Approvata"}
+                      <span className={`px-2 py-1 rounded text-xs ${
+                        u.status === "PENDING_APPROVAL" ? "bg-amber-100 text-amber-800" :
+                        u.status === "REJECTED" ? "bg-red-100 text-red-800" :
+                        "bg-green-100 text-green-800"
+                      }`}>
+                        {u.status === "PENDING_APPROVAL" ? "In attesa approvazione" : u.status === "REJECTED" ? "Rifiutata" : "Approvata"}
                       </span>
                     </td>
                     <td className="px-6 py-4 text-sm">
                       <div className="inline-flex items-center gap-2">
                         {isAdmin && u.status === "PENDING_APPROVAL" && (
-                          <button
-                            onClick={() => handleApprove(u.id)}
-                            aria-label="Approva"
-                            title="Approva"
-                            className="h-8 px-3 inline-flex items-center justify-center rounded-lg bg-green-600 text-white hover:bg-green-700 hover:shadow-lg transition-colors text-sm font-medium"
-                          >
-                            Approva
-                          </button>
+                          <>
+                            <button
+                              onClick={() => handleApprove(u.id)}
+                              aria-label="Approva"
+                              title="Approva"
+                              className="h-8 px-3 inline-flex items-center justify-center rounded-lg bg-green-600 text-white hover:bg-green-700 hover:shadow-lg transition-colors text-sm font-medium"
+                            >
+                              Approva
+                            </button>
+                            <button
+                              onClick={() => handleReject(u.id)}
+                              aria-label="Rifiuta"
+                              title="Rifiuta"
+                              className="h-8 px-3 inline-flex items-center justify-center rounded-lg bg-red-600 text-white hover:bg-red-700 hover:shadow-lg transition-colors text-sm font-medium"
+                            >
+                              Rifiuta
+                            </button>
+                          </>
                         )}
                         <button
                           onClick={() => openEdit(u)}
@@ -669,6 +851,18 @@ export default function UnavailabilitiesPage() {
         message="Sei sicuro di voler eliminare questa indisponibilità?"
         onConfirm={handleDelete}
         onCancel={() => setDeleteTarget(null)}
+      />
+
+      <ConfirmDialog
+        isOpen={!!adminShiftConflictConfirm}
+        title="Utente già in turno"
+        message="L'utente è già in turno in quel periodo. Vuoi procedere comunque? L'indisponibilità verrà creata e il dipendente rimosso dai turni in conflitto."
+        onConfirm={async () => {
+          if (adminShiftConflictConfirm) {
+            await doSubmit(adminShiftConflictConfirm.payload, adminShiftConflictConfirm.deleteOverlappingIds, true);
+          }
+        }}
+        onCancel={() => setAdminShiftConflictConfirm(null)}
       />
 
       <AlertDialog

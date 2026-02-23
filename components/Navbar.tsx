@@ -15,7 +15,6 @@ export default function Navbar() {
   const [workMode, setWorkMode] = useState<WorkMode>("admin");
   const [profileDropdownOpen, setProfileDropdownOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [pendingUnavailCount, setPendingUnavailCount] = useState(0);
   const [unreadNotificationsCount, setUnreadNotificationsCount] = useState(0);
 
   const userRole =
@@ -56,25 +55,6 @@ export default function Navbar() {
     window.addEventListener(WORK_MODE_CHANGED_EVENT, handler);
     return () => window.removeEventListener(WORK_MODE_CHANGED_EVENT, handler);
   }, []);
-
-  const refreshPendingCount = () => {
-    if (canAccessUsers) {
-      fetch("/api/unavailabilities/pending-count")
-        .then((r) => r.ok ? r.json() : { count: 0 })
-        .then((d) => setPendingUnavailCount(d?.count ?? 0))
-        .catch(() => setPendingUnavailCount(0));
-    }
-  };
-  useEffect(() => {
-    if (!canAccessUsers) return;
-    const t = setTimeout(() => refreshPendingCount(), 1500);
-    return () => clearTimeout(t);
-  }, [canAccessUsers, session]);
-  useEffect(() => {
-    const handler = () => refreshPendingCount();
-    window.addEventListener("unavailabilitiesUpdated", handler);
-    return () => window.removeEventListener("unavailabilitiesUpdated", handler);
-  }, [canAccessUsers]);
 
   const refreshNotificationsCount = () => {
     if (session?.user) {
@@ -142,14 +122,9 @@ export default function Navbar() {
                 {canSeeIndisponibilita && (
                   <Link
                     href="/dashboard/unavailabilities"
-                    className="relative inline-flex items-center text-gray-700 hover:text-gray-900 font-medium transition-colors"
+                    className="text-gray-700 hover:text-gray-900 font-medium transition-colors"
                   >
                     Indisponibilità
-                    {canAccessUsers && pendingUnavailCount > 0 && (
-                      <span className="ml-1 min-w-[18px] h-[18px] px-1 flex items-center justify-center text-[10px] font-bold text-white bg-red-500 rounded-full">
-                        {pendingUnavailCount > 99 ? "99+" : pendingUnavailCount}
-                      </span>
-                    )}
                   </Link>
                 )}
                 {canSeeMyShiftsAndHours && (
@@ -369,14 +344,9 @@ export default function Navbar() {
                     <Link
                       href="/dashboard/unavailabilities"
                       onClick={() => setMobileMenuOpen(false)}
-                      className="flex items-center px-4 py-3 rounded-lg text-gray-700 hover:bg-gray-100 font-medium"
+                      className="block px-4 py-3 rounded-lg text-gray-700 hover:bg-gray-100 font-medium"
                     >
                       Indisponibilità
-                      {canAccessUsers && pendingUnavailCount > 0 && (
-                        <span className="ml-2 min-w-[18px] h-[18px] px-1 flex items-center justify-center text-[10px] font-bold text-white bg-red-500 rounded-full">
-                          {pendingUnavailCount > 99 ? "99+" : pendingUnavailCount}
-                        </span>
-                      )}
                     </Link>
                   )}
                   {canSeeMyShiftsAndHours && (

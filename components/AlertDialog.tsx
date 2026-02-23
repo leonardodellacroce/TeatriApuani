@@ -6,8 +6,10 @@ import { createPortal } from "react-dom";
 interface AlertDialogProps {
   isOpen: boolean;
   title?: string;
-  message: string;
+  message: React.ReactNode;
   onClose: () => void;
+  /** Larghezza: sm (max-w-md), lg (max-w-lg) */
+  size?: "sm" | "lg";
 }
 
 export default function AlertDialog({
@@ -15,6 +17,7 @@ export default function AlertDialog({
   title = "Attenzione",
   message,
   onClose,
+  size = "sm",
 }: AlertDialogProps) {
   const [mounted, setMounted] = useState(false);
 
@@ -38,11 +41,12 @@ export default function AlertDialog({
     return null;
   }
 
+  const maxWidthClass = size === "lg" ? "max-w-lg" : "max-w-md";
   const dialogContent = (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[9999]">
-      <div className="bg-white rounded-lg shadow-xl p-6 max-w-md w-full mx-4">
+      <div className={`bg-white rounded-lg shadow-xl p-6 ${maxWidthClass} w-full mx-4`}>
         <h2 className="text-xl font-bold mb-4 text-gray-900">{title}</h2>
-        <p className="mb-6 text-gray-700">{message}</p>
+        <div className="mb-6 text-gray-700">{message}</div>
         <div className="flex justify-end">
           <button
             onClick={onClose}

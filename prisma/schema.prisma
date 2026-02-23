@@ -41,6 +41,7 @@ model User {
   timeEntries   TimeEntry[] // Ore inserite dall'utente
   unavailabilities Unavailability[]
   notifications Notification[]
+  adminNotificationPreference AdminNotificationPreference?
 }
 
 model Notification {
@@ -51,6 +52,7 @@ model Notification {
   title     String   // Titolo mostrato nella card (es. "Orari da inserire")
   message   String   // Messaggio dettagliato (es. elenco date)
   metadata  Json?    // es. { dates: ["2026-02-21"] } per validare notifiche obsolete
+  priority  String?  @default("MEDIUM") // HIGH | MEDIUM | LOW
   read      Boolean  @default(false)
   createdAt DateTime @default(now())
 
@@ -289,7 +291,7 @@ model Unavailability {
   dateEnd   DateTime // Ultimo giorno (per singolo giorno: dateStart = dateEnd)
   startTime String?  // HH:MM - null = tutto il giorno
   endTime   String?  // HH:MM - null = tutto il giorno
-  status    String   @default("APPROVED") // APPROVED | PENDING_APPROVAL (con conflitto turno)
+  status    String   @default("APPROVED") // APPROVED | PENDING_APPROVAL | REJECTED
   note      String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -304,6 +306,30 @@ model SystemSetting {
   key       String   @unique
   value     String
   updatedAt DateTime @updatedAt
+}
+
+model AdminNotificationPreference {
+  id                      String   @id @default(cuid())
+  userId                  String   @unique
+  user                    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  companyIds              String?  // JSON array: ["id1","id2"] - vuoto = tutte
+  areaIds                 String?  // JSON array: ["id1","id2"] - vuoto = tutte
+  workdayIssuesDaysAhead  Int      @default(7)
+  updatedAt               DateTime @updatedAt
+
+  @@index([userId])
+}
+
+model NotificationTypeSetting {
+  id                   String   @id @default(cuid())
+  type                 String   @unique
+  isActive             Boolean  @default(true)
+  priority             String   @default("MEDIUM")
+  showInDashboardModal Boolean  @default(true)
+  metadata             Json?
+  updatedAt            DateTime @updatedAt
+
+  @@index([type])
 }
 
 enum UserRole {

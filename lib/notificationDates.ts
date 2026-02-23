@@ -46,3 +46,13 @@ export function buildMyShiftsUrlWithDates(
   if (!range) return "/dashboard/my-shifts";
   return `/dashboard/my-shifts?startDate=${range.startDate}&endDate=${range.endDate}`;
 }
+
+/** URL per notifiche ORE_* (dateFrom/dateTo in metadata) */
+export function buildMyShiftsUrlForOreNotification(
+  metadata?: { dateFrom?: string; dateTo?: string } | null
+): string {
+  const dateFrom = metadata?.dateFrom ?? metadata?.dateTo;
+  const dateTo = metadata?.dateTo ?? metadata?.dateFrom;
+  if (!dateFrom) return "/dashboard/my-shifts";
+  return `/dashboard/my-shifts?startDate=${dateFrom}&endDate=${dateTo || dateFrom}`;
+}

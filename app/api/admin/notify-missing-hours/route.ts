@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
+import { getNotificationTypeSetting } from "@/lib/notifications";
 
 // POST /api/admin/notify-missing-hours
 // Notifica manuale: crea MISSING_HOURS_REMINDER per i dipendenti con ore non inserite
@@ -46,6 +47,14 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    const missingSetting = await getNotificationTypeSetting("MISSING_HOURS_REMINDER");
+    if (missingSetting && !missingSetting.isActive) {
+      return NextResponse.json(
+        { error: "Le notifiche orari da inserire sono disattivate nelle impostazioni di sistema" },
+        { status: 400 }
+      );
+    }
+
     const start = new Date(startDate);
     start.setUTCHours(0, 0, 0, 0);
     const end = new Date(endDate);
@@ -56,14 +65,7 @@ export async function POST(req: NextRequest) {
       where: {
         isArchived: false,
         isActive: true,
-        OR: [
-          {
-            isSuperAdmin: false,
-            isAdmin: false,
-            isResponsabile: false,
-          },
-          { isWorker: true },
-        ],
+        isWorker: true,
         ...(companyIdFilter && { companyId: companyIdFilter }),
       },
       select: { id: true },
@@ -157,6 +159,7 @@ export async function POST(req: NextRequest) {
             title: "Orari da inserire",
             message,
             metadata: { dates: sortedDates },
+            priority: missingSetting?.priority ?? "HIGH",
             read: false,
           },
         });

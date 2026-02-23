@@ -1,7 +1,6 @@
 "use client";
 
 import Container from "@/components/Container";
-import Navbar from "@/components/Navbar";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { useState, useEffect } from "react";
@@ -125,10 +124,9 @@ export default function ChangePasswordPage() {
   };
 
   return (
-    <div className="min-h-screen bg-white text-gray-900">
-      <Navbar />
+    <div className="min-h-screen bg-white text-gray-900 flex items-center justify-center">
       <Container>
-        <div className="min-h-[calc(100vh-4rem)] flex items-center justify-center">
+        <div className="w-full flex items-center justify-center py-8">
           <div className="w-full max-w-md space-y-8">
             <div>
               <h1 className="text-4xl font-bold text-center mb-2">Cambio Password</h1>
