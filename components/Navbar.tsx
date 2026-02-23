@@ -36,8 +36,9 @@ export default function Navbar() {
     (isWorker && (!isNonStandardWorker || workMode === "worker"));
   const canSeeIndisponibilita = canSeeMyShiftsAndHours || canAccessUsers;
   const canSeeNotifications =
-    canSeeMyShiftsAndHours ||
-    ["SUPER_ADMIN", "ADMIN", "RESPONSABILE"].includes(userRole || "");
+    session &&
+    (canSeeMyShiftsAndHours ||
+      ["SUPER_ADMIN", "ADMIN", "RESPONSABILE"].includes(userRole || ""));
 
   useEffect(() => {
     if (isNonStandardWorker) {

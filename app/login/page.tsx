@@ -33,9 +33,11 @@ export default function Login() {
   useEffect(() => {
     if (status === "authenticated" && session?.user) {
       const mustChange = (session.user as { mustChangePassword?: boolean })?.mustChangePassword === true;
-      router.replace(mustChange ? "/change-password" : "/dashboard");
+      const path = mustChange ? "/change-password" : "/dashboard";
+      // Usa window.location per forzare un reload completo e assicurare che il cookie sia inviato
+      window.location.replace(path);
     }
-  }, [status, session, router]);
+  }, [status, session]);
 
   useEffect(() => {
     const err = searchParams.get("error");
@@ -110,29 +112,9 @@ export default function Login() {
         setLoginFailed(false);
         setIsAccountLocked(false);
         setIsSuperAdminRecovery(false);
-        // Aspetta che la sessione si aggiorni e controlla il flag
-        router.refresh();
-        
-        // Aspetta che la sessione sia disponibile (su Vercel può richiedere più tempo)
-        setTimeout(async () => {
-          try {
-            const sessionRes = await fetch("/api/auth/session");
-            const session = await sessionRes.json();
-            const mustChangePassword = (session?.user as any)?.mustChangePassword;
-            console.log("[login] Session mustChangePassword:", mustChangePassword, "Type:", typeof mustChangePassword);
-            
-            if (mustChangePassword === true) {
-              console.log("[login] Redirecting to change-password");
-              router.push("/change-password");
-            } else {
-              console.log("[login] Redirecting to dashboard");
-              router.push("/dashboard");
-            }
-          } catch (err) {
-            console.error("Error checking session:", err);
-            router.push("/dashboard");
-          }
-        }, 800);
+        // Redirect con window.location per evitare problemi di routing su Vercel
+        const path = "/dashboard";
+        window.location.replace(path);
       }
     } catch (err) {
       setError("Si è verificato un errore");
