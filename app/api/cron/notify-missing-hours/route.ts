@@ -72,6 +72,8 @@ export async function GET(req: NextRequest) {
       },
     });
 
+    const debug = req.nextUrl.searchParams.get("debug") === "1";
+
     const missingByUser = new Map<string, Set<string>>();
 
     for (const a of assignments) {
@@ -114,6 +116,7 @@ export async function GET(req: NextRequest) {
     }
 
     let created = 0;
+    const debugSkipped: Array<{ userId: string; userName?: string; reason: string }> = [];
 
     for (const [userId, dates] of missingByUser) {
       if (dates.size === 0) continue;
@@ -135,27 +138,57 @@ export async function GET(req: NextRequest) {
         },
       });
 
-      if (!existing) {
-        await prisma.notification.create({
-          data: {
+      if (existing) {
+        if (debug) {
+          const u = await prisma.user.findUnique({
+            where: { id: userId },
+            select: { name: true, cognome: true },
+          });
+          debugSkipped.push({
             userId,
-            type: "MISSING_HOURS_REMINDER",
-            title: "Orari da inserire",
-            message,
-            metadata: { dates: sortedDates },
-            priority: missingSetting?.priority ?? "HIGH",
-            read: false,
-          },
-        });
-        created++;
+            userName: [u?.name, u?.cognome].filter(Boolean).join(" ") || undefined,
+            reason: `Notifica già inviata nelle ultime 20 ore (${existing.createdAt.toISOString()})`,
+          });
+        }
+        continue;
       }
+
+      await prisma.notification.create({
+        data: {
+          userId,
+          type: "MISSING_HOURS_REMINDER",
+          title: "Orari da inserire",
+          message,
+          metadata: { dates: sortedDates },
+          priority: missingSetting?.priority ?? "HIGH",
+          read: false,
+        },
+      });
+      created++;
     }
 
-    return NextResponse.json({
+    const res: Record<string, unknown> = {
       ok: true,
       created,
       usersNotified: created,
-    });
+    };
+    if (debug) {
+      res.debug = {
+        todayStr,
+        startDate: startDate.toISOString(),
+        endDate: endDate.toISOString(),
+        giorniIndietro,
+        giorniEsclusi,
+        workersCount: workerIds.size,
+        assignmentsCount: assignments.length,
+        missingByUserCount: missingByUser.size,
+        missingByUserDetail: Object.fromEntries(
+          Array.from(missingByUser.entries()).map(([uid, dates]) => [uid, Array.from(dates)])
+        ),
+        skippedDueToExisting: debugSkipped,
+      };
+    }
+    return NextResponse.json(res);
   } catch (error) {
     console.error("Cron notify-missing-hours error:", error);
     return NextResponse.json(

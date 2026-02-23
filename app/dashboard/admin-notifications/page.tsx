@@ -121,6 +121,8 @@ export default function AdminNotificationsPage() {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [requireModalActionToMarkRead, setRequireModalActionToMarkRead] = useState(false);
+  const [typesWithModalActivo, setTypesWithModalActivo] = useState<string[]>([]);
 
   const isAdminRole =
     (session?.user as any)?.isSuperAdmin === true ||
@@ -144,8 +146,15 @@ export default function AdminNotificationsPage() {
       return;
     }
     fetch("/api/notifications?type=admin")
-      .then((r) => (r.ok ? r.json() : []))
-      .then((data) => setNotifications(Array.isArray(data) ? data : []))
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        const arr = Array.isArray(data) ? data : (data?.notifications ?? []);
+        setNotifications(arr);
+        if (data && !Array.isArray(data)) {
+          setRequireModalActionToMarkRead(data.requireModalActionToMarkRead === true);
+          setTypesWithModalActivo(Array.isArray(data.typesWithModalActivo) ? data.typesWithModalActivo : []);
+        }
+      })
       .catch(() => setNotifications([]))
       .finally(() => setLoading(false));
   }, [status, session?.user, isAdminRole, router]);
@@ -165,6 +174,22 @@ export default function AdminNotificationsPage() {
       window.dispatchEvent(new Event("notificationsUpdated"));
     } catch {}
     router.push(path);
+  };
+
+  const handleMarkAsRead = async (n: Notification | { group: Notification[] }) => {
+    const ids = "group" in n ? n.group.map((x) => x.id) : [n.id];
+    try {
+      await Promise.all(ids.map((id) => fetch(`/api/notifications/${id}`, { method: "PATCH" })));
+      setNotifications((prev) =>
+        prev.map((x) => (ids.includes(x.id) ? { ...x, read: true } : x))
+      );
+      setSelectedIds((prev) => {
+        const next = new Set(prev);
+        ids.forEach((id) => next.delete(id));
+        return next;
+      });
+      window.dispatchEvent(new Event("notificationsUpdated"));
+    } catch {}
   };
 
   const toggleSelect = (id: string) => {
@@ -284,34 +309,45 @@ export default function AdminNotificationsPage() {
                         ? renderMessageWithStrikethrough(displayMessage)
                         : displayMessage}
                     </p>
-                    <div className="flex items-center justify-between gap-4">
+                    <div className="flex items-center justify-between gap-4 flex-wrap">
                       <span className="text-xs text-gray-500">
                         {formatDate(n.createdAt)}
                       </span>
-                      {!n.read && n.type === "ADMIN_LOCKED_ACCOUNTS" && (
-                        <button
-                          onClick={() => handleAction(n, "/settings/technical")}
-                          className="px-4 py-2 bg-gray-900 text-white text-sm font-medium rounded-lg hover:bg-gray-800"
-                        >
-                          Vai a impostazioni tecniche
-                        </button>
-                      )}
-                      {!n.read && (n.type === "UNAVAILABILITY_PENDING_APPROVAL" || n.type === "UNAVAILABILITY_MODIFIED_BY_WORKER" || n.type === "UNAVAILABILITY_DELETED_BY_WORKER") && (
-                        <button
-                          onClick={() => handleAction(isGroup ? item : n, "/dashboard/unavailabilities")}
-                          className="px-4 py-2 bg-gray-900 text-white text-sm font-medium rounded-lg hover:bg-gray-800"
-                        >
-                          Vai alle indisponibilità
-                        </button>
-                      )}
-                      {!n.read && n.type === "WORKDAY_ISSUES" && (
-                        <button
-                          onClick={() => handleAction(n, "/dashboard/events")}
-                          className="px-4 py-2 bg-gray-900 text-white text-sm font-medium rounded-lg hover:bg-gray-800"
-                        >
-                          Vai agli eventi
-                        </button>
-                      )}
+                      <div className="flex items-center gap-2">
+                        {!n.read && n.type === "ADMIN_LOCKED_ACCOUNTS" && (
+                          <button
+                            onClick={() => handleAction(n, "/settings/technical")}
+                            className="px-4 py-2 bg-gray-900 text-white text-sm font-medium rounded-lg hover:bg-gray-800"
+                          >
+                            Vai a impostazioni tecniche
+                          </button>
+                        )}
+                        {!n.read && (n.type === "UNAVAILABILITY_PENDING_APPROVAL" || n.type === "UNAVAILABILITY_MODIFIED_BY_WORKER" || n.type === "UNAVAILABILITY_DELETED_BY_WORKER") && (
+                          <button
+                            onClick={() => handleAction(isGroup ? item : n, "/dashboard/unavailabilities")}
+                            className="px-4 py-2 bg-gray-900 text-white text-sm font-medium rounded-lg hover:bg-gray-800"
+                          >
+                            Vai alle indisponibilità
+                          </button>
+                        )}
+                        {!n.read && n.type === "WORKDAY_ISSUES" && (
+                          <button
+                            onClick={() => handleAction(n, "/dashboard/events")}
+                            className="px-4 py-2 bg-gray-900 text-white text-sm font-medium rounded-lg hover:bg-gray-800"
+                          >
+                            Vai agli eventi
+                          </button>
+                        )}
+                        {!n.read &&
+                          !(requireModalActionToMarkRead && typesWithModalActivo.includes(n.type)) && (
+                          <button
+                            onClick={() => handleMarkAsRead(isGroup ? item : n)}
+                            className="px-4 py-2 border border-gray-300 text-gray-700 text-sm font-medium rounded-lg hover:bg-gray-50"
+                          >
+                            Letta
+                          </button>
+                        )}
+                      </div>
                     </div>
                   </div>
                 </div>

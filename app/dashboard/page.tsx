@@ -4,9 +4,9 @@ import DashboardShell from "@/components/DashboardShell";
 import PageSkeleton from "@/components/PageSkeleton";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { getWorkModeCookie, WORK_MODE_CHANGED_EVENT } from "@/lib/workMode";
-import { buildMyShiftsUrlWithDates } from "@/lib/notificationDates";
+import { buildMyShiftsUrlWithDates, buildMyShiftsUrlForOreNotification } from "@/lib/notificationDates";
 import { getEffectivePriority, isAdminModalPriority } from "@/lib/notifications";
 
 type NotificationItem = {
@@ -14,17 +14,39 @@ type NotificationItem = {
   type: string;
   title: string;
   message: string;
-  metadata?: { dates?: string[] } | null;
+  metadata?: { dates?: string[]; dateFrom?: string; dateTo?: string } | null;
   priority?: string | null;
   read: boolean;
   createdAt: string;
 };
 
+/** Renderizza messaggio con ~~testo~~ come barrato (strikethrough) */
+function renderMessageWithStrikethrough(message: string): React.ReactNode {
+  const parts: React.ReactNode[] = [];
+  let remaining = message;
+  let key = 0;
+  while (remaining.includes("~~")) {
+    const start = remaining.indexOf("~~");
+    const end = remaining.indexOf("~~", start + 2);
+    if (end === -1) break;
+    if (start > 0) parts.push(<span key={key++}>{remaining.slice(0, start)}</span>);
+    parts.push(
+      <span key={key++} className="line-through text-gray-500">
+        {remaining.slice(start + 2, end)}
+      </span>
+    );
+    remaining = remaining.slice(end + 2);
+  }
+  if (remaining) parts.push(<span key={key++}>{remaining}</span>);
+  return parts.length > 1 ? parts : message;
+}
+
 export default function Dashboard() {
   const { data: session, status } = useSession();
   const router = useRouter();
   const [workMode, setWorkMode] = useState<"admin" | "worker">("admin");
-  const [missingHoursModal, setMissingHoursModal] = useState<NotificationItem | null>(null);
+  const [workerModalNotification, setWorkerModalNotification] = useState<NotificationItem | null>(null);
+  const [workerModalMultiple, setWorkerModalMultiple] = useState(false);
   const [adminModalOpen, setAdminModalOpen] = useState(false);
   const [highPriorityCounts, setHighPriorityCounts] = useState<{
     indisponibilita: number;
@@ -39,6 +61,7 @@ export default function Dashboard() {
   });
   const [workerMissingHoursCount, setWorkerMissingHoursCount] = useState(0);
   const [workerPendingUnavailCount, setWorkerPendingUnavailCount] = useState(0);
+  const fetchRunRef = useRef(0);
 
   useEffect(() => {
     if (status === "unauthenticated") {
@@ -138,36 +161,76 @@ export default function Dashboard() {
     return () => window.removeEventListener("unavailabilitiesUpdated", refresh);
   }, []);
 
+  const [notificationsRefreshKey, setNotificationsRefreshKey] = useState(0);
+  useEffect(() => {
+    const h = () => setNotificationsRefreshKey((k) => k + 1);
+    window.addEventListener("timeEntriesUpdated", h);
+    window.addEventListener("notificationsUpdated", h);
+    return () => {
+      window.removeEventListener("timeEntriesUpdated", h);
+      window.removeEventListener("notificationsUpdated", h);
+    };
+  }, []);
+
   useEffect(() => {
     if (status !== "authenticated" || !session?.user) return;
+    const runId = ++fetchRunRef.current;
     const role = (session.user as any)?.role;
     const std = !["SUPER_ADMIN", "ADMIN", "RESPONSABILE"].includes(role || "");
     const wrk = (session.user as any)?.isWorker === true;
     const nonStdWrk = !std && wrk;
     const canSee = std || (wrk && (!nonStdWrk || workMode === "worker"));
     const isAdminRole = ["SUPER_ADMIN", "ADMIN", "RESPONSABILE"].includes(role || "");
+    const showAdmin = isAdminRole && (!nonStdWrk || workMode === "admin");
+
+    const isStale = () => runId !== fetchRunRef.current;
+
     if (canSee) {
       Promise.all([
-        fetch("/api/notifications?unreadOnly=true&type=worker", { cache: "no-store" }).then((r) => (r.ok ? r.json() : [])),
+        fetch("/api/notifications?unreadOnly=true&type=worker", { cache: "no-store" }).then((r) => (r.ok ? r.json() : null)),
         fetch("/api/settings/notifications/system/worker-display").then((r) => (r.ok ? r.json() : null)),
       ])
-        .then(([data, settingsData]: [NotificationItem[], { worker?: { type: string; showInDashboardModal: boolean }[] } | null]) => {
-          const arr = Array.isArray(data) ? data : [];
-          const missing = arr.find((n) => n.type === "MISSING_HOURS_REMINDER");
-          const showModal = settingsData?.worker?.find((w) => w.type === "MISSING_HOURS_REMINDER")?.showInDashboardModal ?? true;
-          if (missing && showModal) setMissingHoursModal(missing);
+        .then(([data, settingsData]: [NotificationItem[] | { notifications?: NotificationItem[] } | null, { worker?: { type: string; showInDashboardModal: boolean }[] } | null]) => {
+          if (isStale()) return;
+          const arr = Array.isArray(data) ? data : (data?.notifications ?? []);
+          const modalByType = new Map(
+            (settingsData?.worker ?? []).filter((w) => w.showInDashboardModal).map((w) => [w.type, true])
+          );
+          const withModal = arr.filter((n) => !n.read && modalByType.get(n.type));
+          const firstWithModal = withModal[0];
+          const hasMultiple = withModal.length >= 2;
+          if ((std || workMode === "worker")) {
+            if (hasMultiple) {
+              setWorkerModalMultiple(true);
+              setWorkerModalNotification(null);
+            } else if (firstWithModal) {
+              setWorkerModalMultiple(false);
+              setWorkerModalNotification(firstWithModal);
+            } else {
+              setWorkerModalMultiple(false);
+              setWorkerModalNotification(null);
+            }
+          } else {
+            setWorkerModalMultiple(false);
+            setWorkerModalNotification(null);
+          }
+          if (!showAdmin) setAdminModalOpen(false);
         })
-        .catch(() => {});
+        .catch(() => { if (!isStale()) { setWorkerModalNotification(null); setWorkerModalMultiple(false); } });
       refreshWorkerMissingHours();
       refreshWorkerPendingUnavail();
+    } else {
+      setWorkerModalNotification(null);
+      setWorkerModalMultiple(false);
     }
-    if (isAdminRole && (!nonStdWrk || workMode === "admin")) {
+    if (showAdmin) {
       Promise.all([
-        fetch("/api/notifications?type=admin&unreadOnly=true").then((r) => (r.ok ? r.json() : [])),
+        fetch("/api/notifications?type=admin&unreadOnly=true").then((r) => (r.ok ? r.json() : null)),
         fetch("/api/settings/notifications/system").then((r) => (r.ok ? r.json() : null)),
       ])
-        .then(([data, settingsData]: [NotificationItem[], { worker?: { type: string; showInDashboardModal: boolean }[]; admin?: { type: string; showInDashboardModal: boolean }[] } | null]) => {
-          const arr = Array.isArray(data) ? data : [];
+        .then(([data, settingsData]: [NotificationItem[] | { notifications?: NotificationItem[] } | null, { worker?: { type: string; showInDashboardModal: boolean }[]; admin?: { type: string; showInDashboardModal: boolean }[] } | null]) => {
+          if (isStale()) return;
+          const arr = Array.isArray(data) ? data : (data?.notifications ?? []);
           const map: Record<string, { showInDashboardModal: boolean }> = {};
           if (settingsData?.worker) {
             for (const item of settingsData.worker) {
@@ -185,28 +248,42 @@ export default function Dashboard() {
               (map[n.type]?.showInDashboardModal ?? isAdminModalPriority(getEffectivePriority(n.priority, n.type)))
           );
           setAdminModalOpen(hasImportant);
+          setWorkerModalNotification(null);
+          setWorkerModalMultiple(false);
         })
         .catch(() => {});
       refreshHighPriorityCounts();
     }
-  }, [status, session?.user, workMode]);
+  }, [status, session?.user, workMode, notificationsRefreshKey]);
 
-  const handleInserisci = async () => {
-    if (!missingHoursModal) return;
-    const url = buildMyShiftsUrlWithDates(missingHoursModal.message, missingHoursModal.metadata);
+  const handleWorkerModalAction = async () => {
+    if (!workerModalNotification) return;
+    const n = workerModalNotification;
     try {
-      await fetch(`/api/notifications/mark-all-read?type=MISSING_HOURS_REMINDER`, {
-        method: "POST",
-      });
+      await fetch(`/api/notifications/${n.id}`, { method: "PATCH" });
       window.dispatchEvent(new Event("notificationsUpdated"));
     } catch {}
-    setMissingHoursModal(null);
-    router.push(url);
+    setWorkerModalNotification(null);
+    if (n.type === "MISSING_HOURS_REMINDER") {
+      router.push(buildMyShiftsUrlWithDates(n.message, n.metadata));
+    } else if (["UNAVAILABILITY_CREATED_BY_ADMIN", "UNAVAILABILITY_MODIFIED_BY_ADMIN", "UNAVAILABILITY_DELETED_BY_ADMIN", "UNAVAILABILITY_APPROVED", "UNAVAILABILITY_REJECTED"].includes(n.type)) {
+      router.push("/dashboard/unavailabilities");
+    } else if (["ORE_INSERITE_DA_ADMIN", "ORE_MODIFICATE_DA_ADMIN", "ORE_ELIMINATE_DA_ADMIN"].includes(n.type)) {
+      router.push(buildMyShiftsUrlForOreNotification(n.metadata));
+    } else {
+      router.push("/dashboard/my-shifts");
+    }
   };
 
   const handleVaiAlleNotifiche = () => {
     setAdminModalOpen(false);
     router.push("/dashboard/admin-notifications");
+  };
+
+  const handleVaiAlleNotificheLavoratore = () => {
+    setWorkerModalMultiple(false);
+    setWorkerModalNotification(null);
+    router.push("/dashboard/notifications");
   };
 
   if (status === "loading") {
@@ -440,13 +517,13 @@ export default function Dashboard() {
             <div className="flex gap-3 justify-end">
               <button
                 onClick={() => setAdminModalOpen(false)}
-                className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
+                className="px-4 py-2 text-sm font-medium border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
               >
                 Dopo
               </button>
               <button
                 onClick={handleVaiAlleNotifiche}
-                className="px-4 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800"
+                className="px-4 py-2 text-sm font-medium bg-gray-900 text-white rounded-lg hover:bg-gray-800"
               >
                 Vai alle notifiche
               </button>
@@ -455,25 +532,60 @@ export default function Dashboard() {
         </div>
       )}
 
-      {missingHoursModal && !adminModalOpen && (
+      {workerModalMultiple && !adminModalOpen && (isStandardUser || workMode === "worker") && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
           <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-6 border border-gray-200">
-            <h2 className="text-xl font-bold text-gray-900 mb-3">Notifica importante!</h2>
-            <p className="text-gray-700 text-sm mb-6 whitespace-pre-wrap">
-              {missingHoursModal.message}
+            <h2 className="text-xl font-bold text-gray-900 mb-3">
+              Hai delle notifiche importanti a cui prestare attenzione!
+            </h2>
+            <p className="text-gray-700 text-sm mb-6">
+              Controlla le notifiche per non perdere aggiornamenti rilevanti.
             </p>
             <div className="flex gap-3 justify-end">
               <button
-                onClick={() => setMissingHoursModal(null)}
-                className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
+                onClick={() => setWorkerModalMultiple(false)}
+                className="px-4 py-2 text-sm font-medium border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
               >
                 Dopo
               </button>
               <button
-                onClick={handleInserisci}
-                className="px-4 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800"
+                onClick={handleVaiAlleNotificheLavoratore}
+                className="px-4 py-2 text-sm font-medium bg-gray-900 text-white rounded-lg hover:bg-gray-800"
               >
-                Inserisci
+                Vai alle notifiche
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {workerModalNotification && !workerModalMultiple && !adminModalOpen && (isStandardUser || workMode === "worker") && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-6 border border-gray-200">
+            <h2 className="text-xl font-bold text-gray-900 mb-3">Notifica importante!</h2>
+            <p className="text-gray-700 text-sm mb-6 whitespace-pre-wrap">
+              {workerModalNotification.message.includes("~~")
+                ? renderMessageWithStrikethrough(workerModalNotification.message)
+                : workerModalNotification.message}
+            </p>
+            <div className="flex gap-3 justify-end">
+              <button
+                onClick={() => setWorkerModalNotification(null)}
+                className="px-4 py-2 text-sm font-medium border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
+              >
+                Dopo
+              </button>
+              <button
+                onClick={handleWorkerModalAction}
+                className="px-4 py-2 text-sm font-medium bg-gray-900 text-white rounded-lg hover:bg-gray-800"
+              >
+                {workerModalNotification.type === "MISSING_HOURS_REMINDER"
+                  ? "Inserisci"
+                  : ["UNAVAILABILITY_CREATED_BY_ADMIN", "UNAVAILABILITY_MODIFIED_BY_ADMIN", "UNAVAILABILITY_DELETED_BY_ADMIN", "UNAVAILABILITY_APPROVED", "UNAVAILABILITY_REJECTED"].includes(workerModalNotification.type)
+                    ? "Vai alle indisponibilità"
+                    : ["ORE_INSERITE_DA_ADMIN", "ORE_MODIFICATE_DA_ADMIN", "ORE_ELIMINATE_DA_ADMIN"].includes(workerModalNotification.type)
+                      ? "Visualizza"
+                      : "Vai"}
               </button>
             </div>
           </div>

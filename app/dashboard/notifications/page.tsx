@@ -72,6 +72,8 @@ export default function NotificationsPage() {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [requireModalActionToMarkRead, setRequireModalActionToMarkRead] = useState(false);
+  const [typesWithModalActivo, setTypesWithModalActivo] = useState<string[]>([]);
 
   const readNotifications = notifications.filter((n) => n.read);
   const allReadSelected =
@@ -85,8 +87,15 @@ export default function NotificationsPage() {
       return;
     }
     fetch("/api/notifications?type=worker")
-      .then((r) => (r.ok ? r.json() : []))
-      .then((data) => setNotifications(Array.isArray(data) ? data : []))
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        const arr = Array.isArray(data) ? data : (data?.notifications ?? []);
+        setNotifications(arr);
+        if (data && !Array.isArray(data)) {
+          setRequireModalActionToMarkRead(data.requireModalActionToMarkRead === true);
+          setTypesWithModalActivo(Array.isArray(data.typesWithModalActivo) ? data.typesWithModalActivo : []);
+        }
+      })
       .catch(() => setNotifications([]))
       .finally(() => setLoading(false));
   }, [status, session?.user, router]);
@@ -308,7 +317,7 @@ export default function NotificationsPage() {
                         </button>
                       )}
                       {!n.read &&
-                        ["MEDIUM", "LOW"].includes(getEffectivePriority(n.priority, n.type)) && (
+                        !(requireModalActionToMarkRead && typesWithModalActivo.includes(n.type)) && (
                         <button
                           onClick={() => handleMarkAsRead(n)}
                           className="px-4 py-2 border border-gray-300 text-gray-700 text-sm font-medium rounded-lg hover:bg-gray-50"

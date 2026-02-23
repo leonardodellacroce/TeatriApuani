@@ -221,7 +221,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
         } else if (updated.note) {
           detail += `\nNote: ${updated.note}`;
         }
-        await notifyWorkerUnavailability(u.userId, "MODIFIED", 1, detail);
+        await notifyWorkerUnavailability(u.userId, "MODIFIED", 1, detail, `unav:${id}`);
       } catch (err) {
         console.error("[Unavailability] notifyWorkerUnavailability MODIFIED error:", err);
       }
@@ -307,7 +307,7 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
       const periodStr = formatUnavailabilityDateRange(u.dateStart, u.dateEnd);
       const timeStr = formatUnavailabilityTimeRange(u.startTime, u.endTime);
       const detail = `Periodo: ${periodStr}\nOrario: ${timeStr}`;
-      await notifyWorkerUnavailability(u.userId, "DELETED", 1, detail);
+      await notifyWorkerUnavailability(u.userId, "DELETED", 1, detail, `unav:${id}`);
     } catch (err) {
       console.error("[Unavailability] notifyWorkerUnavailability DELETED error:", err);
     }

@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect } from "react";
+import { formatAreas, formatRoles } from "@/utils/user-display";
 
 interface ConfirmEditDialogProps {
   isOpen: boolean;
@@ -52,10 +53,16 @@ const ConfirmEditDialog: React.FC<ConfirmEditDialogProps> = ({
         continue;
       }
       
-      // Gestione speciale per campi JSON (areas, roles)
+      // Gestione speciale per campi JSON (areas, roles): formatta per lettura umana
       if (key === "areas" || key === "roles") {
-        const oldVal = JSON.stringify(oldData[key] || []);
-        const newVal = JSON.stringify(newData[key] || []);
+        const rawOld = oldData[key];
+        const rawNew = newData[key];
+        const oldVal = key === "areas"
+          ? formatAreas(typeof rawOld === "string" ? rawOld : JSON.stringify(rawOld ?? []))
+          : formatRoles(typeof rawOld === "string" ? rawOld : JSON.stringify(rawOld ?? {}));
+        const newVal = key === "areas"
+          ? formatAreas(typeof rawNew === "string" ? rawNew : JSON.stringify(rawNew ?? []))
+          : formatRoles(typeof rawNew === "string" ? rawNew : JSON.stringify(rawNew ?? {}));
         if (oldVal !== newVal) {
           changed.push({
             field: key,

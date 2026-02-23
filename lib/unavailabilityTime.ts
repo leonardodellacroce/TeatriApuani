@@ -63,10 +63,21 @@ export function unavailabilityOverlapsShift(
   return u1 < s2 && s1 < u2;
 }
 
-/** Formatta date per dettaglio notifica (es. "23/02/2026" o "23/02/2026 - 25/02/2026") */
+/** Formatta date per dettaglio notifica (es. "23/02/2026" o "23/02/2026 - 25/02/2026").
+ * Usa la parte data in UTC per evitare che dateEnd 23:59:59 UTC venga mostrato come giorno successivo in Italia. */
 export function formatUnavailabilityDateRange(dateStart: Date | string, dateEnd: Date | string): string {
+  const toDateStr = (d: Date | string): string => {
+    if (typeof d === "string") {
+      return d.split("T")[0];
+    }
+    const y = d.getUTCFullYear();
+    const m = String(d.getUTCMonth() + 1).padStart(2, "0");
+    const day = String(d.getUTCDate()).padStart(2, "0");
+    return `${y}-${m}-${day}`;
+  };
   const fmt = (d: Date | string) => {
-    const x = typeof d === "string" ? new Date(d.split("T")[0] + "T12:00:00Z") : d;
+    const dateStr = toDateStr(d);
+    const x = new Date(dateStr + "T12:00:00Z");
     return x.toLocaleDateString("it-IT", { day: "2-digit", month: "2-digit", year: "numeric" });
   };
   const s = fmt(dateStart);

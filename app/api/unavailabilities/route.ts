@@ -263,18 +263,30 @@ export async function POST(req: NextRequest) {
       const timeStr = formatUnavailabilityTimeRange(unavailability.startTime, unavailability.endTime);
       let detail = `Periodo: ${periodStr}\nOrario: ${timeStr}`;
       if (unavailability.note) detail += `\nNote: ${unavailability.note}`;
-      await notifyWorkerUnavailability(effectiveUserId, "CREATED", 1, detail);
+      await notifyWorkerUnavailability(effectiveUserId, "CREATED", 1, detail, `unav:${unavailability.id}`);
     }
     if (hasConflict && !actingAsAdmin) {
       try {
         const workerName = unavailability.user
           ? `${unavailability.user.name || ""} ${unavailability.user.cognome || ""}`.trim() || unavailability.user.code || "Un dipendente"
           : "Un dipendente";
+        const periodStr = formatUnavailabilityDateRange(unavailability.dateStart, unavailability.dateEnd);
+        const timeStr = formatUnavailabilityTimeRange(unavailability.startTime, unavailability.endTime);
+        let detail = `Periodo: ${periodStr}\nOrario: ${timeStr}`;
+        const workdaysWithEvents = await prisma.workday.findMany({
+          where: { date: { gte: dStart, lte: dEnd } },
+          select: { event: { select: { title: true } } },
+        });
+        const eventTitles = [...new Set(workdaysWithEvents.map((w) => w.event?.title).filter(Boolean))] as string[];
+        if (eventTitles.length > 0) {
+          detail += `\nEventi: ${eventTitles.join(", ")}`;
+        }
+        if (unavailability.note) detail += `\nNote: ${unavailability.note}`;
         const worker = await prisma.user.findUnique({
           where: { id: effectiveUserId },
           select: { companyId: true },
         });
-        await notifyAdminsUnavailabilityPending(workerName, undefined, worker?.companyId);
+        await notifyAdminsUnavailabilityPending(workerName, detail, worker?.companyId);
       } catch (err) {
         console.error("[Unavailability] notifyAdminsUnavailabilityPending error:", err);
       }

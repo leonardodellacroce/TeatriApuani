@@ -1,11 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
+import { getSystemSetting } from "@/lib/settings";
 
 export const dynamic = "force-dynamic";
 import { getWorkModeFromRequest } from "@/lib/workMode";
 import { ADMIN_NOTIFICATION_TYPES, ADMIN_SUPERADMIN_ONLY_TYPES, WORKER_NOTIFICATION_TYPES } from "@/lib/notifications";
 import { userHasMissingShiftsForDates } from "@/lib/missingHoursNotification";
+
+const KEY_REQUIRE_MODAL_ACTION = "notifications_require_modal_action_to_mark_read";
 
 // GET /api/notifications?unreadOnly=true&type=worker|admin
 // Ritorna le notifiche dell'utente.
@@ -60,7 +63,7 @@ export async function GET(req: NextRequest) {
     const unreadOnly = searchParams.get("unreadOnly") === "true";
 
     if (notificationTypes.length === 0) {
-      return NextResponse.json([]);
+      return NextResponse.json(typeParam === "worker" || typeParam === "admin" ? { notifications: [], requireModalActionToMarkRead: false, typesWithModalActivo: [] } : []);
     }
 
     const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
@@ -124,7 +127,42 @@ export async function GET(req: NextRequest) {
           });
         }
       }
+      if (typeParam === "worker" || typeParam === "admin") {
+        const [requireModalActionToMarkRead, typeSettings] = await Promise.all([
+          getSystemSetting(KEY_REQUIRE_MODAL_ACTION).then((v) => v === "true"),
+          prisma.notificationTypeSetting.findMany({
+            where: { type: { in: [...notificationTypes] } },
+            select: { type: true, showInDashboardModal: true },
+          }),
+        ]);
+        const typesWithModalActivo = typeSettings
+          .filter((s) => s.showInDashboardModal)
+          .map((s) => s.type);
+        return NextResponse.json({
+          notifications: filtered,
+          requireModalActionToMarkRead,
+          typesWithModalActivo,
+        });
+      }
       return NextResponse.json(filtered);
+    }
+
+    if (typeParam === "worker" || typeParam === "admin") {
+      const [requireModalActionToMarkRead, typeSettings] = await Promise.all([
+        getSystemSetting(KEY_REQUIRE_MODAL_ACTION).then((v) => v === "true"),
+        prisma.notificationTypeSetting.findMany({
+          where: { type: { in: [...notificationTypes] } },
+          select: { type: true, showInDashboardModal: true },
+        }),
+      ]);
+      const typesWithModalActivo = typeSettings
+        .filter((s) => s.showInDashboardModal)
+        .map((s) => s.type);
+      return NextResponse.json({
+        notifications,
+        requireModalActionToMarkRead,
+        typesWithModalActivo,
+      });
     }
 
     return NextResponse.json(notifications);

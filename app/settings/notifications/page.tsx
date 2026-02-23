@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import Navbar from "@/components/Navbar";
 import { useSession } from "next-auth/react";
 import AlertDialog from "@/components/AlertDialog";
+import ConfirmDialog from "@/components/ConfirmDialog";
 
 const NOTIFICATION_INFO: Record<string, { desc: string; example: string }> = {
   MISSING_HOURS_REMINDER: {
@@ -113,9 +114,13 @@ export default function NotificationsSettingsPage() {
   const [systemError, setSystemError] = useState("");
   const [systemSuccess, setSystemSuccess] = useState("");
   const [systemDirty, setSystemDirty] = useState<Set<string>>(new Set());
+  const [requireModalActionToMarkRead, setRequireModalActionToMarkRead] = useState(false);
+  const [requireModalActionDirty, setRequireModalActionDirty] = useState(false);
   const [infoModalType, setInfoModalType] = useState<string | null>(null);
   const [paramsModal, setParamsModal] = useState<{ type: string; category: "worker" | "admin"; label: string } | null>(null);
   const [paramsModalDraft, setParamsModalDraft] = useState<Record<string, unknown>>({});
+  const [resetConfirmOpen, setResetConfirmOpen] = useState(false);
+  const [userResetConfirmOpen, setUserResetConfirmOpen] = useState(false);
 
   const userRole = (session?.user as { role?: string })?.role || "";
   const userCompanyId = (session?.user as { companyId?: string })?.companyId;
@@ -145,22 +150,25 @@ export default function NotificationsSettingsPage() {
         fetch("/api/areas"),
       ]);
 
+      const comps = companiesRes.ok ? await companiesRes.json() : [];
+      const areasData = areasRes.ok ? await areasRes.json() : [];
+      setCompanies(comps);
+      setAreas(areasData);
+
       if (prefRes.ok) {
         const pref = await prefRes.json();
-        setCompanyIds(Array.isArray(pref.companyIds) ? pref.companyIds : []);
-        setAreaIds(Array.isArray(pref.areaIds) ? pref.areaIds : []);
+        const prefCompanyIds = Array.isArray(pref.companyIds) ? pref.companyIds : [];
+        const prefAreaIds = Array.isArray(pref.areaIds) ? pref.areaIds : [];
+        setCompanyIds(prefCompanyIds);
+        // areaIds vuoto = "tutte" → mostriamo tutte le aree selezionate
+        setAreaIds(
+          prefAreaIds.length === 0 && areasData.length > 0
+            ? areasData.map((x: { id: string }) => x.id)
+            : prefAreaIds
+        );
       } else if (prefRes.status === 403) {
         router.push("/settings");
         return;
-      }
-
-      if (companiesRes.ok) {
-        const comps = await companiesRes.json();
-        setCompanies(comps);
-      }
-      if (areasRes.ok) {
-        const a = await areasRes.json();
-        setAreas(a);
       }
     } catch (err) {
       console.error(err);
@@ -168,6 +176,15 @@ export default function NotificationsSettingsPage() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleResetUserDefaults = () => {
+    setUserResetConfirmOpen(false);
+    const defaultCompanyIds = userCompanyId ? [userCompanyId] : companies.map((c) => c.id);
+    const defaultAreaIds = areas.map((a) => a.id);
+    setCompanyIds(defaultCompanyIds);
+    setAreaIds(defaultAreaIds);
+    setSuccess("Impostazioni ripristinate ai valori di default. Clicca Salva per confermare.");
   };
 
   const handleSaveAreasCompanies = async (e: React.FormEvent) => {
@@ -234,6 +251,7 @@ export default function NotificationsSettingsPage() {
         const data = await res.json();
         setSystemWorker(data.worker ?? []);
         setSystemAdmin(data.admin ?? []);
+        setRequireModalActionToMarkRead(data.requireModalActionToMarkRead === true);
       } else if (res.status === 403) {
         router.push("/settings");
       }
@@ -274,6 +292,33 @@ export default function NotificationsSettingsPage() {
     setSystemDirty((prev) => new Set(prev).add(type));
   };
 
+  const handleResetDefault = async () => {
+    setResetConfirmOpen(false);
+    setSystemError("");
+    setSystemSuccess("");
+    setSystemSaving(true);
+    try {
+      const res = await fetch("/api/settings/notifications/system", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ resetToDefault: true }),
+      });
+      if (res.ok) {
+        setSystemSuccess("Impostazioni ripristinate ai valori di default");
+        setSystemDirty(new Set());
+        setRequireModalActionDirty(false);
+        fetchSystemData();
+      } else {
+        const data = await res.json().catch(() => ({}));
+        setSystemError(data.error || "Errore nel reset");
+      }
+    } catch (err) {
+      setSystemError("Errore nel reset");
+    } finally {
+      setSystemSaving(false);
+    }
+  };
+
   const handleSaveSystem = async () => {
     setSystemError("");
     setSystemSuccess("");
@@ -297,14 +342,19 @@ export default function NotificationsSettingsPage() {
         updates.push(u);
       }
 
+      const body: Record<string, unknown> = { updates };
+      if (requireModalActionDirty) {
+        body.requireModalActionToMarkRead = requireModalActionToMarkRead;
+      }
       const res = await fetch("/api/settings/notifications/system", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ updates }),
+        body: JSON.stringify(body),
       });
       if (res.ok) {
         setSystemSuccess("Impostazioni salvate");
         setSystemDirty(new Set());
+        setRequireModalActionDirty(false);
       } else {
         const data = await res.json().catch(() => ({}));
         setSystemError(data.error || "Errore nel salvataggio");
@@ -544,13 +594,30 @@ export default function NotificationsSettingsPage() {
                 </div>
               </div>
 
-              <button
-                type="submit"
-                disabled={saving}
-                className="px-4 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {saving ? "Salvataggio..." : "Salva"}
-              </button>
+              <div className="flex items-center gap-3">
+                <button
+                  type="submit"
+                  disabled={saving}
+                  className="px-4 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {saving ? "Salvataggio..." : "Salva"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setUserResetConfirmOpen(true)}
+                  disabled={saving}
+                  className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Reset default
+                </button>
+              </div>
+              <ConfirmDialog
+                isOpen={userResetConfirmOpen}
+                title="Ripristina impostazioni"
+                message="Sei sicuro di voler riportare tutto alle impostazioni di default? (Azienda: la tua, Aree: tutte)"
+                onConfirm={handleResetUserDefaults}
+                onCancel={() => setUserResetConfirmOpen(false)}
+              />
             </form>
             </div>
           </div>
@@ -613,15 +680,51 @@ export default function NotificationsSettingsPage() {
                     </div>
                   </div>
                 </div>
-                <div className="mt-8">
-                  <button
-                    type="button"
-                    onClick={handleSaveSystem}
-                    disabled={systemSaving || systemDirty.size === 0}
-                    className="px-4 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    {systemSaving ? "Salvataggio..." : "Salva modifiche"}
-                  </button>
+                <div className="mt-8 pl-4">
+                  <label className="flex items-center gap-2 cursor-pointer mb-6">
+                    <input
+                      type="checkbox"
+                      checked={requireModalActionToMarkRead}
+                      onChange={(e) => {
+                        setRequireModalActionToMarkRead(e.target.checked);
+                        setRequireModalActionDirty(true);
+                      }}
+                      className="rounded border-gray-300"
+                    />
+                    <span className="text-sm font-medium text-gray-900">
+                      Se modal attivo impedisci di segnare come lette
+                    </span>
+                  </label>
+                  <p className="text-sm text-gray-600 mb-6 pl-6">
+                    Se attivo, le notifiche con modal dashboard non potranno essere marchiate come lette con il pulsante «Letta».
+                    Dovrà essere cliccato il pulsante che porta all&apos;azione (es. Inserisci, Vai alle indisponibilità) per segnarle come lette.
+                    Dopo averle segnate, saranno selezionabili ed eliminabili.
+                  </p>
+                  <div className="flex items-center gap-3">
+                    <button
+                      type="button"
+                      onClick={handleSaveSystem}
+                      disabled={systemSaving || (systemDirty.size === 0 && !requireModalActionDirty)}
+                      className="px-4 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {systemSaving ? "Salvataggio..." : "Salva modifiche"}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setResetConfirmOpen(true)}
+                      disabled={systemSaving}
+                      className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      Reset default
+                    </button>
+                  </div>
+                  <ConfirmDialog
+                    isOpen={resetConfirmOpen}
+                    title="Ripristina impostazioni"
+                    message="Sei sicuro di voler riportare tutto alle impostazioni di default?"
+                    onConfirm={handleResetDefault}
+                    onCancel={() => setResetConfirmOpen(false)}
+                  />
                 </div>
               </>
             )}

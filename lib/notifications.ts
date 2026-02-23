@@ -1,3 +1,4 @@
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 
 export type NotificationPriority = "HIGH" | "MEDIUM" | "LOW";
@@ -137,14 +138,54 @@ async function findGroupableNotification(
   return n;
 }
 
+const UNAV_TYPES = ["UNAVAILABILITY_CREATED_BY_ADMIN", "UNAVAILABILITY_MODIFIED_BY_ADMIN", "UNAVAILABILITY_DELETED_BY_ADMIN"];
+const ORE_TYPES = ["ORE_INSERITE_DA_ADMIN", "ORE_MODIFICATE_DA_ADMIN", "ORE_ELIMINATE_DA_ADMIN"];
+
+/** Rimuove ~~vecchio~~ da un dettaglio, lasciando solo i valori finali. Usato quando Crea→Modifica o Inserisci→Modifica: il lavoratore non ha visto lo stato iniziale, mostriamo solo i dati attuali. */
+function stripStrikethroughFromDetail(detail: string): string {
+  return detail.replace(/~~[^~]+~~\s*/g, "");
+}
+
+/** Estrae entityKeys da metadata (supporta entityKey singolo per retrocompat) */
+function getEntityKeys(meta: { entityKey?: string; entityKeys?: string[] } | null): string[] {
+  if (!meta) return [];
+  if (meta.entityKeys && Array.isArray(meta.entityKeys)) return meta.entityKeys;
+  if (meta.entityKey) return [meta.entityKey];
+  return [];
+}
+
+/** Trova notifiche non lette che contengono l'entità (entityKey o in entityKeys) negli ultimi 15 min */
+async function findEntityNotifications(
+  userId: string,
+  entityKey: string,
+  types: string[]
+): Promise<{ id: string; type: string; message: string; metadata: unknown }[]> {
+  const cutoff = new Date(Date.now() - GROUPING_WINDOW_MS);
+  const list = await prisma.notification.findMany({
+    where: {
+      userId,
+      read: false,
+      createdAt: { gte: cutoff },
+      type: { in: types },
+    },
+    orderBy: { createdAt: "asc" },
+  });
+  return list.filter((n) => {
+    const meta = n.metadata as { entityKey?: string; entityKeys?: string[] } | null;
+    return meta?.entityKey === entityKey || meta?.entityKeys?.includes(entityKey);
+  });
+}
+
 /** Crea o aggiorna notifica per lavoratore (indisponibilità) con raggruppamento 15 min.
  * Notifica sempre il proprietario dell'indisponibilità (non solo isWorker), perché
- * chi ha un'indisponibilità deve essere informato quando l'admin la crea/modifica/elimina. */
+ * chi ha un'indisponibilità deve essere informato quando l'admin la crea/modifica/elimina.
+ * entityKey: se fornito (es. unav:${id}), applica merge/suppressione: Crea→Elimina = nessuna notifica; Crea→Modifica = una sola con dati finali. */
 export async function notifyWorkerUnavailability(
   userId: string,
   action: "CREATED" | "MODIFIED" | "DELETED",
   count: number,
-  detail?: string
+  detail?: string,
+  entityKey?: string
 ): Promise<void> {
   const typeMap = {
     CREATED: "UNAVAILABILITY_CREATED_BY_ADMIN",
@@ -161,9 +202,107 @@ export async function notifyWorkerUnavailability(
     DELETED: count === 1 ? "Un amministratore ha eliminato un'indisponibilità." : `Un amministratore ha eliminato ${count} indisponibilità.`,
   };
 
+  if (entityKey) {
+    const existingList = await findEntityNotifications(userId, entityKey, UNAV_TYPES);
+    const firstType = existingList[0]?.type;
+    const isFirstCreated = firstType === "UNAVAILABILITY_CREATED_BY_ADMIN";
+
+    if (action === "DELETED" && isFirstCreated) {
+      const toUpdate = existingList[0];
+      const meta = (toUpdate.metadata as { entityKey?: string; entityKeys?: string[]; count?: number; details?: string[] }) || {};
+      const entityKeys = getEntityKeys(meta);
+      const existingDetails = meta.details || (toUpdate.message.includes("Periodo:") ? toUpdate.message.split("\n\n").slice(1) : []);
+      const idx = entityKeys.indexOf(entityKey);
+      if (idx >= 0 && entityKeys.length > 1) {
+        const newEntityKeys = entityKeys.filter((_, i) => i !== idx);
+        const newDetails = existingDetails.filter((_, i) => i !== idx);
+        const baseMsg = newDetails.length === 1 ? "Un amministratore ha inserito un'indisponibilità per te." : `Hai ricevuto ${newDetails.length} indisponibilità inserite da un amministratore.`;
+        const msg = newDetails.length > 0 ? `${baseMsg}\n\n${newDetails.join("\n\n")}` : baseMsg;
+        const delMeta: Record<string, unknown> = { ...meta, entityKeys: newEntityKeys, count: newDetails.length, details: newDetails };
+        delete delMeta.entityKey;
+        await prisma.notification.update({
+          where: { id: toUpdate.id },
+          data: {
+            message: msg,
+            metadata: delMeta as Prisma.InputJsonValue,
+            createdAt: new Date(),
+          },
+        });
+        for (let i = 1; i < existingList.length; i++) {
+          await prisma.notification.delete({ where: { id: existingList[i].id } });
+        }
+      } else {
+        for (const n of existingList) {
+          await prisma.notification.delete({ where: { id: n.id } });
+        }
+      }
+      return;
+    }
+
+    if (action === "MODIFIED" && existingList.length > 0) {
+      const toUpdate = existingList[0];
+      const meta = (toUpdate.metadata as { entityKey?: string; entityKeys?: string[]; count?: number; details?: string[] }) || {};
+      const entityKeys = getEntityKeys(meta);
+      const existingDetails = meta.details || (toUpdate.message.includes("Periodo:") ? toUpdate.message.split("\n\n").slice(1) : []);
+      const idx = entityKeys.indexOf(entityKey);
+      let newDetails: string[];
+      if (idx >= 0 && detail) {
+        const displayDetail = isFirstCreated ? stripStrikethroughFromDetail(detail) : detail;
+        newDetails = [...existingDetails];
+        newDetails[idx] = displayDetail;
+      } else {
+        newDetails = detail ? (isFirstCreated ? [stripStrikethroughFromDetail(detail)] : [detail]) : [];
+      }
+      const baseMsg = isFirstCreated
+        ? (newDetails.length === 1 ? "Un amministratore ha inserito un'indisponibilità per te." : `Hai ricevuto ${newDetails.length} indisponibilità inserite da un amministratore.`)
+        : (newDetails.length === 1 ? "Un amministratore ha modificato un'indisponibilità." : `Un amministratore ha modificato ${newDetails.length} indisponibilità.`);
+      const msg = newDetails.length > 0 ? `${baseMsg}\n\n${newDetails.join("\n\n")}` : baseMsg;
+      const newType = isFirstCreated ? "UNAVAILABILITY_CREATED_BY_ADMIN" : type;
+      const updateMeta = { ...meta, entityKeys, count: newDetails.length, details: newDetails };
+      delete (updateMeta as Record<string, unknown>).entityKey;
+      await prisma.notification.update({
+        where: { id: toUpdate.id },
+        data: {
+          type: newType,
+          title: isFirstCreated ? "Indisponibilità inserita" : "Indisponibilità modificata",
+          message: msg,
+          metadata: updateMeta as Prisma.InputJsonValue,
+          priority,
+          createdAt: new Date(),
+        },
+      });
+      for (let i = 1; i < existingList.length; i++) {
+        await prisma.notification.delete({ where: { id: existingList[i].id } });
+      }
+      return;
+    }
+
+    if (action === "CREATED" && existingList.length > 0) {
+      const toUpdate = existingList[0];
+      const meta = (toUpdate.metadata as { entityKey?: string; entityKeys?: string[]; count?: number; details?: string[] }) || {};
+      const existingEntityKeys = getEntityKeys(meta);
+      const newEntityKeys = [...existingEntityKeys, ...Array(count).fill(entityKey)];
+      const newCount = (meta.count || 1) + count;
+      const baseMsg = newCount === 1 ? "Un amministratore ha inserito un'indisponibilità per te." : `Hai ricevuto ${newCount} indisponibilità inserite da un amministratore.`;
+      const existingDetails = meta.details || (toUpdate.message.includes("Periodo:") ? toUpdate.message.split("\n\n").slice(1) : []);
+      const allDetails = detail ? [...existingDetails, detail] : existingDetails;
+      const msg = allDetails.length > 0 ? `${baseMsg}\n\n${allDetails.join("\n\n")}` : baseMsg;
+      const updateMeta: Record<string, unknown> = { ...meta, entityKeys: newEntityKeys, count: newCount, details: allDetails };
+      delete updateMeta.entityKey;
+      await prisma.notification.update({
+        where: { id: toUpdate.id },
+        data: { message: msg, metadata: updateMeta as Prisma.InputJsonValue, priority, createdAt: new Date() },
+      });
+      for (let i = 1; i < existingList.length; i++) {
+        await prisma.notification.delete({ where: { id: existingList[i].id } });
+      }
+      return;
+    }
+  }
+
   const existing = await findGroupableNotification(userId, type);
   if (existing) {
-    const meta = (existing.metadata as { count?: number; details?: string[] }) || {};
+    const meta = (existing.metadata as { entityKey?: string; entityKeys?: string[]; count?: number; details?: string[] }) || {};
     const newCount = (meta.count || 1) + count;
     const baseMsg = action === "CREATED"
       ? (newCount === 1 ? "Un amministratore ha inserito un'indisponibilità per te." : `Hai ricevuto ${newCount} indisponibilità inserite da un amministratore.`)
@@ -177,14 +316,22 @@ export async function notifyWorkerUnavailability(
         : []);
     const allDetails = detail ? [...existingDetails, detail] : existingDetails;
     const msg = allDetails.length > 0 ? `${baseMsg}\n\n${allDetails.join("\n\n")}` : baseMsg;
+    const updateMeta: Record<string, unknown> = { ...meta, count: newCount, details: allDetails };
+    if (entityKey) {
+      const existingKeys = getEntityKeys(meta);
+      updateMeta.entityKeys = [...existingKeys, ...Array(count).fill(entityKey)];
+      delete updateMeta.entityKey;
+    }
     await prisma.notification.update({
       where: { id: existing.id },
-      data: { message: msg, metadata: { ...meta, count: newCount, details: allDetails }, priority, createdAt: new Date() },
+      data: { message: msg, metadata: updateMeta as Prisma.InputJsonValue, priority, createdAt: new Date() },
     });
   } else {
     const details = detail ? [detail] : [];
     const baseMsg = messages[action];
     const msg = detail ? `${baseMsg}\n\n${detail}` : baseMsg;
+    const meta: Record<string, unknown> = { count, details };
+    if (entityKey) meta.entityKeys = Array(count).fill(entityKey);
     const titleMap = { CREATED: "Indisponibilità inserita", MODIFIED: "Indisponibilità modificata", DELETED: "Indisponibilità eliminata" };
     await prisma.notification.create({
       data: {
@@ -192,7 +339,7 @@ export async function notifyWorkerUnavailability(
         type,
         title: titleMap[action],
         message: msg,
-        metadata: { count, details },
+        metadata: meta as Prisma.InputJsonValue,
         priority,
         read: false,
       },
@@ -275,13 +422,15 @@ export function buildShiftDetailForModifiedNotification(
 
 /** Crea o aggiorna notifica per lavoratore (ore) con raggruppamento 15 min.
  * detail: dettagli del turno (es. "Data: 22/02/2026\nOrario: 09:00 - 18:00\nEvento: ...").
- * metadata può includere dateFrom, dateTo (YYYY-MM-DD) per il link Visualizza. */
+ * metadata può includere dateFrom, dateTo (YYYY-MM-DD) per il link Visualizza.
+ * entityKey: se fornito (es. ore:${assignmentId}:${userId}), applica merge/suppressione: Inserisci→Elimina = nessuna notifica; Inserisci→Modifica = una sola con dati finali. */
 export async function notifyWorkerHours(
   userId: string,
   action: "INSERTED" | "MODIFIED" | "DELETED",
   count: number,
   detail?: string,
-  metadataExtra?: { dateFrom?: string; dateTo?: string }
+  metadataExtra?: { dateFrom?: string; dateTo?: string },
+  entityKey?: string
 ): Promise<void> {
   if (!(await shouldNotifyWorker(userId))) return;
   const typeMap = {
@@ -299,9 +448,109 @@ export async function notifyWorkerHours(
     DELETED: count === 1 ? "Un amministratore ha eliminato le ore che avevi inserito." : `Un amministratore ha eliminato le ore per ${count} turni.`,
   };
 
+  if (entityKey) {
+    const existingList = await findEntityNotifications(userId, entityKey, ORE_TYPES);
+    const firstType = existingList[0]?.type;
+    const isFirstInserted = firstType === "ORE_INSERITE_DA_ADMIN";
+
+    if (action === "DELETED" && isFirstInserted) {
+      const toUpdate = existingList[0];
+      const meta = (toUpdate.metadata as { entityKey?: string; entityKeys?: string[]; details?: string[] }) || {};
+      const entityKeys = getEntityKeys(meta);
+      const existingDetails = meta.details || (toUpdate.message.includes("Data:") ? toUpdate.message.split("\n\n").slice(1) : []);
+      const idx = entityKeys.indexOf(entityKey);
+      if (idx >= 0 && entityKeys.length > 1) {
+        const newEntityKeys = entityKeys.filter((_, i) => i !== idx);
+        const newDetails = existingDetails.filter((_, i) => i !== idx);
+        const baseMsg = newDetails.length === 1 ? "Un amministratore ha inserito le ore per un turno al posto tuo." : `Un amministratore ha inserito le ore per ${newDetails.length} turni al posto tuo.`;
+        const msg = newDetails.length > 0 ? `${baseMsg}\n\n${newDetails.join("\n\n")}` : baseMsg;
+        const mergedMeta: Record<string, unknown> = { ...meta, entityKeys: newEntityKeys, count: newDetails.length, details: newDetails };
+        delete mergedMeta.entityKey;
+        if (metadataExtra?.dateFrom) mergedMeta.dateFrom = metadataExtra.dateFrom;
+        if (metadataExtra?.dateTo) mergedMeta.dateTo = metadataExtra.dateTo;
+        await prisma.notification.update({
+          where: { id: toUpdate.id },
+          data: { message: msg, metadata: mergedMeta as Prisma.InputJsonValue, createdAt: new Date() },
+        });
+        for (let i = 1; i < existingList.length; i++) {
+          await prisma.notification.delete({ where: { id: existingList[i].id } });
+        }
+      } else {
+        for (const n of existingList) {
+          await prisma.notification.delete({ where: { id: n.id } });
+        }
+      }
+      return;
+    }
+
+    if (action === "MODIFIED" && existingList.length > 0) {
+      const toUpdate = existingList[0];
+      const meta = (toUpdate.metadata as { entityKey?: string; entityKeys?: string[]; details?: string[]; dateFrom?: string; dateTo?: string }) || {};
+      const entityKeys = getEntityKeys(meta);
+      const existingDetails = meta.details || (toUpdate.message.includes("Data:") ? toUpdate.message.split("\n\n").slice(1) : []);
+      const idx = entityKeys.indexOf(entityKey);
+      let newDetails: string[];
+      if (idx >= 0 && detail) {
+        const displayDetail = isFirstInserted ? stripStrikethroughFromDetail(detail) : detail;
+        newDetails = [...existingDetails];
+        newDetails[idx] = displayDetail;
+      } else {
+        newDetails = detail ? (isFirstInserted ? [stripStrikethroughFromDetail(detail)] : [detail]) : [];
+      }
+      const baseMsg = isFirstInserted
+        ? (newDetails.length === 1 ? "Un amministratore ha inserito le ore per un turno al posto tuo." : `Un amministratore ha inserito le ore per ${newDetails.length} turni al posto tuo.`)
+        : (newDetails.length === 1 ? "Un amministratore ha modificato le ore che avevi inserito." : `Un amministratore ha modificato le ore per ${newDetails.length} turni.`);
+      const msg = newDetails.length > 0 ? `${baseMsg}\n\n${newDetails.join("\n\n")}` : baseMsg;
+      const newType = isFirstInserted ? "ORE_INSERITE_DA_ADMIN" : type;
+      const mergedMeta: Record<string, unknown> = { ...meta, entityKeys, count: newDetails.length, details: newDetails };
+      delete mergedMeta.entityKey;
+      if (metadataExtra?.dateFrom) mergedMeta.dateFrom = metadataExtra.dateFrom;
+      if (metadataExtra?.dateTo) mergedMeta.dateTo = metadataExtra.dateTo;
+      await prisma.notification.update({
+        where: { id: toUpdate.id },
+        data: {
+          type: newType,
+          title: isFirstInserted ? "Ore lavorate inserite" : "Ore lavorate modificate",
+          message: msg,
+          metadata: mergedMeta as Prisma.InputJsonValue,
+          priority,
+          createdAt: new Date(),
+        },
+      });
+      for (let i = 1; i < existingList.length; i++) {
+        await prisma.notification.delete({ where: { id: existingList[i].id } });
+      }
+      return;
+    }
+
+    if (action === "INSERTED" && existingList.length > 0) {
+      const toUpdate = existingList[0];
+      const meta = (toUpdate.metadata as { entityKey?: string; entityKeys?: string[]; count?: number; details?: string[]; dateFrom?: string; dateTo?: string }) || {};
+      const existingEntityKeys = getEntityKeys(meta);
+      const newEntityKeys = [...existingEntityKeys, ...Array(count).fill(entityKey)];
+      const newCount = (meta.count || 1) + count;
+      const baseMsg = newCount === 1 ? "Un amministratore ha inserito le ore per un turno al posto tuo." : `Un amministratore ha inserito le ore per ${newCount} turni al posto tuo.`;
+      const existingDetails = meta.details || (toUpdate.message.includes("Data:") ? toUpdate.message.split("\n\n").slice(1) : []);
+      const allDetails = detail ? [...existingDetails, detail] : existingDetails;
+      const msg = allDetails.length > 0 ? `${baseMsg}\n\n${allDetails.join("\n\n")}` : baseMsg;
+      const mergedMeta: Record<string, unknown> = { ...meta, entityKeys: newEntityKeys, count: newCount, details: allDetails };
+      delete mergedMeta.entityKey;
+      if (metadataExtra?.dateFrom) mergedMeta.dateFrom = metadataExtra.dateFrom;
+      if (metadataExtra?.dateTo) mergedMeta.dateTo = metadataExtra.dateTo;
+      await prisma.notification.update({
+        where: { id: toUpdate.id },
+        data: { message: msg, metadata: mergedMeta as Prisma.InputJsonValue, priority, createdAt: new Date() },
+      });
+      for (let i = 1; i < existingList.length; i++) {
+        await prisma.notification.delete({ where: { id: existingList[i].id } });
+      }
+      return;
+    }
+  }
+
   const existing = await findGroupableNotification(userId, type);
   if (existing) {
-    const meta = (existing.metadata as { count?: number; details?: string[]; dateFrom?: string; dateTo?: string }) || {};
+    const meta = (existing.metadata as { entityKey?: string; entityKeys?: string[]; count?: number; details?: string[]; dateFrom?: string; dateTo?: string }) || {};
     const newCount = (meta.count || 1) + count;
     const existingDetails =
       meta.details ||
@@ -313,12 +562,17 @@ export async function notifyWorkerHours(
       ? (newCount === 1 ? "Un amministratore ha modificato le ore che avevi inserito." : `Un amministratore ha modificato le ore per ${newCount} turni.`)
       : (newCount === 1 ? "Un amministratore ha eliminato le ore che avevi inserito." : `Un amministratore ha eliminato le ore per ${newCount} turni.`);
     const msg = allDetails.length > 0 ? `${baseMsg}\n\n${allDetails.join("\n\n")}` : baseMsg;
-    const mergedMeta = { ...meta, count: newCount, details: allDetails };
+    const mergedMeta: Record<string, unknown> = { ...meta, count: newCount, details: allDetails };
+    if (entityKey) {
+      const existingKeys = getEntityKeys(meta);
+      mergedMeta.entityKeys = [...existingKeys, ...Array(count).fill(entityKey)];
+      delete mergedMeta.entityKey;
+    }
     if (metadataExtra?.dateFrom) mergedMeta.dateFrom = metadataExtra.dateFrom;
     if (metadataExtra?.dateTo) mergedMeta.dateTo = metadataExtra.dateTo;
     await prisma.notification.update({
       where: { id: existing.id },
-      data: { message: msg, metadata: mergedMeta, createdAt: new Date() },
+      data: { message: msg, metadata: mergedMeta as Prisma.InputJsonValue, createdAt: new Date() },
     });
   } else {
     const details = detail ? [detail] : [];
@@ -326,6 +580,7 @@ export async function notifyWorkerHours(
     const msg = detail ? `${baseMsg}\n\n${detail}` : baseMsg;
     const meta: Record<string, unknown> = count > 1 ? { count } : {};
     if (details.length) meta.details = details;
+    if (entityKey) meta.entityKeys = Array(count).fill(entityKey);
     if (metadataExtra?.dateFrom) meta.dateFrom = metadataExtra.dateFrom;
     if (metadataExtra?.dateTo) meta.dateTo = metadataExtra.dateTo;
     const titleMap = { INSERTED: "Ore lavorate inserite", MODIFIED: "Ore lavorate modificate", DELETED: "Ore lavorate eliminate" };
@@ -335,7 +590,7 @@ export async function notifyWorkerHours(
         type,
         title: titleMap[action],
         message: msg,
-        metadata: Object.keys(meta).length > 0 ? (meta as object) : undefined,
+        metadata: Object.keys(meta).length > 0 ? (meta as Prisma.InputJsonValue) : undefined,
         priority,
         read: false,
       },
@@ -439,7 +694,8 @@ function adminShouldReceiveUnavailabilityNotification(
   return companyIds.includes(workerCompanyId);
 }
 
-/** Notifica admin: indisponibilità in conflitto (worker comunica). RESPONSABILE solo se stessa azienda. Filtra per preferenze companyIds. */
+/** Notifica admin: indisponibilità in conflitto (worker comunica). RESPONSABILE solo se stessa azienda. Filtra per preferenze companyIds.
+ * Mostra dettagli (periodo, orario, eventi). Se più di una in 15 min, raggruppa in una sola notifica. */
 export async function notifyAdminsUnavailabilityPending(
   workerName: string,
   detail?: string,
@@ -466,28 +722,58 @@ export async function notifyAdminsUnavailabilityPending(
   });
   const prefByUserId = new Map(prefs.map((p) => [p.userId, p]));
 
-  const message = detail || `${workerName} ha comunicato un'indisponibilità in conflitto con turni assegnati. Approva dalla sezione Indisponibilità.`;
+  const baseMsg = `${workerName} ha comunicato un'indisponibilità in conflitto con turni assegnati. Approva dalla sezione Indisponibilità.`;
+  const itemBlock = detail ? `[${workerName}]\n${detail}` : workerName;
+  const singleMessage = detail ? `${baseMsg}\n\n${detail}` : baseMsg;
+
+  const fifteenMinutesAgo = new Date(Date.now() - 15 * 60 * 1000);
 
   for (const admin of admins) {
     if (!adminShouldReceiveUnavailabilityNotification(prefByUserId.get(admin.id) ?? null, workerCompanyId)) {
       continue;
     }
-    const twentyHoursAgo = new Date(Date.now() - 20 * 60 * 60 * 1000);
     const existing = await prisma.notification.findFirst({
       where: {
         userId: admin.id,
         type: "UNAVAILABILITY_PENDING_APPROVAL",
         read: false,
-        createdAt: { gte: twentyHoursAgo },
+        createdAt: { gte: fifteenMinutesAgo },
       },
     });
-    if (!existing) {
+    if (existing) {
+      const meta = (existing.metadata as { count?: number; details?: string[] }) || {};
+      const prevCount = meta.count ?? 1;
+      const prevDetails = meta.details ?? (existing.message.includes("\n\n") ? [existing.message.split("\n\n").slice(1).join("\n\n")] : []);
+      const newCount = prevCount + 1;
+      const allDetails = [...prevDetails, itemBlock].filter(Boolean);
+      const msg = newCount === 1
+        ? singleMessage
+        : `${newCount} indisponibilità in attesa di approvazione.\n\n${allDetails.join("\n\n---\n\n")}`;
+      await prisma.notification.update({
+        where: { id: existing.id },
+        data: {
+          message: msg,
+          metadata: { count: newCount, details: allDetails },
+          createdAt: new Date(),
+        },
+      });
+      await prisma.notification.deleteMany({
+        where: {
+          userId: admin.id,
+          type: "UNAVAILABILITY_PENDING_APPROVAL",
+          read: false,
+          id: { not: existing.id },
+          createdAt: { gte: fifteenMinutesAgo },
+        },
+      });
+    } else {
       await prisma.notification.create({
         data: {
           userId: admin.id,
           type: "UNAVAILABILITY_PENDING_APPROVAL",
           title: "Indisponibilità in attesa",
-          message,
+          message: singleMessage,
+          metadata: { count: 1, details: [itemBlock] },
           priority,
           read: false,
         },

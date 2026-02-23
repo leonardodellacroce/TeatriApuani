@@ -276,9 +276,9 @@ export async function PATCH(
           finalStartTime ?? null,
           finalEndTime ?? null
         );
-        await notifyWorkerHours(existing.userId, "MODIFIED", 1, detail, { dateFrom, dateTo: dateFrom });
+        await notifyWorkerHours(existing.userId, "MODIFIED", 1, detail, { dateFrom, dateTo: dateFrom }, `ore:${existing.assignmentId}:${existing.userId}`);
       } else {
-        await notifyWorkerHours(existing.userId, "MODIFIED", 1);
+        await notifyWorkerHours(existing.userId, "MODIFIED", 1, undefined, undefined, `ore:${existing.assignmentId}:${existing.userId}`);
       }
     }
 
@@ -413,9 +413,9 @@ export async function DELETE(
       });
       if (assignmentWithDetails) {
         const { detail, dateFrom } = buildShiftDetailForNotification(assignmentWithDetails as any);
-        await notifyWorkerHours(existing.userId, "DELETED", 1, detail, { dateFrom, dateTo: dateFrom });
+        await notifyWorkerHours(existing.userId, "DELETED", 1, detail, { dateFrom, dateTo: dateFrom }, `ore:${existing.assignmentId}:${existing.userId}`);
       } else {
-        await notifyWorkerHours(existing.userId, "DELETED", 1);
+        await notifyWorkerHours(existing.userId, "DELETED", 1, undefined, undefined, `ore:${existing.assignmentId}:${existing.userId}`);
       }
     }
 

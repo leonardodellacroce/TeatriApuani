@@ -335,7 +335,7 @@ export async function POST(req: NextRequest) {
       });
       if (isAdmin && bodyUserId) {
         const { detail, dateFrom } = buildShiftDetailForNotification(assignment as any);
-        await notifyWorkerHours(userId, "MODIFIED", 1, detail, { dateFrom, dateTo: dateFrom });
+        await notifyWorkerHours(userId, "MODIFIED", 1, detail, { dateFrom, dateTo: dateFrom }, `ore:${assignmentId}:${userId}`);
       }
       return NextResponse.json(timeEntry, { status: 200 });
     }
@@ -376,7 +376,7 @@ export async function POST(req: NextRequest) {
 
     if (isAdmin && bodyUserId) {
       const { detail, dateFrom } = buildShiftDetailForNotification(assignment as any);
-      await notifyWorkerHours(userId, "INSERTED", 1, detail, { dateFrom, dateTo: dateFrom });
+      await notifyWorkerHours(userId, "INSERTED", 1, detail, { dateFrom, dateTo: dateFrom }, `ore:${assignmentId}:${userId}`);
     }
 
     const { serializeBreaks } = await import("@/lib/breaks");

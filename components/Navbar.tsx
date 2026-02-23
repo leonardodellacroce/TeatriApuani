@@ -58,18 +58,28 @@ export default function Navbar() {
   }, []);
 
   const refreshNotificationsCount = () => {
-    if (session?.user) {
-      fetch("/api/notifications?unreadOnly=true")
-        .then((r) => (r.ok ? r.json() : []))
-        .then((data) => setUnreadNotificationsCount(Array.isArray(data) ? data.length : 0))
-        .catch(() => setUnreadNotificationsCount(0));
-    }
+    if (!session?.user) return;
+    const typeParam =
+      isNonStandardWorker
+        ? workMode === "worker"
+          ? "worker"
+          : "admin"
+        : isStandardUser
+          ? "worker"
+          : "admin";
+    fetch(`/api/notifications?unreadOnly=true&type=${typeParam}`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        const arr = Array.isArray(data) ? data : (data?.notifications ?? []);
+        setUnreadNotificationsCount(arr.length);
+      })
+      .catch(() => setUnreadNotificationsCount(0));
   };
   useEffect(() => {
     if (!session?.user) return;
     const t = setTimeout(refreshNotificationsCount, 500);
     return () => clearTimeout(t);
-  }, [session?.user]);
+  }, [session?.user, workMode]);
   useEffect(() => {
     window.addEventListener("notificationsUpdated", refreshNotificationsCount);
     return () => window.removeEventListener("notificationsUpdated", refreshNotificationsCount);
