@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import type { Prisma } from "@prisma/client";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import {
@@ -51,7 +52,7 @@ async function ensureSettingsExist() {
         isActive: true,
         priority: defaultPriority,
         showInDashboardModal: defaultPriority === "HIGH" || defaultPriority === "MEDIUM",
-        metadata: Object.keys(metadata).length > 0 ? metadata : undefined,
+        metadata: Object.keys(metadata).length > 0 ? (metadata as Prisma.InputJsonValue) : undefined,
         updatedAt: now,
       },
     });
@@ -151,16 +152,22 @@ export async function PATCH(req: NextRequest) {
       if (u.metadata && typeof u.metadata === "object") data.metadata = u.metadata;
 
       if (Object.keys(data).length > 0) {
+        const createData = {
+          type,
+          isActive: data.isActive ?? true,
+          priority: data.priority ?? "MEDIUM",
+          showInDashboardModal: data.showInDashboardModal ?? true,
+          metadata: data.metadata ? (data.metadata as Prisma.InputJsonValue) : undefined,
+        };
+        const updateData = {
+          ...data,
+          metadata: data.metadata ? (data.metadata as Prisma.InputJsonValue) : undefined,
+          updatedAt: new Date(),
+        };
         await prisma.notificationTypeSetting.upsert({
           where: { type },
-          create: {
-            type,
-            isActive: data.isActive ?? true,
-            priority: data.priority ?? "MEDIUM",
-            showInDashboardModal: data.showInDashboardModal ?? true,
-            metadata: data.metadata ?? undefined,
-          },
-          update: { ...data, updatedAt: new Date() },
+          create: createData,
+          update: updateData,
         });
       }
     }
