@@ -104,7 +104,7 @@ export default function Login() {
         // Aspetta che la sessione si aggiorni e controlla il flag
         router.refresh();
         
-        // Aspetta un momento per permettere alla sessione di aggiornarsi
+        // Aspetta che la sessione sia disponibile (su Vercel può richiedere più tempo)
         setTimeout(async () => {
           try {
             const sessionRes = await fetch("/api/auth/session");
@@ -123,7 +123,7 @@ export default function Login() {
             console.error("Error checking session:", err);
             router.push("/dashboard");
           }
-        }, 500);
+        }, 800);
       }
     } catch (err) {
       setError("Si è verificato un errore");

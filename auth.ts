@@ -21,6 +21,7 @@ function generateTempPassword(length = 12): string {
 
 export const { auth, handlers, signIn, signOut } = NextAuth({
   secret: process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET,
+  trustHost: true, // Necessario per Vercel: accetta l'host dalla richiesta (xxx.vercel.app, preview, ecc.)
   providers: [
     CredentialsProvider({
       name: "Credentials",
