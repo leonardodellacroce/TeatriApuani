@@ -35,8 +35,8 @@ export default async function middleware(req: NextRequest) {
     return NextResponse.redirect(new URL("/change-password", req.url));
   }
 
-  // Autenticato senza mustChangePassword: redirect root a dashboard
-  if (pathname === "/") {
+  // Autenticato senza mustChangePassword: redirect root e login a dashboard
+  if (pathname === "/" || pathname === "/login") {
     return NextResponse.redirect(new URL("/dashboard", req.url));
   }
 

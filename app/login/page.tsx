@@ -2,7 +2,7 @@
 
 import Container from "@/components/Container";
 import Navbar from "@/components/Navbar";
-import { signIn } from "next-auth/react";
+import { signIn, useSession } from "next-auth/react";
 import { useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 
@@ -17,6 +17,7 @@ const FORGOT_PASSWORD_SUCCESS_MSG =
 export default function Login() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { data: session, status } = useSession();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [rememberMe, setRememberMe] = useState(true);
@@ -27,6 +28,14 @@ export default function Login() {
   const [isSuperAdminRecovery, setIsSuperAdminRecovery] = useState(false);
   const [forgotPasswordLoading, setForgotPasswordLoading] = useState(false);
   const [forgotPasswordMessage, setForgotPasswordMessage] = useState("");
+
+  // Se già autenticato, redirect a dashboard (evita di restare bloccati sulla pagina login)
+  useEffect(() => {
+    if (status === "authenticated" && session?.user) {
+      const mustChange = (session.user as { mustChangePassword?: boolean })?.mustChangePassword === true;
+      router.replace(mustChange ? "/change-password" : "/dashboard");
+    }
+  }, [status, session, router]);
 
   useEffect(() => {
     const err = searchParams.get("error");
