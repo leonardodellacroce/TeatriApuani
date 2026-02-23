@@ -13,9 +13,12 @@ export default async function middleware(req: NextRequest) {
     return NextResponse.next();
   }
 
+  // Su HTTPS (Vercel) NextAuth usa cookie __Secure-authjs.session-token
+  const isSecure = req.url.startsWith("https://");
   const token = await getToken({
     req,
     secret: process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET,
+    secureCookie: isSecure,
   });
 
   // Non autenticato: solo login e change-password (che reindirizza a login)

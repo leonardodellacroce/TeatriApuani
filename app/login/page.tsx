@@ -2,7 +2,7 @@
 
 import Container from "@/components/Container";
 import Navbar from "@/components/Navbar";
-import { signIn, useSession } from "next-auth/react";
+import { signIn } from "next-auth/react";
 import { useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 
@@ -17,7 +17,6 @@ const FORGOT_PASSWORD_SUCCESS_MSG =
 export default function Login() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { data: session, status } = useSession();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [rememberMe, setRememberMe] = useState(true);
@@ -28,16 +27,6 @@ export default function Login() {
   const [isSuperAdminRecovery, setIsSuperAdminRecovery] = useState(false);
   const [forgotPasswordLoading, setForgotPasswordLoading] = useState(false);
   const [forgotPasswordMessage, setForgotPasswordMessage] = useState("");
-
-  // Se già autenticato, redirect a dashboard (evita di restare bloccati sulla pagina login)
-  useEffect(() => {
-    if (status === "authenticated" && session?.user) {
-      const mustChange = (session.user as { mustChangePassword?: boolean })?.mustChangePassword === true;
-      const path = mustChange ? "/change-password" : "/dashboard";
-      // Usa window.location per forzare un reload completo e assicurare che il cookie sia inviato
-      window.location.replace(path);
-    }
-  }, [status, session]);
 
   useEffect(() => {
     const err = searchParams.get("error");
@@ -112,9 +101,17 @@ export default function Login() {
         setLoginFailed(false);
         setIsAccountLocked(false);
         setIsSuperAdminRecovery(false);
-        // Redirect con window.location per evitare problemi di routing su Vercel
-        const path = "/dashboard";
-        window.location.replace(path);
+        router.refresh();
+        setTimeout(async () => {
+          try {
+            const res = await fetch("/api/auth/session");
+            const sess = await res.json();
+            const mustChange = (sess?.user as { mustChangePassword?: boolean })?.mustChangePassword === true;
+            router.push(mustChange ? "/change-password" : "/dashboard");
+          } catch {
+            router.push("/dashboard");
+          }
+        }, 400);
       }
     } catch (err) {
       setError("Si è verificato un errore");
