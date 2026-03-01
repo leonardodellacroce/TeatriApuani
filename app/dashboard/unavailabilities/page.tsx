@@ -527,7 +527,7 @@ export default function UnavailabilitiesPage() {
                 type="date"
                 value={filterStartDate}
                 onChange={(e) => setFilterStartDate(e.target.value)}
-                className="w-full px-3 py-2 h-10 border border-gray-300 rounded-lg text-sm"
+                className="w-full px-3 py-2 h-11 border border-gray-300 rounded-lg text-sm"
               />
             </div>
             <div className="flex-1 min-w-[140px]">
@@ -537,28 +537,28 @@ export default function UnavailabilitiesPage() {
                 value={filterEndDate}
                 onChange={(e) => setFilterEndDate(e.target.value)}
                 min={filterStartDate || undefined}
-                className="w-full px-3 py-2 h-10 border border-gray-300 rounded-lg text-sm"
+                className="w-full px-3 py-2 h-11 border border-gray-300 rounded-lg text-sm"
               />
             </div>
             <div className="flex items-end gap-2 flex-shrink-0">
               <button
                 type="button"
                 onClick={handleFilterPrevPeriod}
-                className="px-4 py-2 h-10 border border-gray-300 rounded-lg text-sm hover:bg-gray-50"
+                className="px-4 py-2 h-11 border border-gray-300 rounded-lg text-sm hover:bg-gray-50"
               >
                 ← Precedente
               </button>
               <button
                 type="button"
                 onClick={handleFilterToday}
-                className="px-4 py-2 h-10 border border-gray-300 rounded-lg text-sm hover:bg-gray-50"
+                className="px-4 py-2 h-11 border border-gray-300 rounded-lg text-sm hover:bg-gray-50"
               >
                 Oggi
               </button>
               <button
                 type="button"
                 onClick={handleFilterNextPeriod}
-                className="px-4 py-2 h-10 border border-gray-300 rounded-lg text-sm hover:bg-gray-50"
+                className="px-4 py-2 h-11 border border-gray-300 rounded-lg text-sm hover:bg-gray-50"
               >
                 Successivo →
               </button>
@@ -645,7 +645,7 @@ export default function UnavailabilitiesPage() {
                     type="time"
                     value={formEndTime}
                     onChange={(e) => setFormEndTime(e.target.value)}
-                    className="w-full min-w-0 max-w-xs px-3 py-2 h-10 border border-gray-300 rounded-lg"
+                    className="w-full min-w-0 max-w-xs px-3 py-2 h-11 border border-gray-300 rounded-lg"
                     required
                   />
                 </div>
@@ -657,7 +657,7 @@ export default function UnavailabilitiesPage() {
                     type="time"
                     value={formStartTime}
                     onChange={(e) => setFormStartTime(e.target.value)}
-                    className="w-full min-w-0 max-w-xs px-3 py-2 h-10 border border-gray-300 rounded-lg"
+                    className="w-full min-w-0 max-w-xs px-3 py-2 h-11 border border-gray-300 rounded-lg"
                     required
                   />
                 </div>
@@ -670,7 +670,7 @@ export default function UnavailabilitiesPage() {
                       type="time"
                       value={formStartTime}
                       onChange={(e) => setFormStartTime(e.target.value)}
-                      className="w-full min-w-0 px-3 py-2 h-10 border border-gray-300 rounded-lg"
+                      className="w-full min-w-0 px-3 py-2 h-11 border border-gray-300 rounded-lg"
                       required
                     />
                   </div>
@@ -680,7 +680,7 @@ export default function UnavailabilitiesPage() {
                       type="time"
                       value={formEndTime}
                       onChange={(e) => setFormEndTime(e.target.value)}
-                      className="w-full min-w-0 px-3 py-2 h-10 border border-gray-300 rounded-lg"
+                      className="w-full min-w-0 px-3 py-2 h-11 border border-gray-300 rounded-lg"
                       required
                     />
                   </div>
@@ -700,7 +700,7 @@ export default function UnavailabilitiesPage() {
                           setFormDateEnd(v);
                         }
                       }}
-                      className="w-full min-w-0 px-3 py-2 h-10 border border-gray-300 rounded-lg"
+                      className="w-full min-w-0 px-3 py-2 h-11 border border-gray-300 rounded-lg"
                       required
                     />
                   </div>
@@ -711,7 +711,7 @@ export default function UnavailabilitiesPage() {
                       value={formDateEnd}
                       onChange={(e) => setFormDateEnd(e.target.value)}
                       min={formDateStart || undefined}
-                      className="w-full min-w-0 px-3 py-2 h-10 border border-gray-300 rounded-lg"
+                      className="w-full min-w-0 px-3 py-2 h-11 border border-gray-300 rounded-lg"
                       required
                     />
                   </div>
@@ -727,7 +727,7 @@ export default function UnavailabilitiesPage() {
                       setFormDateStart(v);
                       setFormDateEnd(v);
                     }}
-                    className="w-full min-w-0 max-w-xs px-3 py-2 h-10 border border-gray-300 rounded-lg"
+                    className="w-full min-w-0 max-w-xs px-3 py-2 h-11 border border-gray-300 rounded-lg"
                     required
                   />
                 </div>

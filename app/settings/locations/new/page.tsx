@@ -218,7 +218,7 @@ export default function NewLocationPage() {
             onClick={() => router.push("/settings/locations")}
             aria-label="Indietro"
             title="Indietro"
-            className="h-10 w-10 inline-flex items-center justify-center rounded-lg bg-gray-900 text-white hover:bg-gray-800 hover:shadow-lg transition-colors"
+            className="h-11 w-11 inline-flex items-center justify-center rounded-lg bg-gray-900 text-white hover:bg-gray-800 hover:shadow-lg transition-colors"
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7" />
@@ -243,7 +243,7 @@ export default function NewLocationPage() {
               value={formData.name}
               onChange={handleChange}
               required
-              className={`w-full px-4 py-2 h-10 border rounded-lg text-sm focus:ring-2 focus:ring-gray-500 focus:border-transparent ${invalidFields.has("name") ? 'border-red-500' : 'border-gray-300'}`}
+              className={`w-full px-4 py-2 h-11 border rounded-lg text-sm focus:ring-2 focus:ring-gray-500 focus:border-transparent ${invalidFields.has("name") ? 'border-red-500' : 'border-gray-300'}`}
             />
             {nameUniqueError && (
               <p className="text-red-600 text-sm mt-1">{nameUniqueError}</p>
@@ -329,7 +329,7 @@ export default function NewLocationPage() {
                 onBlur={handleBlur}
                 maxLength={5}
                 required
-                className={`w-full px-4 py-2 h-10 border rounded-lg text-sm focus:ring-2 focus:ring-gray-500 focus:border-transparent ${
+                className={`w-full px-4 py-2 h-11 border rounded-lg text-sm focus:ring-2 focus:ring-gray-500 focus:border-transparent ${
                   invalidFields.has("postalCode") ? "border-red-500" : "border-gray-300"
                 }`}
               />
@@ -365,7 +365,7 @@ export default function NewLocationPage() {
             <button
               type="button"
               onClick={() => router.back()}
-              className="px-4 py-2 h-10 border border-gray-300 rounded-lg text-sm hover:bg-gray-50 hover:border-gray-400 hover:shadow-md hover:scale-105 active:scale-100 transition-all duration-200 cursor-pointer"
+              className="px-4 py-2 h-11 border border-gray-300 rounded-lg text-sm hover:bg-gray-50 hover:border-gray-400 hover:shadow-md hover:scale-105 active:scale-100 transition-all duration-200 cursor-pointer"
             >
               Annulla
             </button>

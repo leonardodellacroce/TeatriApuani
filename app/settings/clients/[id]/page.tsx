@@ -476,7 +476,7 @@ export default function EditClientPage() {
             onClick={() => router.push("/settings/clients")}
             aria-label="Indietro"
             title="Indietro"
-            className="h-10 w-10 inline-flex items-center justify-center rounded-lg bg-gray-900 text-white hover:bg-gray-800 hover:shadow-lg transition-colors"
+            className="h-11 w-11 inline-flex items-center justify-center rounded-lg bg-gray-900 text-white hover:bg-gray-800 hover:shadow-lg transition-colors"
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7" />
@@ -552,7 +552,7 @@ export default function EditClientPage() {
                 onChange={handleChange}
                 onBlur={handleBlur}
                 required
-                className={`w-full px-4 py-2 h-10 border rounded-lg text-sm focus:ring-2 focus:ring-gray-500 focus:border-transparent ${
+                className={`w-full px-4 py-2 h-11 border rounded-lg text-sm focus:ring-2 focus:ring-gray-500 focus:border-transparent ${
                   touchedFields.has("ragioneSociale") && !formData.ragioneSociale.trim() ? "border-red-500" : "border-gray-300"
                 }`}
               />
@@ -577,7 +577,7 @@ export default function EditClientPage() {
                   onChange={handleChange}
                   onBlur={handleBlur}
                   required
-                  className={`w-full px-4 py-2 h-10 border rounded-lg text-sm focus:ring-2 focus:ring-gray-500 focus:border-transparent ${
+                  className={`w-full px-4 py-2 h-11 border rounded-lg text-sm focus:ring-2 focus:ring-gray-500 focus:border-transparent ${
                     touchedFields.has("nome") && !formData.nome.trim() ? "border-red-500" : "border-gray-300"
                   }`}
                 />
@@ -600,7 +600,7 @@ export default function EditClientPage() {
                   onChange={handleChange}
                   onBlur={handleBlur}
                   required
-                  className={`w-full px-4 py-2 h-10 border rounded-lg text-sm focus:ring-2 focus:ring-gray-500 focus:border-transparent ${
+                  className={`w-full px-4 py-2 h-11 border rounded-lg text-sm focus:ring-2 focus:ring-gray-500 focus:border-transparent ${
                     touchedFields.has("cognome") && !formData.cognome.trim() ? "border-red-500" : "border-gray-300"
                   }`}
                 />
@@ -653,7 +653,7 @@ export default function EditClientPage() {
                 onChange={handleChange}
                 onBlur={handleBlur}
                 required
-                className={`w-full px-4 py-2 h-10 border rounded-lg text-sm focus:ring-2 focus:ring-gray-500 focus:border-transparent ${
+                className={`w-full px-4 py-2 h-11 border rounded-lg text-sm focus:ring-2 focus:ring-gray-500 focus:border-transparent ${
                   touchedFields.has("city") && !formData.city.trim() ? "border-red-500" : "border-gray-300"
                 }`}
               />
@@ -707,7 +707,7 @@ export default function EditClientPage() {
                 onBlur={handleBlur}
                 maxLength={5}
                 required
-                className={`w-full px-4 py-2 h-10 border rounded-lg text-sm focus:ring-2 focus:ring-gray-500 focus:border-transparent ${
+                className={`w-full px-4 py-2 h-11 border rounded-lg text-sm focus:ring-2 focus:ring-gray-500 focus:border-transparent ${
                   invalidFields.has("postalCode") || (touchedFields.has("postalCode") && !formData.postalCode.trim()) ? "border-red-500" : "border-gray-300"
                 }`}
               />
@@ -739,7 +739,7 @@ export default function EditClientPage() {
                   onBlur={handleBlur}
                   maxLength={11}
                   required
-                  className={`w-full px-4 py-2 h-10 border rounded-lg text-sm focus:ring-2 focus:ring-gray-500 focus:border-transparent ${
+                  className={`w-full px-4 py-2 h-11 border rounded-lg text-sm focus:ring-2 focus:ring-gray-500 focus:border-transparent ${
                     invalidFields.has("partitaIva") || (touchedFields.has("partitaIva") && !formData.partitaIva.trim()) ? "border-red-500" : "border-gray-300"
                   }`}
                 />
@@ -767,7 +767,7 @@ export default function EditClientPage() {
                   onBlur={handleBlur}
                   maxLength={clientType === "PRIVATO" ? 16 : 11}
                   required
-                  className={`w-full px-4 py-2 h-10 border rounded-lg text-sm focus:ring-2 focus:ring-gray-500 focus:border-transparent ${
+                  className={`w-full px-4 py-2 h-11 border rounded-lg text-sm focus:ring-2 focus:ring-gray-500 focus:border-transparent ${
                     clientType === "PRIVATO" ? "uppercase" : ""
                   } ${
                     invalidFields.has("codiceFiscale") || (touchedFields.has("codiceFiscale") && !formData.codiceFiscale.trim()) ? "border-red-500" : "border-gray-300"
@@ -800,7 +800,7 @@ export default function EditClientPage() {
                 onChange={handleChange}
                 onBlur={handleBlur}
                 maxLength={7}
-                className={`w-full px-4 py-2 h-10 border rounded-lg text-sm focus:ring-2 focus:ring-gray-500 focus:border-transparent ${
+                className={`w-full px-4 py-2 h-11 border rounded-lg text-sm focus:ring-2 focus:ring-gray-500 focus:border-transparent ${
                   invalidFields.has("codiceSDI") ? "border-red-500" : "border-gray-300"
                 }`}
               />
@@ -828,7 +828,7 @@ export default function EditClientPage() {
                 onBlur={handleBlur}
                 maxLength={6}
                 required
-                className={`w-full px-4 py-2 h-10 border rounded-lg text-sm focus:ring-2 focus:ring-gray-500 focus:border-transparent ${
+                className={`w-full px-4 py-2 h-11 border rounded-lg text-sm focus:ring-2 focus:ring-gray-500 focus:border-transparent ${
                   invalidFields.has("codicePA") || (touchedFields.has("codicePA") && !formData.codicePA.trim()) ? "border-red-500" : "border-gray-300"
                 }`}
               />
@@ -889,7 +889,7 @@ export default function EditClientPage() {
                 onChange={handleChange}
                 onBlur={handleBlur}
                 required={clientType === "AZIENDA"}
-                className={`w-full px-4 py-2 h-10 border rounded-lg text-sm focus:ring-2 focus:ring-gray-500 focus:border-transparent ${
+                className={`w-full px-4 py-2 h-11 border rounded-lg text-sm focus:ring-2 focus:ring-gray-500 focus:border-transparent ${
                   (invalidFields.has("email") && formData.email.length > 0) ? "border-red-500" : "border-gray-300"
                 }`}
               />
@@ -943,7 +943,7 @@ export default function EditClientPage() {
             <button
               type="button"
               onClick={() => router.back()}
-              className="px-4 py-2 h-10 border border-gray-300 rounded-lg text-sm hover:bg-gray-50 hover:border-gray-400 hover:shadow-md hover:scale-105 active:scale-100 transition-all duration-200 cursor-pointer"
+              className="px-4 py-2 h-11 border border-gray-300 rounded-lg text-sm hover:bg-gray-50 hover:border-gray-400 hover:shadow-md hover:scale-105 active:scale-100 transition-all duration-200 cursor-pointer"
             >
               Annulla
             </button>

@@ -682,7 +682,7 @@ export default function AdminShiftsHoursPage() {
                 type="date"
                 value={startDate}
                 onChange={(e) => setStartDate(e.target.value)}
-                className="w-full px-3 py-2 h-10 border border-gray-300 rounded-lg text-sm"
+                className="w-full px-3 py-2 h-11 border border-gray-300 rounded-lg text-sm"
               />
             </div>
             <div className="flex-1 min-w-[140px]">
@@ -691,28 +691,28 @@ export default function AdminShiftsHoursPage() {
                 type="date"
                 value={endDate}
                 onChange={(e) => setEndDate(e.target.value)}
-                className="w-full px-3 py-2 h-10 border border-gray-300 rounded-lg text-sm"
+                className="w-full px-3 py-2 h-11 border border-gray-300 rounded-lg text-sm"
               />
             </div>
             <div className="flex items-end gap-2 flex-shrink-0">
               <button
                 type="button"
                 onClick={handlePrevMonth}
-                className="px-4 py-2 h-10 border border-gray-300 rounded-lg text-sm hover:bg-gray-50"
+                className="px-4 py-2 h-11 border border-gray-300 rounded-lg text-sm hover:bg-gray-50"
               >
                 ← Precedente
               </button>
               <button
                 type="button"
                 onClick={handleCurrentMonth}
-                className="px-4 py-2 h-10 border border-gray-300 rounded-lg text-sm hover:bg-gray-50"
+                className="px-4 py-2 h-11 border border-gray-300 rounded-lg text-sm hover:bg-gray-50"
               >
                 Oggi
               </button>
               <button
                 type="button"
                 onClick={handleNextMonth}
-                className="px-4 py-2 h-10 border border-gray-300 rounded-lg text-sm hover:bg-gray-50"
+                className="px-4 py-2 h-11 border border-gray-300 rounded-lg text-sm hover:bg-gray-50"
               >
                 Successivo →
               </button>
@@ -721,14 +721,14 @@ export default function AdminShiftsHoursPage() {
                   type="button"
                   onClick={() => setShowNotifyMissingHoursConfirm(true)}
                   disabled={notifyLoading}
-                  className="px-4 py-2 h-10 bg-gray-900 text-white rounded-lg text-sm hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="px-4 py-2 h-11 bg-gray-900 text-white rounded-lg text-sm hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {notifyLoading ? "Invio..." : "Notifica inserimento ore"}
                 </button>
               )}
             </div>
           </div>
-          <label className="flex items-center gap-2 cursor-pointer h-10 mt-4">
+          <label className="flex items-center gap-2 cursor-pointer h-11 mt-4">
             <input
               type="checkbox"
               checked={onlyMissingHours}
@@ -1064,7 +1064,7 @@ export default function AdminShiftsHoursPage() {
                       type="time"
                       value={formData.startTime}
                       onChange={(e) => setFormData({ ...formData, startTime: e.target.value })}
-                      className="w-full px-3 py-2 h-10 border border-gray-300 rounded-lg text-sm"
+                      className="w-full px-3 py-2 h-11 border border-gray-300 rounded-lg text-sm"
                       required
                     />
                   </div>
@@ -1074,7 +1074,7 @@ export default function AdminShiftsHoursPage() {
                       type="time"
                       value={formData.endTime}
                       onChange={(e) => setFormData({ ...formData, endTime: e.target.value })}
-                      className="w-full px-3 py-2 h-10 border border-gray-300 rounded-lg text-sm"
+                      className="w-full px-3 py-2 h-11 border border-gray-300 rounded-lg text-sm"
                       required
                     />
                   </div>
@@ -1093,7 +1093,7 @@ export default function AdminShiftsHoursPage() {
                             next[idx] = { ...next[idx], start: e.target.value };
                             setFormData({ ...formData, actualBreaks: next });
                           }}
-                          className="w-full px-3 py-2 h-10 border border-gray-300 rounded-lg text-sm"
+                          className="w-full px-3 py-2 h-11 border border-gray-300 rounded-lg text-sm"
                         />
                       </div>
                       <div className="flex-1 min-w-0 w-full md:min-w-[100px]">
@@ -1106,7 +1106,7 @@ export default function AdminShiftsHoursPage() {
                             next[idx] = { ...next[idx], end: e.target.value };
                             setFormData({ ...formData, actualBreaks: next });
                           }}
-                          className="w-full px-3 py-2 h-10 border border-gray-300 rounded-lg text-sm"
+                          className="w-full px-3 py-2 h-11 border border-gray-300 rounded-lg text-sm"
                         />
                       </div>
                       <button
@@ -1137,7 +1137,7 @@ export default function AdminShiftsHoursPage() {
                       ? calculateHours(formData.startTime, formData.endTime, formData.actualBreaks).toFixed(2)
                       : "0.00"}
                     readOnly
-                    className="w-full px-3 py-2 h-10 border border-gray-300 rounded-lg text-sm bg-gray-100"
+                    className="w-full px-3 py-2 h-11 border border-gray-300 rounded-lg text-sm bg-gray-100"
                   />
                 </div>
                 <div>
@@ -1397,7 +1397,7 @@ export default function AdminShiftsHoursPage() {
                         type="time"
                         value={convertModal.startTime}
                         onChange={(e) => setConvertModal({ ...convertModal, startTime: e.target.value })}
-                        className="w-full px-3 py-2 h-10 border border-gray-300 rounded-lg text-sm"
+                        className="w-full px-3 py-2 h-11 border border-gray-300 rounded-lg text-sm"
                       />
                     </div>
                     <div className="min-w-0 overflow-hidden">
@@ -1424,7 +1424,7 @@ export default function AdminShiftsHoursPage() {
                               next[idx] = { ...next[idx], start: e.target.value };
                               setConvertModal({ ...convertModal, actualBreaks: next });
                             }}
-                            className="w-full px-3 py-2 h-10 border border-gray-300 rounded-lg text-sm"
+                            className="w-full px-3 py-2 h-11 border border-gray-300 rounded-lg text-sm"
                           />
                         </div>
                         <div className="flex-1 min-w-0 w-full md:min-w-[100px]">
@@ -1437,7 +1437,7 @@ export default function AdminShiftsHoursPage() {
                               next[idx] = { ...next[idx], end: e.target.value };
                               setConvertModal({ ...convertModal, actualBreaks: next });
                             }}
-                            className="w-full px-3 py-2 h-10 border border-gray-300 rounded-lg text-sm"
+                            className="w-full px-3 py-2 h-11 border border-gray-300 rounded-lg text-sm"
                           />
                         </div>
                         <button

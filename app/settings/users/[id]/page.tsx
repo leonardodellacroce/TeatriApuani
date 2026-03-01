@@ -443,7 +443,7 @@ export default function EditUserPage() {
             onClick={() => router.push("/settings/users")}
             aria-label="Indietro"
             title="Indietro"
-            className="h-10 w-10 inline-flex items-center justify-center rounded-lg bg-gray-900 text-white hover:bg-gray-800 hover:shadow-lg transition-colors"
+            className="h-11 w-11 inline-flex items-center justify-center rounded-lg bg-gray-900 text-white hover:bg-gray-800 hover:shadow-lg transition-colors"
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7" />
@@ -469,7 +469,7 @@ export default function EditUserPage() {
                 value={formData.name}
                 onChange={handleChange}
                 required
-                className="w-full px-4 py-2 h-10 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-gray-500 focus:border-transparent"
+                className="w-full px-4 py-2 h-11 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-gray-500 focus:border-transparent"
               />
             </div>
 
@@ -487,7 +487,7 @@ export default function EditUserPage() {
                 value={formData.cognome}
                 onChange={handleChange}
                 required
-                className="w-full px-4 py-2 h-10 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-gray-500 focus:border-transparent"
+                className="w-full px-4 py-2 h-11 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-gray-500 focus:border-transparent"
               />
             </div>
           </div>
@@ -506,7 +506,7 @@ export default function EditUserPage() {
               value={formData.email}
               onChange={handleChange}
               required
-              className={`w-full px-4 py-2 h-10 border rounded-lg text-sm focus:ring-2 focus:ring-gray-500 focus:border-transparent ${
+              className={`w-full px-4 py-2 h-11 border rounded-lg text-sm focus:ring-2 focus:ring-gray-500 focus:border-transparent ${
                 emailAvailabilityError ? 'border-red-500' : 'border-gray-300'
               }`}
             />
@@ -585,7 +585,7 @@ export default function EditUserPage() {
                 value={formData.companyId}
                 onChange={handleChange}
                 required
-                className="w-full px-4 py-2 h-10 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-gray-500 focus:border-transparent"
+                className="w-full px-4 py-2 h-11 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-gray-500 focus:border-transparent"
               >
                 <option value="">Seleziona azienda</option>
                 {companies.map((company) => (
@@ -607,7 +607,7 @@ export default function EditUserPage() {
                 type="text"
                 value={companies[0].ragioneSociale}
                 disabled
-                className="w-full px-4 py-2 h-10 border border-gray-300 rounded-lg text-sm bg-gray-100 cursor-not-allowed"
+                className="w-full px-4 py-2 h-11 border border-gray-300 rounded-lg text-sm bg-gray-100 cursor-not-allowed"
               />
               <p className="text-sm text-gray-500 mt-1">
                 L'azienda dell'utente non può essere modificata
@@ -638,7 +638,7 @@ export default function EditUserPage() {
             <button
               type="button"
               onClick={() => router.push("/settings/users")}
-              className="px-4 py-2 h-10 border border-gray-300 rounded-lg text-sm hover:bg-gray-50 hover:border-gray-400 hover:shadow-md hover:scale-105 active:scale-100 transition-all duration-200 cursor-pointer"
+              className="px-4 py-2 h-11 border border-gray-300 rounded-lg text-sm hover:bg-gray-50 hover:border-gray-400 hover:shadow-md hover:scale-105 active:scale-100 transition-all duration-200 cursor-pointer"
             >
               Annulla
             </button>

@@ -611,7 +611,7 @@ export default function MyShiftsPage() {
                 type="date"
                 value={startDate}
                 onChange={(e) => setStartDate(e.target.value)}
-                className="w-full px-3 py-2 h-10 border border-gray-300 rounded-lg text-sm"
+                className="w-full px-3 py-2 h-11 border border-gray-300 rounded-lg text-sm"
               />
             </div>
             <div className="min-w-[240px]">
@@ -620,28 +620,28 @@ export default function MyShiftsPage() {
                 type="date"
                 value={endDate}
                 onChange={(e) => setEndDate(e.target.value)}
-                className="w-full px-3 py-2 h-10 border border-gray-300 rounded-lg text-sm"
+                className="w-full px-3 py-2 h-11 border border-gray-300 rounded-lg text-sm"
               />
             </div>
             <div className="flex items-end gap-2">
               <button
                 type="button"
                 onClick={handlePrevMonth}
-                className="px-4 py-2 h-10 border border-gray-300 rounded-lg text-sm hover:bg-gray-50 hover:border-gray-400 hover:shadow-md hover:scale-105 active:scale-100 transition-all duration-200 cursor-pointer"
+                className="px-4 py-2 h-11 border border-gray-300 rounded-lg text-sm hover:bg-gray-50 hover:border-gray-400 hover:shadow-md hover:scale-105 active:scale-100 transition-all duration-200 cursor-pointer"
               >
                 ← Precedente
               </button>
               <button
                 type="button"
                 onClick={handleCurrentMonth}
-                className="px-4 py-2 h-10 border border-gray-300 rounded-lg text-sm hover:bg-gray-50 hover:border-gray-400 hover:shadow-md hover:scale-105 active:scale-100 transition-all duration-200 cursor-pointer"
+                className="px-4 py-2 h-11 border border-gray-300 rounded-lg text-sm hover:bg-gray-50 hover:border-gray-400 hover:shadow-md hover:scale-105 active:scale-100 transition-all duration-200 cursor-pointer"
               >
                 Oggi
               </button>
               <button
                 type="button"
                 onClick={handleNextMonth}
-                className="px-4 py-2 h-10 border border-gray-300 rounded-lg text-sm hover:bg-gray-50 hover:border-gray-400 hover:shadow-md hover:scale-105 active:scale-100 transition-all duration-200 cursor-pointer"
+                className="px-4 py-2 h-11 border border-gray-300 rounded-lg text-sm hover:bg-gray-50 hover:border-gray-400 hover:shadow-md hover:scale-105 active:scale-100 transition-all duration-200 cursor-pointer"
               >
                 Successivo →
               </button>
@@ -649,7 +649,7 @@ export default function MyShiftsPage() {
             <div className="ml-auto">
               <Link
                 href="/dashboard/my-shifts/free-hours"
-                className="inline-flex items-center justify-center px-4 h-10 bg-gray-900 text-white rounded-lg text-sm font-medium hover:bg-gray-800 transition-all duration-200"
+                className="inline-flex items-center justify-center px-4 h-11 bg-gray-900 text-white rounded-lg text-sm font-medium hover:bg-gray-800 transition-all duration-200"
               >
                 Ore libere
               </Link>
@@ -705,7 +705,7 @@ export default function MyShiftsPage() {
                       type="time"
                       value={formData.startTime}
                       onChange={(e) => setFormData({ ...formData, startTime: e.target.value })}
-                      className="w-full px-3 py-2 h-10 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-gray-900"
+                      className="w-full px-3 py-2 h-11 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-gray-900"
                       required
                     />
                   </div>
@@ -715,7 +715,7 @@ export default function MyShiftsPage() {
                       type="time"
                       value={formData.endTime}
                       onChange={(e) => setFormData({ ...formData, endTime: e.target.value })}
-                      className="w-full px-3 py-2 h-10 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-gray-900"
+                      className="w-full px-3 py-2 h-11 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-gray-900"
                       required
                     />
                   </div>
@@ -734,7 +734,7 @@ export default function MyShiftsPage() {
                             next[idx] = { ...next[idx], start: e.target.value };
                             setFormData({ ...formData, actualBreaks: next });
                           }}
-                          className="w-full px-3 py-2 h-10 border border-gray-300 rounded-lg text-sm"
+                          className="w-full px-3 py-2 h-11 border border-gray-300 rounded-lg text-sm"
                         />
                       </div>
                       <div className="flex-1 min-w-0 w-full md:min-w-[100px]">
@@ -747,7 +747,7 @@ export default function MyShiftsPage() {
                             next[idx] = { ...next[idx], end: e.target.value };
                             setFormData({ ...formData, actualBreaks: next });
                           }}
-                          className="w-full px-3 py-2 h-10 border border-gray-300 rounded-lg text-sm"
+                          className="w-full px-3 py-2 h-11 border border-gray-300 rounded-lg text-sm"
                         />
                       </div>
                       <button
@@ -778,7 +778,7 @@ export default function MyShiftsPage() {
                       ? calculateHours(formData.startTime, formData.endTime, formData.actualBreaks).toFixed(2)
                       : "0.00"}
                     readOnly
-                    className="w-full px-3 py-2 h-10 border border-gray-300 rounded-lg text-sm bg-gray-100"
+                    className="w-full px-3 py-2 h-11 border border-gray-300 rounded-lg text-sm bg-gray-100"
                   />
                 </div>
                 <div>

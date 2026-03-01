@@ -2167,7 +2167,7 @@ export default function WorkdayViewPage() {
               onClick={() => router.push(`/dashboard/events/${eventId}?tab=workdays`)}
               aria-label="Indietro"
               title="Indietro"
-              className="h-10 w-10 shrink-0 inline-flex items-center justify-center rounded-lg bg-gray-900 text-white hover:bg-gray-800 hover:shadow-lg transition-colors"
+              className="h-11 w-11 shrink-0 inline-flex items-center justify-center rounded-lg bg-gray-900 text-white hover:bg-gray-800 hover:shadow-lg transition-colors"
             >
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7" />
@@ -2184,7 +2184,7 @@ export default function WorkdayViewPage() {
                 }}
                 aria-label="Modifica"
                 title={isReadOnly ? "Impossibile modificare: giornata chiusa o mese chiuso" : "Modifica"}
-                className={`h-10 w-10 inline-flex items-center justify-center rounded-lg transition-colors ${
+                className={`h-11 w-11 inline-flex items-center justify-center rounded-lg transition-colors ${
                   isReadOnly
                     ? "bg-gray-400 text-gray-200 cursor-not-allowed opacity-60"
                     : "bg-gray-900 text-white hover:bg-gray-800 hover:shadow-lg cursor-pointer"
@@ -2482,7 +2482,7 @@ export default function WorkdayViewPage() {
                 <div className="space-y-3">
                   {/* Main day */}
                   <div className="relative">
-                    <div className="h-10 w-full bg-gray-50 rounded-md border border-gray-200 relative overflow-hidden">
+                    <div className="h-11 w-full bg-gray-50 rounded-md border border-gray-200 relative overflow-hidden">
                       {Array.from({ length: 13 }).map((_, idx) => {
                         const left = (idx * 120) / (24 * 60) * 100;
                         return <div key={idx} className="absolute top-0 bottom-0 border-l border-gray-200" style={{ left: `${left}%` }} />
@@ -2542,7 +2542,7 @@ export default function WorkdayViewPage() {
                       <div>
                         <div className="text-sm text-gray-600 mb-1">Giorno successivo</div>
                         <div className="relative">
-                          <div className="h-10 w-full bg-gray-50 rounded-md border border-dashed border-gray-300 relative overflow-hidden">
+                          <div className="h-11 w-full bg-gray-50 rounded-md border border-dashed border-gray-300 relative overflow-hidden">
                             {Array.from({ length: 13 }).map((_, idx) => {
                               const left = (idx * 120) / (24 * 60) * 100;
                               return <div key={idx} className="absolute top-0 bottom-0 border-l border-gray-200" style={{ left: `${left}%` }} />
@@ -3303,7 +3303,7 @@ export default function WorkdayViewPage() {
                                         setActivityTimeErrors(errors);
                                       }
                                     }}
-                                    className={`w-full px-3 py-2 h-10 border rounded-lg text-sm ${
+                                    className={`w-full px-3 py-2 h-11 border rounded-lg text-sm ${
                                       activityTimeErrors[taskType.id]?.[idx]?.start ? 'border-red-500' : 'border-gray-300'
                                     }`}
                                   />
@@ -3332,7 +3332,7 @@ export default function WorkdayViewPage() {
                                         setActivityTimeErrors(errors);
                                       }
                                     }}
-                                    className={`w-full px-3 py-2 h-10 border rounded-lg text-sm ${
+                                    className={`w-full px-3 py-2 h-11 border rounded-lg text-sm ${
                                       activityTimeErrors[taskType.id]?.[idx]?.end ? 'border-red-500' : 'border-gray-300'
                                     }`}
                                   />
@@ -3798,7 +3798,7 @@ export default function WorkdayViewPage() {
                                         }
                                       }
                                     }}
-                                    className={`w-full px-3 py-2 h-10 border rounded-lg text-sm ${
+                                    className={`w-full px-3 py-2 h-11 border rounded-lg text-sm ${
                                       (shiftTimeErrors[shiftType.id]?.[intervalIdx]?.start && 
                                        (!ignoreOverlaps || !shiftTimeErrors[shiftType.id]?.[intervalIdx]?.message?.includes("sovrapposto"))) 
                                         ? 'border-red-500' 
@@ -3848,7 +3848,7 @@ export default function WorkdayViewPage() {
                                         }
                                       }
                                     }}
-                                    className={`w-full px-3 py-2 h-10 border rounded-lg text-sm ${
+                                    className={`w-full px-3 py-2 h-11 border rounded-lg text-sm ${
                                       (shiftTimeErrors[shiftType.id]?.[intervalIdx]?.end && 
                                        (!ignoreOverlaps || !shiftTimeErrors[shiftType.id]?.[intervalIdx]?.message?.includes("sovrapposto"))) 
                                         ? 'border-red-500' 
@@ -3873,7 +3873,7 @@ export default function WorkdayViewPage() {
                                           [shiftType.id]: currentClients
                                         });
                                       }}
-                                      className="w-full px-3 py-2 h-10 border border-gray-300 rounded-lg text-sm"
+                                      className="w-full px-3 py-2 h-11 border border-gray-300 rounded-lg text-sm"
                                     >
                                       <option value="">Seleziona cliente...</option>
                                       {[...eventClients]
@@ -3971,7 +3971,7 @@ export default function WorkdayViewPage() {
                                         [shiftType.id]: currentClients
                                       });
                                     }}
-                                    className="w-full px-3 py-2 h-10 border border-gray-300 rounded-lg text-sm"
+                                    className="w-full px-3 py-2 h-11 border border-gray-300 rounded-lg text-sm"
                                   >
                                     <option value="">Seleziona cliente...</option>
                                     {[...eventClients]
@@ -4005,7 +4005,7 @@ export default function WorkdayViewPage() {
                                           all[intervalIdx] = current;
                                           setShiftBreaks({ ...shiftBreaks, [shiftType.id]: all });
                                         }}
-                                        className="w-full px-3 py-2 h-10 border border-gray-300 rounded-lg text-sm"
+                                        className="w-full px-3 py-2 h-11 border border-gray-300 rounded-lg text-sm"
                                       />
                                     </div>
                                     <div className="flex-1 min-w-0 w-full md:min-w-[120px]">
@@ -4022,7 +4022,7 @@ export default function WorkdayViewPage() {
                                           all[intervalIdx] = current;
                                           setShiftBreaks({ ...shiftBreaks, [shiftType.id]: all });
                                         }}
-                                        className="w-full px-3 py-2 h-10 border border-gray-300 rounded-lg text-sm"
+                                        className="w-full px-3 py-2 h-11 border border-gray-300 rounded-lg text-sm"
                                       />
                                     </div>
                                     <button
@@ -4239,7 +4239,7 @@ export default function WorkdayViewPage() {
                               setPersonnelQuantities(prev => ({ ...prev, [duty.id]: 0 }));
                             }
                           }}
-                          className="w-20 px-3 py-2 h-10 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-gray-900 focus:border-transparent"
+                          className="w-20 px-3 py-2 h-11 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-gray-900 focus:border-transparent"
                         />
                       </div>
                     </div>

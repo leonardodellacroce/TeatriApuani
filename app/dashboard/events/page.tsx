@@ -247,7 +247,7 @@ const CalendarView = ({
         <div className="flex gap-2 flex-shrink-0">
           <button
             onClick={goToPreviousMonth}
-            className="w-10 h-10 inline-flex items-center justify-center border border-gray-300 rounded-lg hover:bg-gray-50 hover:border-gray-400 active:scale-100 transition-all duration-200 cursor-pointer"
+            className="w-11 h-11 inline-flex items-center justify-center border border-gray-300 rounded-lg hover:bg-gray-50 hover:border-gray-400 active:scale-100 transition-all duration-200 cursor-pointer"
             aria-label="Mese precedente"
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -256,13 +256,13 @@ const CalendarView = ({
           </button>
           <button
             onClick={() => setCurrentDate(new Date())}
-            className="px-3 h-10 border border-gray-300 rounded-lg text-sm hover:bg-gray-50 hover:border-gray-400 active:scale-100 transition-all duration-200 cursor-pointer"
+            className="px-3 h-11 border border-gray-300 rounded-lg text-sm hover:bg-gray-50 hover:border-gray-400 active:scale-100 transition-all duration-200 cursor-pointer"
           >
             Oggi
           </button>
           <button
             onClick={goToNextMonth}
-            className="w-10 h-10 inline-flex items-center justify-center border border-gray-300 rounded-lg hover:bg-gray-50 hover:border-gray-400 active:scale-100 transition-all duration-200 cursor-pointer"
+            className="w-11 h-11 inline-flex items-center justify-center border border-gray-300 rounded-lg hover:bg-gray-50 hover:border-gray-400 active:scale-100 transition-all duration-200 cursor-pointer"
             aria-label="Mese successivo"
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -728,7 +728,7 @@ const ProgrammaView = ({
         <div className="flex gap-2 flex-shrink-0">
           <button
             onClick={() => setProgrammaMonth(new Date(programmaMonth.getFullYear(), programmaMonth.getMonth() - 1, 1))}
-            className="w-10 h-10 inline-flex items-center justify-center border border-gray-300 rounded-lg hover:bg-gray-50 hover:border-gray-400 active:scale-100 transition-all duration-200 cursor-pointer"
+            className="w-11 h-11 inline-flex items-center justify-center border border-gray-300 rounded-lg hover:bg-gray-50 hover:border-gray-400 active:scale-100 transition-all duration-200 cursor-pointer"
             aria-label="Mese precedente"
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -737,13 +737,13 @@ const ProgrammaView = ({
           </button>
           <button
             onClick={() => setProgrammaMonth(new Date())}
-            className="px-3 h-10 border border-gray-300 rounded-lg text-sm hover:bg-gray-50 hover:border-gray-400 active:scale-100 transition-all duration-200 cursor-pointer"
+            className="px-3 h-11 border border-gray-300 rounded-lg text-sm hover:bg-gray-50 hover:border-gray-400 active:scale-100 transition-all duration-200 cursor-pointer"
           >
             Oggi
           </button>
           <button
             onClick={() => setProgrammaMonth(new Date(programmaMonth.getFullYear(), programmaMonth.getMonth() + 1, 1))}
-            className="w-10 h-10 inline-flex items-center justify-center border border-gray-300 rounded-lg hover:bg-gray-50 hover:border-gray-400 active:scale-100 transition-all duration-200 cursor-pointer"
+            className="w-11 h-11 inline-flex items-center justify-center border border-gray-300 rounded-lg hover:bg-gray-50 hover:border-gray-400 active:scale-100 transition-all duration-200 cursor-pointer"
             aria-label="Mese successivo"
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -757,7 +757,7 @@ const ProgrammaView = ({
           <select
             value={selectedAreaFilter}
             onChange={(e) => setSelectedAreaFilter(e.target.value)}
-            className="px-3 py-2 h-10 border border-gray-300 rounded-lg text-sm bg-white focus:ring-2 focus:ring-gray-500 focus:border-transparent"
+            className="px-3 py-2 h-11 border border-gray-300 rounded-lg text-sm bg-white focus:ring-2 focus:ring-gray-500 focus:border-transparent"
           >
             <option value="__all__">Tutte le aree</option>
             {areasToShow.map((a) => (
@@ -1256,7 +1256,7 @@ export default function EventsPage() {
               <select
                 value={filterStatus}
                 onChange={(e) => setFilterStatus(e.target.value as "open" | "closed" | "all")}
-                className="w-32 shrink-0 pl-4 py-2 h-10 border border-gray-300 rounded-lg text-sm hover:border-gray-400 hover:shadow-md hover:bg-gray-50 focus:ring-2 focus:ring-gray-900 focus:border-transparent transition-all duration-200 cursor-pointer"
+                className="w-32 shrink-0 pl-4 py-2 h-11 border border-gray-300 rounded-lg text-sm hover:border-gray-400 hover:shadow-md hover:bg-gray-50 focus:ring-2 focus:ring-gray-900 focus:border-transparent transition-all duration-200 cursor-pointer"
               >
                 <option value="open">Solo Aperti</option>
                 <option value="closed">Solo Chiusi</option>
@@ -1268,7 +1268,7 @@ export default function EventsPage() {
               <button
                 type="button"
                 onClick={() => setShowClientDropdown(!showClientDropdown)}
-                className="w-full min-w-0 pl-4 pr-3 py-2 h-10 border border-gray-300 rounded-lg text-sm hover:bg-gray-50 hover:border-gray-400 hover:shadow-md hover:scale-[1.02] active:scale-100 transition-all duration-200 cursor-pointer text-left flex justify-between items-center"
+                className="w-full min-w-0 pl-4 pr-3 py-2 h-11 border border-gray-300 rounded-lg text-sm hover:bg-gray-50 hover:border-gray-400 hover:shadow-md hover:scale-[1.02] active:scale-100 transition-all duration-200 cursor-pointer text-left flex justify-between items-center"
               >
                 <span>
                   {selectedClients.length === 0
@@ -1288,7 +1288,7 @@ export default function EventsPage() {
                       placeholder="Cerca..."
                       value={clientSearchTerm}
                       onChange={(e) => setClientSearchTerm(e.target.value)}
-                      className="w-full px-3 py-2 h-10 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-gray-900 focus:border-transparent"
+                      className="w-full px-3 py-2 h-11 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-gray-900 focus:border-transparent"
                     />
                   </div>
                   <div className="p-2 border-b border-gray-200">
@@ -1480,7 +1480,7 @@ export default function EventsPage() {
               <div className="flex gap-2 flex-shrink-0">
                 <button
                   onClick={() => setSelectedMonth(new Date(selectedMonth.getFullYear(), selectedMonth.getMonth() - 1, 1))}
-                  className="w-10 h-10 inline-flex items-center justify-center border border-gray-300 rounded-lg hover:bg-gray-50 hover:border-gray-400 active:scale-100 transition-all duration-200 cursor-pointer"
+                  className="w-11 h-11 inline-flex items-center justify-center border border-gray-300 rounded-lg hover:bg-gray-50 hover:border-gray-400 active:scale-100 transition-all duration-200 cursor-pointer"
                   aria-label="Mese precedente"
                 >
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1489,13 +1489,13 @@ export default function EventsPage() {
                 </button>
                 <button
                   onClick={() => setSelectedMonth(new Date())}
-                  className="px-3 h-10 border border-gray-300 rounded-lg text-sm hover:bg-gray-50 hover:border-gray-400 active:scale-100 transition-all duration-200 cursor-pointer"
+                  className="px-3 h-11 border border-gray-300 rounded-lg text-sm hover:bg-gray-50 hover:border-gray-400 active:scale-100 transition-all duration-200 cursor-pointer"
                 >
                   Oggi
                 </button>
                 <button
                   onClick={() => setSelectedMonth(new Date(selectedMonth.getFullYear(), selectedMonth.getMonth() + 1, 1))}
-                  className="w-10 h-10 inline-flex items-center justify-center border border-gray-300 rounded-lg hover:bg-gray-50 hover:border-gray-400 active:scale-100 transition-all duration-200 cursor-pointer"
+                  className="w-11 h-11 inline-flex items-center justify-center border border-gray-300 rounded-lg hover:bg-gray-50 hover:border-gray-400 active:scale-100 transition-all duration-200 cursor-pointer"
                   aria-label="Mese successivo"
                 >
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">

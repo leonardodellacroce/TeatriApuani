@@ -3,6 +3,7 @@
 :root {
   --background: #ffffff;
   --foreground: #171717;
+  --input-height: 2.75rem; /* 44px = h-11, riferimento: pulsante Nuovo Evento */
   color-scheme: light;
 }
 
@@ -44,6 +45,20 @@ input[type="datetime-local"] {
   font-size: 16px !important;
 }
 
+/* Altezza uniforme campi: come pulsante Nuovo Evento (h-11 = 44px) */
+input[type="text"],
+input[type="email"],
+input[type="password"],
+input[type="search"],
+input[type="tel"],
+input[type="number"] {
+  height: var(--input-height) !important;
+}
+
+select {
+  min-height: var(--input-height) !important;
+}
+
 /* @bugfix Safari/iOS: padding interno shadow DOM causa overflow/scrollbar su date/time */
 input[type="date"],
 input[type="time"],
@@ -58,7 +73,7 @@ input[type="week"] {
   width: 100% !important;
   min-width: 0 !important;
   line-height: 1.25 !important;
-  height: 2.25rem !important; /* 36px = h-9, allineato a Titolo/Clienti/Location */
+  height: var(--input-height) !important; /* 44px = h-11, come pulsante Nuovo Evento */
 }
 
 input[type="date"]::-webkit-datetime-edit,

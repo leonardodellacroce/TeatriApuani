@@ -261,7 +261,7 @@ export default function EditWorkdayPage() {
               id="eventTitle"
               value={workday.event.title}
               disabled
-              className="w-full px-3 py-2 h-10 border border-gray-300 rounded-lg text-sm bg-gray-100 text-gray-700 cursor-not-allowed"
+              className="w-full px-3 py-2 h-11 border border-gray-300 rounded-lg text-sm bg-gray-100 text-gray-700 cursor-not-allowed"
             />
           </div>
 
@@ -274,7 +274,7 @@ export default function EditWorkdayPage() {
               id="eventLocation"
               value={workday.location?.name || workday.event.location?.name || "-"}
               disabled
-              className="w-full px-3 py-2 h-10 border border-gray-300 rounded-lg text-sm bg-gray-100 text-gray-700 cursor-not-allowed"
+              className="w-full px-3 py-2 h-11 border border-gray-300 rounded-lg text-sm bg-gray-100 text-gray-700 cursor-not-allowed"
             />
           </div>
 
@@ -287,7 +287,7 @@ export default function EditWorkdayPage() {
               id="eventClient"
               value={workday.event.clientName || "-"}
               disabled
-              className="w-full px-3 py-2 h-10 border border-gray-300 rounded-lg text-sm bg-gray-100 text-gray-700 cursor-not-allowed"
+              className="w-full px-3 py-2 h-11 border border-gray-300 rounded-lg text-sm bg-gray-100 text-gray-700 cursor-not-allowed"
             />
           </div>
 
@@ -302,7 +302,7 @@ export default function EditWorkdayPage() {
               value={date}
               onChange={(e) => setDate(e.target.value)}
               required
-              className="w-full px-3 py-2 h-10 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-gray-900 focus:border-transparent"
+              className="w-full px-3 py-2 h-11 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-gray-900 focus:border-transparent"
             />
           </div>
 
@@ -392,7 +392,7 @@ export default function EditWorkdayPage() {
                         setTimeSpanErrors(newErrors);
                       }
                     }}
-                    className={`w-full px-3 py-2 h-10 border rounded-lg text-sm focus:ring-2 focus:ring-gray-900 focus:border-transparent ${
+                    className={`w-full px-3 py-2 h-11 border rounded-lg text-sm focus:ring-2 focus:ring-gray-900 focus:border-transparent ${
                       timeSpanErrors.get(idx) ? 'border-red-500' : 'border-gray-300'
                     }`}
                   />
@@ -434,7 +434,7 @@ export default function EditWorkdayPage() {
                         setTimeSpanErrors(newErrors);
                       }
                     }}
-                    className={`w-full px-3 py-2 h-10 border rounded-lg text-sm focus:ring-2 focus:ring-gray-900 focus:border-transparent ${
+                    className={`w-full px-3 py-2 h-11 border rounded-lg text-sm focus:ring-2 focus:ring-gray-900 focus:border-transparent ${
                       timeSpanErrors.get(idx) ? 'border-red-500' : 'border-gray-300'
                     }`}
                   />
@@ -475,7 +475,7 @@ export default function EditWorkdayPage() {
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
               rows={3}
-              className="w-full px-3 py-2 h-10 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-gray-900 focus:border-transparent"
+              className="w-full px-3 py-2 h-11 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-gray-900 focus:border-transparent"
               placeholder="Note opzionali sulla giornata di lavoro"
             />
           </div>

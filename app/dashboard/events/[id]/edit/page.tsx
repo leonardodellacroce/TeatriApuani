@@ -478,7 +478,7 @@ export default function EditEventPage() {
               value={formData.title}
               onChange={handleChange}
               required
-              className="w-full px-3 py-1.5 h-9 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-gray-900 focus:border-transparent"
+              className="w-full px-3 h-11 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-gray-900 focus:border-transparent"
             />
           </div>
 
@@ -511,7 +511,7 @@ export default function EditEventPage() {
                   <button
                     type="button"
                     onClick={addClientField}
-                    className="px-3 py-1.5 h-9 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors flex-shrink-0"
+                    className="px-3 h-11 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors flex-shrink-0"
                   >
                     +
                   </button>
@@ -520,7 +520,7 @@ export default function EditEventPage() {
                   <button
                     type="button"
                     onClick={() => removeClientField(index)}
-                    className="px-3 py-1.5 h-9 bg-red-200 text-red-700 rounded-lg hover:bg-red-300 transition-colors flex-shrink-0"
+                    className="px-3 h-11 bg-red-200 text-red-700 rounded-lg hover:bg-red-300 transition-colors flex-shrink-0"
                   >
                     ×
                   </button>
@@ -560,7 +560,7 @@ export default function EditEventPage() {
                 value={formData.startDate}
                 onChange={handleChange}
                 required
-                className="w-full min-w-0 px-3 py-1.5 h-9 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-gray-900 focus:border-transparent box-border"
+                className="w-full min-w-0 px-3 h-11 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-gray-900 focus:border-transparent box-border"
               />
             </div>
 
@@ -575,7 +575,7 @@ export default function EditEventPage() {
                 value={formData.endDate}
                 onChange={handleChange}
                 required
-                className="w-full min-w-0 px-3 py-1.5 h-9 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-gray-900 focus:border-transparent box-border"
+                className="w-full min-w-0 px-3 h-11 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-gray-900 focus:border-transparent box-border"
               />
             </div>
           </div>
@@ -597,8 +597,8 @@ export default function EditEventPage() {
               name="notes"
               value={formData.notes}
               onChange={handleChange}
-              rows={1}
-              className="w-full px-3 py-1.5 h-9 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-gray-900 focus:border-transparent min-h-0 resize-none overflow-y-auto"
+              rows={3}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-gray-900 focus:border-transparent resize-y"
             />
           </div>
 
@@ -606,7 +606,7 @@ export default function EditEventPage() {
             <button
               type="submit"
               disabled={loading}
-              className="px-4 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800 hover:shadow-lg hover:scale-105 active:scale-100 transition-all duration-200 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-gray-900 disabled:hover:shadow-none"
+              className="px-4 h-11 bg-gray-900 text-white rounded-lg hover:bg-gray-800 hover:shadow-lg hover:scale-105 active:scale-100 transition-all duration-200 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-gray-900 disabled:hover:shadow-none"
             >
               {loading ? "Salvataggio..." : (fromConvert ? "Continua" : "Salva Modifiche")}
             </button>
@@ -642,7 +642,7 @@ export default function EditEventPage() {
                   router.push(`/dashboard/events/${eventId}?tab=${tab}`);
                 }
               }}
-              className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 hover:border-gray-400 hover:shadow-md hover:scale-105 active:scale-100 transition-all duration-200 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+              className="px-4 h-11 border border-gray-300 rounded-lg hover:bg-gray-50 hover:border-gray-400 hover:shadow-md hover:scale-105 active:scale-100 transition-all duration-200 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {cancelLoading ? "Annullamento..." : "Annulla"}
             </button>

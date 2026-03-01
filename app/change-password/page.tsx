@@ -150,7 +150,7 @@ export default function ChangePasswordPage() {
                     required
                     value={currentPassword}
                     onChange={(e) => setCurrentPassword(e.target.value)}
-                    className="w-full px-4 py-2 h-10 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-gray-500 focus:border-transparent pr-10"
+                    className="w-full px-4 py-2 h-11 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-gray-500 focus:border-transparent pr-10"
                     placeholder="••••••••"
                   />
                   <button
@@ -187,7 +187,7 @@ export default function ChangePasswordPage() {
                     required
                     value={newPassword}
                     onChange={(e) => setNewPassword(e.target.value)}
-                    className="w-full px-4 py-2 h-10 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-gray-500 focus:border-transparent pr-10"
+                    className="w-full px-4 py-2 h-11 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-gray-500 focus:border-transparent pr-10"
                     placeholder="••••••••"
                     minLength={8}
                   />
@@ -226,7 +226,7 @@ export default function ChangePasswordPage() {
                     required
                     value={confirmPassword}
                     onChange={(e) => setConfirmPassword(e.target.value)}
-                    className="w-full px-4 py-2 h-10 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-gray-500 focus:border-transparent pr-10"
+                    className="w-full px-4 py-2 h-11 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-gray-500 focus:border-transparent pr-10"
                     placeholder="••••••••"
                     minLength={8}
                   />

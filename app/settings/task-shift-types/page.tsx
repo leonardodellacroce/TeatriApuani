@@ -331,7 +331,7 @@ export default function TaskTypesPage() {
             onClick={() => router.push("/settings")}
             aria-label="Indietro"
             title="Indietro"
-            className="h-10 w-10 inline-flex items-center justify-center rounded-lg bg-gray-900 text-white hover:bg-gray-800 hover:shadow-lg transition-colors"
+            className="h-11 w-11 inline-flex items-center justify-center rounded-lg bg-gray-900 text-white hover:bg-gray-800 hover:shadow-lg transition-colors"
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7" />
@@ -414,7 +414,7 @@ export default function TaskTypesPage() {
             <select
               value={areaFilter || ""}
               onChange={(e) => setAreaFilter(e.target.value || null)}
-              className="px-4 py-2 h-10 border border-gray-300 rounded-lg text-sm bg-white text-gray-700 hover:border-gray-400 hover:shadow-md hover:bg-gray-50 focus:ring-2 focus:ring-gray-900 focus:border-transparent transition-all duration-200 cursor-pointer"
+              className="px-4 py-2 h-11 border border-gray-300 rounded-lg text-sm bg-white text-gray-700 hover:border-gray-400 hover:shadow-md hover:bg-gray-50 focus:ring-2 focus:ring-gray-900 focus:border-transparent transition-all duration-200 cursor-pointer"
             >
               <option value="">Tutte le aree</option>
               {[...areas]
@@ -665,7 +665,7 @@ export default function TaskTypesPage() {
                 onClick={cancelEdit}
                 aria-label="Annulla"
                 title="Annulla"
-                className="h-10 w-10 inline-flex items-center justify-center rounded-lg border-2 border-gray-300 text-gray-700 hover:border-gray-400 hover:shadow-lg transition-colors"
+                className="h-11 w-11 inline-flex items-center justify-center rounded-lg border-2 border-gray-300 text-gray-700 hover:border-gray-400 hover:shadow-lg transition-colors"
               >
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
@@ -709,7 +709,7 @@ export default function TaskTypesPage() {
                   type="text"
                   value={taskTypeType === "ACTIVITY" ? "Attività" : "Turno"}
                   disabled
-                  className="w-full px-4 py-2 h-10 border border-gray-300 rounded-lg text-sm bg-gray-100 text-gray-700"
+                  className="w-full px-4 py-2 h-11 border border-gray-300 rounded-lg text-sm bg-gray-100 text-gray-700"
                 />
               </div>
               <div>
@@ -718,7 +718,7 @@ export default function TaskTypesPage() {
                   type="text"
                   value={taskTypeName}
                   onChange={(e) => setTaskTypeName(e.target.value)}
-                  className="w-full px-4 py-2 h-10 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-gray-500 focus:border-transparent"
+                  className="w-full px-4 py-2 h-11 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-gray-500 focus:border-transparent"
                 />
               </div>
               <div>
@@ -727,7 +727,7 @@ export default function TaskTypesPage() {
                   value={taskTypeDescription}
                   onChange={(e) => setTaskTypeDescription(e.target.value)}
                   rows={3}
-                  className="w-full px-4 py-2 h-10 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-gray-500 focus:border-transparent"
+                  className="w-full px-4 py-2 h-11 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-gray-500 focus:border-transparent"
                 />
               </div>
               {taskTypeType === "SHIFT" && (
@@ -737,7 +737,7 @@ export default function TaskTypesPage() {
                   <button
                     type="button"
                     onClick={() => setShowColorPicker(!showColorPicker)}
-                    className="w-full px-4 py-2 h-10 border border-gray-300 rounded-lg text-sm hover:border-gray-400 hover:shadow-md hover:bg-gray-50 focus:ring-2 focus:ring-gray-900 focus:border-transparent transition-all duration-200 cursor-pointer text-left flex items-center justify-between"
+                    className="w-full px-4 py-2 h-11 border border-gray-300 rounded-lg text-sm hover:border-gray-400 hover:shadow-md hover:bg-gray-50 focus:ring-2 focus:ring-gray-900 focus:border-transparent transition-all duration-200 cursor-pointer text-left flex items-center justify-between"
                   >
                     <span className={taskTypeColor ? "" : "text-gray-500"}>
                       {taskTypeColor ? (
@@ -769,7 +769,7 @@ export default function TaskTypesPage() {
                               setTaskTypeColor(color);
                               setShowColorPicker(false);
                             }}
-                            className="w-10 h-10 rounded border border-gray-300 hover:scale-110 transition-transform cursor-pointer"
+                            className="w-11 h-11 rounded border border-gray-300 hover:scale-110 transition-transform cursor-pointer"
                             style={{ backgroundColor: color }}
                             title={color}
                           />
@@ -866,7 +866,7 @@ export default function TaskTypesPage() {
                             min="0.5"
                             value={shiftHours}
                             onChange={(e) => setShiftHours(e.target.value)}
-                            className="w-full px-4 py-2 h-10 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-gray-500 focus:border-transparent"
+                            className="w-full px-4 py-2 h-11 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-gray-500 focus:border-transparent"
                             placeholder="Es. 8"
                           />
                         </div>
@@ -880,7 +880,7 @@ export default function TaskTypesPage() {
             <div className="flex justify-end gap-2 mt-4">
               <button
                 onClick={() => setIsFormOpen(false)}
-                className="px-4 py-2 h-10 border border-gray-300 rounded-lg text-sm hover:bg-gray-50 hover:border-gray-400 hover:shadow-md hover:scale-105 active:scale-100 transition-all duration-200 cursor-pointer"
+                className="px-4 py-2 h-11 border border-gray-300 rounded-lg text-sm hover:bg-gray-50 hover:border-gray-400 hover:shadow-md hover:scale-105 active:scale-100 transition-all duration-200 cursor-pointer"
               >
                 Annulla
               </button>

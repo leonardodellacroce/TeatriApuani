@@ -386,7 +386,7 @@ export default function FreeHoursPage() {
             onClick={() => router.push("/dashboard/my-shifts")}
             aria-label="Indietro"
             title="Indietro"
-            className="h-10 w-10 shrink-0 inline-flex items-center justify-center rounded-lg bg-gray-900 text-white hover:bg-gray-800 hover:shadow-lg transition-colors"
+            className="h-11 w-11 shrink-0 inline-flex items-center justify-center rounded-lg bg-gray-900 text-white hover:bg-gray-800 hover:shadow-lg transition-colors"
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7" />
@@ -406,7 +406,7 @@ export default function FreeHoursPage() {
                 type="date"
                 value={startDate}
                 onChange={(e) => setStartDate(e.target.value)}
-                className="w-full min-w-0 px-3 py-2 h-10 border border-gray-300 rounded-lg text-sm"
+                className="w-full min-w-0 px-3 h-11 border border-gray-300 rounded-lg text-sm"
               />
             </div>
             <div className="min-w-[240px] overflow-hidden">
@@ -415,28 +415,28 @@ export default function FreeHoursPage() {
                 type="date"
                 value={endDate}
                 onChange={(e) => setEndDate(e.target.value)}
-                className="w-full min-w-0 px-3 py-2 h-10 border border-gray-300 rounded-lg text-sm"
+                className="w-full min-w-0 px-3 h-11 border border-gray-300 rounded-lg text-sm"
               />
             </div>
             <div className="flex items-end gap-2">
               <button
                 type="button"
                 onClick={handlePrevMonth}
-                className="px-4 py-2 h-10 border border-gray-300 rounded-lg text-sm hover:bg-gray-50"
+                className="px-4 py-2 h-11 border border-gray-300 rounded-lg text-sm hover:bg-gray-50"
               >
                 ← Precedente
               </button>
               <button
                 type="button"
                 onClick={handleCurrentMonth}
-                className="px-4 py-2 h-10 border border-gray-300 rounded-lg text-sm hover:bg-gray-50"
+                className="px-4 py-2 h-11 border border-gray-300 rounded-lg text-sm hover:bg-gray-50"
               >
                 Oggi
               </button>
               <button
                 type="button"
                 onClick={handleNextMonth}
-                className="px-4 py-2 h-10 border border-gray-300 rounded-lg text-sm hover:bg-gray-50"
+                className="px-4 py-2 h-11 border border-gray-300 rounded-lg text-sm hover:bg-gray-50"
               >
                 Successivo →
               </button>
@@ -460,7 +460,7 @@ export default function FreeHoursPage() {
                   setError("");
                   setShowForm(true);
                 }}
-                className="px-4 py-2 h-10 bg-gray-900 text-white rounded-lg hover:bg-gray-800 text-sm font-medium"
+                className="px-4 py-2 h-11 bg-gray-900 text-white rounded-lg hover:bg-gray-800 text-sm font-medium"
               >
                 + Inserisci ore libere
               </button>
@@ -578,7 +578,7 @@ export default function FreeHoursPage() {
                     type="date"
                     value={formData.date}
                     onChange={(e) => setFormData({ ...formData, date: e.target.value })}
-                    className="w-full px-3 py-2 h-10 border border-gray-300 rounded-lg text-sm"
+                    className="w-full px-3 py-2 h-11 border border-gray-300 rounded-lg text-sm"
                     required
                   />
                 </div>
@@ -587,7 +587,7 @@ export default function FreeHoursPage() {
                   <select
                     value={formData.locationId}
                     onChange={(e) => setFormData({ ...formData, locationId: e.target.value })}
-                    className="w-full px-3 py-2 h-10 border border-gray-300 rounded-lg text-sm"
+                    className="w-full px-3 py-2 h-11 border border-gray-300 rounded-lg text-sm"
                     required
                   >
                     <option value="">Seleziona...</option>
@@ -610,7 +610,7 @@ export default function FreeHoursPage() {
                         dutyId: "",
                       })
                     }
-                    className="w-full px-3 py-2 h-10 border border-gray-300 rounded-lg text-sm"
+                    className="w-full px-3 py-2 h-11 border border-gray-300 rounded-lg text-sm"
                     required
                   >
                     <option value="">Seleziona...</option>
@@ -632,7 +632,7 @@ export default function FreeHoursPage() {
                         dutyId: "",
                       })
                     }
-                    className="w-full px-3 py-2 h-10 border border-gray-300 rounded-lg text-sm"
+                    className="w-full px-3 py-2 h-11 border border-gray-300 rounded-lg text-sm"
                     required
                   >
                     <option value="">Seleziona...</option>
@@ -648,7 +648,7 @@ export default function FreeHoursPage() {
                   <select
                     value={formData.dutyId}
                     onChange={(e) => setFormData({ ...formData, dutyId: e.target.value })}
-                    className="w-full px-3 py-2 h-10 border border-gray-300 rounded-lg text-sm"
+                    className="w-full px-3 py-2 h-11 border border-gray-300 rounded-lg text-sm"
                     required
                   >
                     <option value="">Seleziona...</option>
@@ -666,7 +666,7 @@ export default function FreeHoursPage() {
                       type="time"
                       value={formData.startTime}
                       onChange={(e) => setFormData({ ...formData, startTime: e.target.value })}
-                      className="w-full px-3 py-2 h-10 border border-gray-300 rounded-lg text-sm"
+                      className="w-full px-3 py-2 h-11 border border-gray-300 rounded-lg text-sm"
                       required
                     />
                   </div>
@@ -676,7 +676,7 @@ export default function FreeHoursPage() {
                       type="time"
                       value={formData.endTime}
                       onChange={(e) => setFormData({ ...formData, endTime: e.target.value })}
-                      className="w-full px-3 py-2 h-10 border border-gray-300 rounded-lg text-sm"
+                      className="w-full px-3 py-2 h-11 border border-gray-300 rounded-lg text-sm"
                       required
                     />
                   </div>
@@ -695,7 +695,7 @@ export default function FreeHoursPage() {
                             next[idx] = { ...next[idx], start: e.target.value };
                             setFormData({ ...formData, actualBreaks: next });
                           }}
-                          className="w-full px-3 py-2 h-10 border border-gray-300 rounded-lg text-sm"
+                          className="w-full px-3 py-2 h-11 border border-gray-300 rounded-lg text-sm"
                         />
                       </div>
                       <div className="flex-1 min-w-0 w-full md:min-w-[100px]">
@@ -708,7 +708,7 @@ export default function FreeHoursPage() {
                             next[idx] = { ...next[idx], end: e.target.value };
                             setFormData({ ...formData, actualBreaks: next });
                           }}
-                          className="w-full px-3 py-2 h-10 border border-gray-300 rounded-lg text-sm"
+                          className="w-full px-3 py-2 h-11 border border-gray-300 rounded-lg text-sm"
                         />
                       </div>
                       <button
@@ -748,7 +748,7 @@ export default function FreeHoursPage() {
                         : "0.00"
                     }
                     readOnly
-                    className="w-full px-3 py-2 h-10 border border-gray-300 rounded-lg text-sm bg-gray-100"
+                    className="w-full px-3 py-2 h-11 border border-gray-300 rounded-lg text-sm bg-gray-100"
                   />
                 </div>
                 <div>

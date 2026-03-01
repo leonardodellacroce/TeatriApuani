@@ -311,7 +311,7 @@ export default function NewWorkdayPage() {
               type="text"
               value={event.title}
               disabled
-              className="w-full px-3 py-2 h-10 border border-gray-300 rounded-lg text-sm bg-gray-100 text-gray-700 cursor-not-allowed"
+              className="w-full px-3 py-2 h-11 border border-gray-300 rounded-lg text-sm bg-gray-100 text-gray-700 cursor-not-allowed"
             />
           </div>
 
@@ -324,7 +324,7 @@ export default function NewWorkdayPage() {
               type="text"
               value={event.location?.name || "-"}
               disabled
-              className="w-full px-3 py-2 h-10 border border-gray-300 rounded-lg text-sm bg-gray-100 text-gray-700 cursor-not-allowed"
+              className="w-full px-3 py-2 h-11 border border-gray-300 rounded-lg text-sm bg-gray-100 text-gray-700 cursor-not-allowed"
             />
           </div>
 
@@ -337,7 +337,7 @@ export default function NewWorkdayPage() {
               type="text"
               value={event.clientName || "-"}
               disabled
-              className="w-full px-3 py-2 h-10 border border-gray-300 rounded-lg text-sm bg-gray-100 text-gray-700 cursor-not-allowed"
+              className="w-full px-3 py-2 h-11 border border-gray-300 rounded-lg text-sm bg-gray-100 text-gray-700 cursor-not-allowed"
             />
           </div>
 
@@ -437,7 +437,7 @@ export default function NewWorkdayPage() {
                     min={getMinDate()}
                     max={getMaxDate()}
                     required
-                    className={`w-full px-3 py-2 h-10 border rounded-lg text-sm focus:ring-2 focus:ring-gray-900 focus:border-transparent ${
+                    className={`w-full px-3 py-2 h-11 border rounded-lg text-sm focus:ring-2 focus:ring-gray-900 focus:border-transparent ${
                       isDateDuplicate(workdays[index].date, index) && workdays[index].date
                         ? "border-red-500"
                         : "border-gray-300"
@@ -546,7 +546,7 @@ export default function NewWorkdayPage() {
                               setTimeSpanErrors(newErrors);
                             }
                           }}
-                          className={`w-full px-3 py-2 h-10 border rounded-lg text-sm focus:ring-2 focus:ring-gray-900 focus:border-transparent ${
+                          className={`w-full px-3 py-2 h-11 border rounded-lg text-sm focus:ring-2 focus:ring-gray-900 focus:border-transparent ${
                             timeSpanErrors.get(`${index}-${tsIdx}`) ? 'border-red-500' : 'border-gray-300'
                           }`}
                         />
@@ -592,7 +592,7 @@ export default function NewWorkdayPage() {
                               setTimeSpanErrors(newErrors);
                             }
                           }}
-                          className={`w-full px-3 py-2 h-10 border rounded-lg text-sm focus:ring-2 focus:ring-gray-900 focus:border-transparent ${
+                          className={`w-full px-3 py-2 h-11 border rounded-lg text-sm focus:ring-2 focus:ring-gray-900 focus:border-transparent ${
                             timeSpanErrors.get(`${index}-${tsIdx}`) ? 'border-red-500' : 'border-gray-300'
                           }`}
                         />

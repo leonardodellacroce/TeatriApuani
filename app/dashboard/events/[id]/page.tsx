@@ -515,7 +515,7 @@ export default function EventDetailPage() {
               onClick={() => router.push("/dashboard/events")}
               aria-label="Indietro"
               title="Indietro"
-              className="h-10 w-10 shrink-0 inline-flex items-center justify-center rounded-lg bg-gray-900 text-white hover:bg-gray-800 hover:shadow-lg transition-colors"
+              className="h-11 w-11 shrink-0 inline-flex items-center justify-center rounded-lg bg-gray-900 text-white hover:bg-gray-800 hover:shadow-lg transition-colors"
             >
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7" />
@@ -589,7 +589,7 @@ export default function EventDetailPage() {
                       }}
                       aria-label="Modifica Evento"
                       title={hasAnyWorkdayInClosedMonth ? "Impossibile modificare: una giornata è in un mese chiuso" : "Modifica Evento"}
-                      className={`h-10 w-10 inline-flex items-center justify-center rounded-lg transition-colors ${hasAnyWorkdayInClosedMonth ? "bg-gray-400 text-gray-200 cursor-not-allowed" : "bg-gray-900 text-white hover:bg-gray-800 hover:shadow-lg"}`}
+                      className={`h-11 w-11 inline-flex items-center justify-center rounded-lg transition-colors ${hasAnyWorkdayInClosedMonth ? "bg-gray-400 text-gray-200 cursor-not-allowed" : "bg-gray-900 text-white hover:bg-gray-800 hover:shadow-lg"}`}
                     >
                       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.232 5.232l3.536 3.536M4 20h4l10.293-10.293a1 1 0 000-1.414l-2.586-2.586a1 1 0 00-1.414 0L4 16v4z" /></svg>
                     </button>
@@ -614,7 +614,7 @@ export default function EventDetailPage() {
                       }}
                       aria-label="Sposta Evento"
                       title={hasAnyWorkdayInClosedMonth ? "Impossibile spostare: una giornata è in un mese chiuso" : "Sposta evento (trasla date e giornate)"}
-                      className={`h-10 w-10 inline-flex items-center justify-center rounded-lg transition-colors ${hasAnyWorkdayInClosedMonth ? "bg-gray-400 text-gray-200 cursor-not-allowed" : "bg-gray-900 text-white hover:bg-gray-800 hover:shadow-lg"}`}
+                      className={`h-11 w-11 inline-flex items-center justify-center rounded-lg transition-colors ${hasAnyWorkdayInClosedMonth ? "bg-gray-400 text-gray-200 cursor-not-allowed" : "bg-gray-900 text-white hover:bg-gray-800 hover:shadow-lg"}`}
                     >
                       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" /></svg>
                     </button>
@@ -629,7 +629,7 @@ export default function EventDetailPage() {
                         }}
                         aria-label="Elimina Evento"
                         title={hasAnyWorkdayInClosedMonth ? "Impossibile eliminare: una giornata è in un mese chiuso" : "Elimina Evento"}
-                        className={`h-10 w-10 inline-flex items-center justify-center rounded-lg transition-colors ${hasAnyWorkdayInClosedMonth ? "bg-red-300 text-red-100 cursor-not-allowed" : "bg-red-600 text-white hover:bg-red-700"}`}
+                        className={`h-11 w-11 inline-flex items-center justify-center rounded-lg transition-colors ${hasAnyWorkdayInClosedMonth ? "bg-red-300 text-red-100 cursor-not-allowed" : "bg-red-600 text-white hover:bg-red-700"}`}
                       >
                         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6M9 7h6m-1-2H10l1-1h2l1 1z" /></svg>
                       </button>
@@ -1247,7 +1247,7 @@ export default function EventDetailPage() {
                 value={moveNewStartDate}
                 onChange={(e) => setMoveNewStartDate(e.target.value)}
                 disabled={moveLoading}
-                className="w-full px-3 py-2 h-10 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-gray-900 focus:border-transparent"
+                className="w-full px-3 py-2 h-11 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-gray-900 focus:border-transparent"
               />
             </div>
             {moveError && (
