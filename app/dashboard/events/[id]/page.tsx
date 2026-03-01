@@ -509,7 +509,7 @@ export default function EventDetailPage() {
   return (
     <DashboardShell>
       <div>
-        <div className="mb-4 md:mb-6">
+        <div className="mb-6">
           <div className="flex items-start gap-3">
             <button
               onClick={() => router.push("/dashboard/events")}
@@ -567,6 +567,35 @@ export default function EventDetailPage() {
                     <button
                       onClick={() => {
                         if (hasAnyWorkdayInClosedMonth) {
+                          setAlertMessage({ message: "Impossibile modificare: una giornata dell'evento è in un mese chiuso" });
+                          return;
+                        }
+                        if (event) {
+                          const eventEndDate = new Date(event.endDate);
+                          const now = new Date();
+                          const eventEndDay = new Date(eventEndDate.getFullYear(), eventEndDate.getMonth(), eventEndDate.getDate());
+                          const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+                          const isPast = eventEndDay < today;
+                          if (isPast && !isSuperAdmin) {
+                            setAlertMessage({ message: "Gli eventi passati possono essere modificati solo dal Super Admin" });
+                            return;
+                          }
+                          if (isPast && isSuperAdmin) {
+                            setShowPastEventEditDialog(true);
+                            return;
+                          }
+                        }
+                        router.push(`/dashboard/events/${eventId}/edit?tab=${activeTab}`);
+                      }}
+                      aria-label="Modifica Evento"
+                      title={hasAnyWorkdayInClosedMonth ? "Impossibile modificare: una giornata è in un mese chiuso" : "Modifica Evento"}
+                      className={`h-10 w-10 inline-flex items-center justify-center rounded-lg transition-colors ${hasAnyWorkdayInClosedMonth ? "bg-gray-400 text-gray-200 cursor-not-allowed" : "bg-gray-900 text-white hover:bg-gray-800 hover:shadow-lg"}`}
+                    >
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.232 5.232l3.536 3.536M4 20h4l10.293-10.293a1 1 0 000-1.414l-2.586-2.586a1 1 0 00-1.414 0L4 16v4z" /></svg>
+                    </button>
+                    <button
+                      onClick={() => {
+                        if (hasAnyWorkdayInClosedMonth) {
                           setAlertMessage({ message: "Impossibile spostare: una giornata dell'evento è in un mese chiuso" });
                           return;
                         }
@@ -614,7 +643,7 @@ export default function EventDetailPage() {
 
         {/* Tab Navigation - Solo per admin/responsabili */}
         {!isStandardUser && (
-          <div className="border-b border-gray-200 mb-4 md:mb-6">
+          <div className="border-b border-gray-200 mb-6">
             <nav className="-mb-px flex space-x-8">
               <button
                 onClick={() => setActiveTab("details")}
@@ -681,7 +710,7 @@ export default function EventDetailPage() {
 
         {(isStandardUser || activeTab === "workdays") && (
           <div className="space-y-6">
-            <div className="flex justify-between items-center gap-3 flex-wrap">
+            <div className="flex justify-between items-center">
               <div>
                 <h2 className="text-xl font-semibold">Giornate di Lavoro</h2>
                 {event && (
@@ -691,38 +720,7 @@ export default function EventDetailPage() {
                 )}
               </div>
               {canEditEvents && (
-                <div className="flex items-center gap-2 flex-shrink-0">
-                  <Tooltip content={hasAnyWorkdayInClosedMonth ? "Impossibile modificare: una giornata è in un mese chiuso" : "Modifica Evento"}>
-                    <button
-                      onClick={() => {
-                        if (hasAnyWorkdayInClosedMonth) {
-                          setAlertMessage({ message: "Impossibile modificare: una giornata dell'evento è in un mese chiuso" });
-                          return;
-                        }
-                        if (event) {
-                          const eventEndDate = new Date(event.endDate);
-                          const now = new Date();
-                          const eventEndDay = new Date(eventEndDate.getFullYear(), eventEndDate.getMonth(), eventEndDate.getDate());
-                          const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-                          const isPast = eventEndDay < today;
-                          if (isPast && !isSuperAdmin) {
-                            setAlertMessage({ message: "Gli eventi passati possono essere modificati solo dal Super Admin" });
-                            return;
-                          }
-                          if (isPast && isSuperAdmin) {
-                            setShowPastEventEditDialog(true);
-                            return;
-                          }
-                        }
-                        router.push(`/dashboard/events/${eventId}/edit?tab=${activeTab}`);
-                      }}
-                      aria-label="Modifica Evento"
-                      disabled={hasAnyWorkdayInClosedMonth}
-                      className={`h-10 w-10 inline-flex items-center justify-center rounded-lg transition-colors ${hasAnyWorkdayInClosedMonth ? "bg-gray-400 text-gray-200 cursor-not-allowed" : "bg-gray-900 text-white hover:bg-gray-800 hover:shadow-lg"}`}
-                    >
-                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.232 5.232l3.536 3.536M4 20h4l10.293-10.293a1 1 0 000-1.414l-2.586-2.586a1 1 0 00-1.414 0L4 16v4z" /></svg>
-                    </button>
-                  </Tooltip>
+                <div>
                   {canAddWorkday() && !hasAnyWorkdayInClosedMonth ? (
                     <button
                       onClick={() => router.push(`/dashboard/events/${eventId}/workdays/new`)}
@@ -1239,7 +1237,7 @@ export default function EventDetailPage() {
             <div className="text-sm text-gray-600">
               Data attuale di inizio: <strong>{formatDate(event.startDate)}</strong>
             </div>
-            <div className="min-w-0">
+            <div>
               <label htmlFor="move-new-start" className="block text-sm font-medium text-gray-700 mb-1">
                 Nuova data di inizio
               </label>
@@ -1249,7 +1247,7 @@ export default function EventDetailPage() {
                 value={moveNewStartDate}
                 onChange={(e) => setMoveNewStartDate(e.target.value)}
                 disabled={moveLoading}
-                className="w-full min-w-0 px-3 py-2 h-10 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-gray-900 focus:border-transparent box-border"
+                className="w-full px-3 py-2 h-10 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-gray-900 focus:border-transparent"
               />
             </div>
             {moveError && (
