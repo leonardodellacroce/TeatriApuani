@@ -58,6 +58,7 @@ input[type="week"] {
   width: 100% !important;
   min-width: 0 !important;
   line-height: 1.25 !important;
+  height: 2.25rem !important; /* 36px = h-9, allineato a Titolo/Clienti/Location */
 }
 
 input[type="date"]::-webkit-datetime-edit,

@@ -231,18 +231,18 @@ export default function NewEventPage() {
 
   return (
     <DashboardShell>
-      <div>
+      <div className="min-w-0 max-w-full overflow-x-hidden">
         <h1 className="text-3xl font-bold mb-6">Nuovo Evento</h1>
 
-        <div className="bg-white rounded-lg shadow p-4 md:p-6 border border-gray-200 mb-6 max-w-xl w-full min-w-0 overflow-x-hidden">
-        <form onSubmit={handleSubmit} className="space-y-4 min-w-0">
+        <div className="bg-white rounded-lg shadow p-4 md:p-6 border border-gray-200 mb-6 max-w-xl w-full max-w-full min-w-0 overflow-hidden">
+        <form onSubmit={handleSubmit} className="space-y-4 min-w-0 w-full max-w-full">
           {error && (
             <div className="p-4 bg-red-50 border border-red-200 text-red-700 rounded-lg">
               {error}
             </div>
           )}
 
-          <div>
+          <div className="min-w-0 w-full">
             <label htmlFor="title" className="block text-sm font-medium text-gray-700 mb-1">
               Titolo *
             </label>
@@ -257,12 +257,12 @@ export default function NewEventPage() {
             />
           </div>
 
-          <div>
+          <div className="min-w-0 w-full">
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Clienti *
             </label>
             {selectedClients.map((selectedClient, index) => (
-              <div key={index} className="flex gap-2 mb-2 min-w-0">
+              <div key={index} className="flex gap-2 mb-2 min-w-0 w-full max-w-full">
                 <div className="flex-1 min-w-0">
                   <SearchableSelect
                     value={selectedClient.id}
@@ -304,7 +304,7 @@ export default function NewEventPage() {
             ))}
           </div>
 
-          <div>
+          <div className="min-w-0 w-full">
             <label htmlFor="locationId" className="block text-sm font-medium text-gray-700 mb-1">
               Location
             </label>
@@ -324,7 +324,7 @@ export default function NewEventPage() {
             />
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 min-w-0">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 min-w-0 w-full max-w-full">
             <div className="min-w-0 overflow-hidden">
               <label htmlFor="startDate" className="block text-sm font-medium text-gray-700 mb-1">
                 Data Inizio *
@@ -357,14 +357,14 @@ export default function NewEventPage() {
           </div>
 
           {calculatedDays !== null && (
-            <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
+            <div className="py-2 px-3 bg-blue-50 border border-blue-200 rounded-lg">
               <p className="text-sm text-blue-800">
                 Giornate di lavoro previste: <span className="font-semibold">{calculatedDays}</span>
               </p>
             </div>
           )}
 
-          <div>
+          <div className="min-w-0 w-full">
             <label htmlFor="notes" className="block text-sm font-medium text-gray-700 mb-1">
               Note
             </label>
@@ -373,8 +373,8 @@ export default function NewEventPage() {
               name="notes"
               value={formData.notes}
               onChange={handleChange}
-              rows={3}
-              className="w-full px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-gray-900 focus:border-transparent min-h-0"
+              rows={1}
+              className="w-full px-3 py-1.5 h-9 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-gray-900 focus:border-transparent min-h-0 resize-none overflow-y-auto"
             />
           </div>
 
