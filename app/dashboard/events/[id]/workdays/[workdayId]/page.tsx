@@ -3279,7 +3279,7 @@ export default function WorkdayViewPage() {
                           {(activityTimes[taskType.id] || [{ start: "", end: "" }]).map((interval, idx) => (
                             <div key={idx} className="space-y-2">
                               <div className="flex gap-4 items-end">
-                                <div className="flex-1">
+                                <div className="flex-1 min-w-0">
                                   <label className="block text-xs text-gray-500 mb-1">Ora Inizio</label>
                                   <input
                                     type="time"
@@ -3308,7 +3308,7 @@ export default function WorkdayViewPage() {
                                     }`}
                                   />
                                 </div>
-                                <div className="flex-1">
+                                <div className="flex-1 min-w-0">
                                   <label className="block text-xs text-gray-500 mb-1">Ora Fine</label>
                                   <input
                                     type="time"
@@ -3755,7 +3755,7 @@ export default function WorkdayViewPage() {
                                     </button>
                                   </div>
                                 )}
-                                <div className="flex-1">
+                                <div className="flex-1 min-w-0">
                                   <label className="block text-xs text-gray-500 mb-1">Ora Inizio</label>
                                   <input
                                     type="time"
@@ -3806,7 +3806,7 @@ export default function WorkdayViewPage() {
                                     }`}
                                   />
                                 </div>
-                                <div className="flex-1">
+                                <div className="flex-1 min-w-0">
                                   <label className="block text-xs text-gray-500 mb-1">Ora Fine</label>
                                   <input
                                     type="time"
@@ -3991,7 +3991,7 @@ export default function WorkdayViewPage() {
                                 {((shiftBreaks[shiftType.id] || [])[intervalIdx] || []).map((brk, brkIdx) => (
                                   <div key={brkIdx} className="flex gap-2 items-end">
                                     {(shiftTimes[shiftType.id] || []).length > 1 && <div className="w-[33px]"></div>}
-                                    <div className="flex-1">
+                                    <div className="flex-1 min-w-0">
                                       <label className="block text-xs text-gray-500 mb-1">Inizio</label>
                                       <input
                                         type="time"
@@ -4008,7 +4008,7 @@ export default function WorkdayViewPage() {
                                         className="w-full px-3 py-2 h-10 border border-gray-300 rounded-lg text-sm"
                                       />
                                     </div>
-                                    <div className="flex-1">
+                                    <div className="flex-1 min-w-0">
                                       <label className="block text-xs text-gray-500 mb-1">Fine</label>
                                       <input
                                         type="time"

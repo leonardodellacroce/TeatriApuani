@@ -292,7 +292,7 @@ export default function EditWorkdayPage() {
           </div>
 
           {/* Data */}
-          <div>
+          <div className="min-w-0 overflow-hidden">
             <label htmlFor="date" className="block text-sm font-medium text-gray-700 mb-1">
               Data *
             </label>
@@ -355,7 +355,7 @@ export default function EditWorkdayPage() {
                     </button>
                   </div>
                 )}
-                <div className="flex-1">
+                <div className="flex-1 min-w-0">
                   <label className="block text-sm font-medium text-gray-700 mb-1">Orario Inizio</label>
                   <input
                     type="time"
@@ -397,7 +397,7 @@ export default function EditWorkdayPage() {
                     }`}
                   />
                 </div>
-                <div className="flex-1">
+                <div className="flex-1 min-w-0">
                   <label className="block text-sm font-medium text-gray-700 mb-1">Ora Fine</label>
                   <input
                     type="time"

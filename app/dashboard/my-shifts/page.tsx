@@ -724,7 +724,7 @@ export default function MyShiftsPage() {
                   <div className="text-sm font-medium text-gray-700 mb-2">Pause effettive</div>
                   {formData.actualBreaks.map((brk, idx) => (
                     <div key={idx} className="flex gap-2 items-end mb-2">
-                      <div className="flex-1">
+                      <div className="flex-1 min-w-0">
                         <label className="block text-xs text-gray-500 mb-1">Inizio</label>
                         <input
                           type="time"
@@ -737,7 +737,7 @@ export default function MyShiftsPage() {
                           className="w-full px-3 py-2 h-10 border border-gray-300 rounded-lg text-sm"
                         />
                       </div>
-                      <div className="flex-1">
+                      <div className="flex-1 min-w-0">
                         <label className="block text-xs text-gray-500 mb-1">Fine</label>
                         <input
                           type="time"

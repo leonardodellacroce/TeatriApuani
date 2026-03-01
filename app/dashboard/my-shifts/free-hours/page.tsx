@@ -400,22 +400,22 @@ export default function FreeHoursPage() {
 
         <div className="bg-white rounded-lg border border-gray-200 p-4 mb-6">
           <div className="flex flex-wrap items-end gap-4">
-            <div className="min-w-[240px]">
+            <div className="min-w-[240px] overflow-hidden">
               <label className="block text-sm font-medium text-gray-700 mb-1">Data Inizio</label>
               <input
                 type="date"
                 value={startDate}
                 onChange={(e) => setStartDate(e.target.value)}
-                className="w-full px-3 py-2 h-10 border border-gray-300 rounded-lg text-sm"
+                className="w-full min-w-0 px-3 py-2 h-10 border border-gray-300 rounded-lg text-sm"
               />
             </div>
-            <div className="min-w-[240px]">
+            <div className="min-w-[240px] overflow-hidden">
               <label className="block text-sm font-medium text-gray-700 mb-1">Data Fine</label>
               <input
                 type="date"
                 value={endDate}
                 onChange={(e) => setEndDate(e.target.value)}
-                className="w-full px-3 py-2 h-10 border border-gray-300 rounded-lg text-sm"
+                className="w-full min-w-0 px-3 py-2 h-10 border border-gray-300 rounded-lg text-sm"
               />
             </div>
             <div className="flex items-end gap-2">
@@ -685,7 +685,7 @@ export default function FreeHoursPage() {
                   <div className="text-sm font-medium text-gray-700 mb-2">Pause effettive</div>
                   {formData.actualBreaks.map((brk, idx) => (
                     <div key={idx} className="flex gap-2 items-end mb-2">
-                      <div className="flex-1">
+                      <div className="flex-1 min-w-0">
                         <label className="block text-xs text-gray-500 mb-1">Inizio</label>
                         <input
                           type="time"
@@ -698,7 +698,7 @@ export default function FreeHoursPage() {
                           className="w-full px-3 py-2 h-10 border border-gray-300 rounded-lg text-sm"
                         />
                       </div>
-                      <div className="flex-1">
+                      <div className="flex-1 min-w-0">
                         <label className="block text-xs text-gray-500 mb-1">Fine</label>
                         <input
                           type="time"

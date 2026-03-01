@@ -426,7 +426,7 @@ export default function NewWorkdayPage() {
                 </div>
 
                 {/* Data */}
-                <div>
+                <div className="min-w-0">
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Data *
                   </label>
@@ -505,7 +505,7 @@ export default function NewWorkdayPage() {
                           </button>
                         </div>
                       )}
-                      <div className="flex-1">
+                      <div className="flex-1 min-w-0">
                         <label className="block text-sm font-medium text-gray-700 mb-1">Orario Inizio</label>
                         <input
                           type="time"
@@ -551,7 +551,7 @@ export default function NewWorkdayPage() {
                           }`}
                         />
                       </div>
-                      <div className="flex-1">
+                      <div className="flex-1 min-w-0">
                         <label className="block text-sm font-medium text-gray-700 mb-1">Ora Fine</label>
                         <input
                           type="time"

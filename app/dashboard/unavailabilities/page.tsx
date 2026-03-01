@@ -639,56 +639,56 @@ export default function UnavailabilitiesPage() {
                 </div>
               </div>
               {formTimeMode === "until" && (
-                <div>
+                <div className="min-w-0 overflow-hidden">
                   <label className="block text-sm font-medium text-gray-700 mb-1">Ora fine *</label>
                   <input
                     type="time"
                     value={formEndTime}
                     onChange={(e) => setFormEndTime(e.target.value)}
-                    className="w-full max-w-xs px-3 py-2 border border-gray-300 rounded-lg"
+                    className="w-full min-w-0 max-w-xs px-3 py-2 h-10 border border-gray-300 rounded-lg"
                     required
                   />
                 </div>
               )}
               {formTimeMode === "from" && (
-                <div>
+                <div className="min-w-0 overflow-hidden">
                   <label className="block text-sm font-medium text-gray-700 mb-1">Ora inizio *</label>
                   <input
                     type="time"
                     value={formStartTime}
                     onChange={(e) => setFormStartTime(e.target.value)}
-                    className="w-full max-w-xs px-3 py-2 border border-gray-300 rounded-lg"
+                    className="w-full min-w-0 max-w-xs px-3 py-2 h-10 border border-gray-300 rounded-lg"
                     required
                   />
                 </div>
               )}
               {formTimeMode === "interval" && (
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
+                <div className="grid grid-cols-2 gap-4 min-w-0">
+                  <div className="min-w-0 overflow-hidden">
                     <label className="block text-sm font-medium text-gray-700 mb-1">Ora inizio *</label>
                     <input
                       type="time"
                       value={formStartTime}
                       onChange={(e) => setFormStartTime(e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                      className="w-full min-w-0 px-3 py-2 h-10 border border-gray-300 rounded-lg"
                       required
                     />
                   </div>
-                  <div>
+                  <div className="min-w-0 overflow-hidden">
                     <label className="block text-sm font-medium text-gray-700 mb-1">Ora fine *</label>
                     <input
                       type="time"
                       value={formEndTime}
                       onChange={(e) => setFormEndTime(e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                      className="w-full min-w-0 px-3 py-2 h-10 border border-gray-300 rounded-lg"
                       required
                     />
                   </div>
                 </div>
               )}
               {formTimeMode === "all_day" ? (
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
+                <div className="grid grid-cols-2 gap-4 min-w-0">
+                  <div className="min-w-0 overflow-hidden">
                     <label className="block text-sm font-medium text-gray-700 mb-1">Data inizio *</label>
                     <input
                       type="date"
@@ -700,24 +700,24 @@ export default function UnavailabilitiesPage() {
                           setFormDateEnd(v);
                         }
                       }}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                      className="w-full min-w-0 px-3 py-2 h-10 border border-gray-300 rounded-lg"
                       required
                     />
                   </div>
-                  <div>
+                  <div className="min-w-0 overflow-hidden">
                     <label className="block text-sm font-medium text-gray-700 mb-1">Data fine *</label>
                     <input
                       type="date"
                       value={formDateEnd}
                       onChange={(e) => setFormDateEnd(e.target.value)}
                       min={formDateStart || undefined}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                      className="w-full min-w-0 px-3 py-2 h-10 border border-gray-300 rounded-lg"
                       required
                     />
                   </div>
                 </div>
               ) : (
-                <div>
+                <div className="min-w-0 overflow-hidden">
                   <label className="block text-sm font-medium text-gray-700 mb-1">Data *</label>
                   <input
                     type="date"
@@ -727,7 +727,7 @@ export default function UnavailabilitiesPage() {
                       setFormDateStart(v);
                       setFormDateEnd(v);
                     }}
-                    className="w-full max-w-xs px-3 py-2 border border-gray-300 rounded-lg"
+                    className="w-full min-w-0 max-w-xs px-3 py-2 h-10 border border-gray-300 rounded-lg"
                     required
                   />
                 </div>
