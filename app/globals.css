@@ -51,11 +51,12 @@ input[type="datetime-local"],
 input[type="month"],
 input[type="week"] {
   overflow: hidden !important;
+  overflow-x: hidden !important;
+  overflow-y: hidden !important;
   box-sizing: border-box !important;
   display: block !important;
   width: 100% !important;
   min-width: 0 !important;
-  max-height: 2.5rem !important;
   line-height: 1.25 !important;
 }
 
@@ -89,6 +90,15 @@ input[type="time"]::-webkit-inner-spin-button,
 input[type="datetime-local"]::-webkit-inner-spin-button {
   height: auto !important;
   margin: 0 !important;
+}
+
+/* Nasconde scrollbar interno su date/time (Safari/iOS) */
+input[type="date"]::-webkit-scrollbar,
+input[type="time"]::-webkit-scrollbar,
+input[type="datetime-local"]::-webkit-scrollbar {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
 }
 
 /* Form controls: forzati in light mode */

@@ -241,10 +241,10 @@ export default function EditWorkdayPage() {
 
   return (
     <DashboardShell>
-      <div>
+      <div className="min-w-0 overflow-hidden">
         <h1 className="text-3xl font-bold mb-6">Modifica Giornata di Lavoro</h1>
 
-        <form onSubmit={handleSubmit} className="max-w-2xl space-y-4">
+        <form onSubmit={handleSubmit} className="max-w-2xl space-y-4 min-w-0">
           {error && (
             <div className="p-4 bg-red-50 border border-red-200 text-red-700 rounded-lg">
               {error}
@@ -321,10 +321,10 @@ export default function EditWorkdayPage() {
 
             {timeSpans.map((ts, idx) => (
               <div key={idx} className="space-y-2">
-                <div className="flex gap-2 items-end">
+                <div className="flex flex-col md:flex-row md:gap-2 md:items-end gap-3">
                 {/* Pulsanti su/giù - solo se ci sono più intervalli */}
                 {timeSpans.length > 1 && (
-                  <div className="flex flex-col gap-1">
+                  <div className="flex flex-col gap-1 order-first md:order-none">
                     <button
                       type="button"
                       onClick={() => {
@@ -355,7 +355,7 @@ export default function EditWorkdayPage() {
                     </button>
                   </div>
                 )}
-                <div className="flex-1 min-w-0">
+                <div className="flex-1 min-w-0 w-full md:min-w-[120px]">
                   <label className="block text-sm font-medium text-gray-700 mb-1">Orario Inizio</label>
                   <input
                     type="time"
@@ -397,7 +397,7 @@ export default function EditWorkdayPage() {
                     }`}
                   />
                 </div>
-                <div className="flex-1 min-w-0">
+                <div className="flex-1 min-w-0 w-full md:min-w-[120px]">
                   <label className="block text-sm font-medium text-gray-700 mb-1">Ora Fine</label>
                   <input
                     type="time"

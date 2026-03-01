@@ -469,7 +469,7 @@ export default function NewWorkdayPage() {
 
                       {workdays[index].timeSpans.map((ts, tsIdx) => (
                     <div key={tsIdx} className="space-y-2">
-                      <div className="flex gap-2 items-end">
+                      <div className="flex flex-col md:flex-row md:gap-2 md:items-end gap-3">
                       {/* Pulsanti su/giù - solo se ci sono più intervalli */}
                       {workdays[index].timeSpans.length > 1 && (
                         <div className="flex flex-col gap-1">
@@ -505,7 +505,7 @@ export default function NewWorkdayPage() {
                           </button>
                         </div>
                       )}
-                      <div className="flex-1 min-w-0">
+                      <div className="flex-1 min-w-0 w-full md:min-w-[120px]">
                         <label className="block text-sm font-medium text-gray-700 mb-1">Orario Inizio</label>
                         <input
                           type="time"
@@ -551,7 +551,7 @@ export default function NewWorkdayPage() {
                           }`}
                         />
                       </div>
-                      <div className="flex-1 min-w-0">
+                      <div className="flex-1 min-w-0 w-full md:min-w-[120px]">
                         <label className="block text-sm font-medium text-gray-700 mb-1">Ora Fine</label>
                         <input
                           type="time"

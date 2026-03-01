@@ -3703,10 +3703,10 @@ export default function WorkdayViewPage() {
                           
                           {(shiftTimes[shiftType.id] || [{ start: "", end: "" }]).map((interval, intervalIdx) => (
                             <div key={intervalIdx} className={`mb-3 space-y-2 ${intervalIdx > 0 ? 'pt-3 border-t border-gray-200' : ''}`}>
-                              <div className="flex gap-2 items-end">
+                              <div className="flex flex-col md:flex-row md:gap-2 md:items-end gap-3">
                                 {/* Pulsanti su/giù - solo se ci sono più intervalli */}
                                 {(shiftTimes[shiftType.id] || []).length > 1 && (
-                                  <div className="flex flex-col gap-1">
+                                  <div className="flex flex-col gap-1 order-first md:order-none">
                                     <button
                                       type="button"
                                       onClick={() => {
@@ -3755,7 +3755,7 @@ export default function WorkdayViewPage() {
                                     </button>
                                   </div>
                                 )}
-                                <div className="flex-1 min-w-0">
+                                <div className="flex-1 min-w-0 w-full md:min-w-[120px]">
                                   <label className="block text-xs text-gray-500 mb-1">Ora Inizio</label>
                                   <input
                                     type="time"
@@ -3806,7 +3806,7 @@ export default function WorkdayViewPage() {
                                     }`}
                                   />
                                 </div>
-                                <div className="flex-1 min-w-0">
+                                <div className="flex-1 min-w-0 w-full md:min-w-[120px]">
                                   <label className="block text-xs text-gray-500 mb-1">Ora Fine</label>
                                   <input
                                     type="time"
@@ -3989,9 +3989,9 @@ export default function WorkdayViewPage() {
                                 {(shiftTimes[shiftType.id] || []).length > 1 && <div className="w-[33px]"></div>}
                                 <div className="text-xs text-gray-500 font-medium">Pause</div>
                                 {((shiftBreaks[shiftType.id] || [])[intervalIdx] || []).map((brk, brkIdx) => (
-                                  <div key={brkIdx} className="flex gap-2 items-end">
-                                    {(shiftTimes[shiftType.id] || []).length > 1 && <div className="w-[33px]"></div>}
-                                    <div className="flex-1 min-w-0">
+                                  <div key={brkIdx} className="flex flex-col md:flex-row md:gap-2 md:items-end gap-3">
+                                    {(shiftTimes[shiftType.id] || []).length > 1 && <div className="w-[33px] hidden md:block"></div>}
+                                    <div className="flex-1 min-w-0 w-full md:min-w-[120px]">
                                       <label className="block text-xs text-gray-500 mb-1">Inizio</label>
                                       <input
                                         type="time"
@@ -4008,7 +4008,7 @@ export default function WorkdayViewPage() {
                                         className="w-full px-3 py-2 h-10 border border-gray-300 rounded-lg text-sm"
                                       />
                                     </div>
-                                    <div className="flex-1 min-w-0">
+                                    <div className="flex-1 min-w-0 w-full md:min-w-[120px]">
                                       <label className="block text-xs text-gray-500 mb-1">Fine</label>
                                       <input
                                         type="time"
