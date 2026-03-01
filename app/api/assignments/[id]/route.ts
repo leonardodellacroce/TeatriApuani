@@ -114,7 +114,6 @@ export async function PATCH(
     }
     
     // Solo il SUPER_ADMIN può modificare assignments per eventi passati
-    const isSuperAdmin = (session.user as any).isSuperAdmin === true;
     if (eventStatus.isPast && !isSuperAdmin) {
       return NextResponse.json(
         { error: "Non è possibile modificare assegnazioni per eventi passati (solo Super Admin)" },

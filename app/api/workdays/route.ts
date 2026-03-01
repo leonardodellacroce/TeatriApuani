@@ -78,7 +78,7 @@ export async function POST(request: NextRequest) {
     }
     
     // Solo il SUPER_ADMIN può creare workdays per eventi passati
-    const isSuperAdmin = (session.user as any).isSuperAdmin === true;
+    const isSuperAdmin = (session.user as any).isSuperAdmin === true || session.user.role === "SUPER_ADMIN";
     if (eventStatus.isPast && !isSuperAdmin) {
       return NextResponse.json(
         { error: "Non è possibile creare giornate per eventi passati (solo Super Admin)" },
@@ -92,7 +92,6 @@ export async function POST(request: NextRequest) {
       const [y, m, d] = date.split('-').map(Number);
       workdayDateForCheck = new Date(Date.UTC(y, m - 1, d, 0, 0, 0));
     }
-    const isSuperAdmin = (session.user as any).isSuperAdmin === true || session.user.role === "SUPER_ADMIN";
     const monthClosed = await isMonthClosed(workdayDateForCheck.getFullYear(), workdayDateForCheck.getMonth() + 1);
     if (monthClosed && !isSuperAdmin) {
       return NextResponse.json(

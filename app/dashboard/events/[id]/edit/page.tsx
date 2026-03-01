@@ -65,12 +65,11 @@ export default function EditEventPage() {
   const [originalClients, setOriginalClients] = useState<SelectedClient[]>([]);
   const [isEventPast, setIsEventPast] = useState(false);
   const { data: session, status } = useSession();
-  const isSuperAdmin = (session?.user as any)?.isSuperAdmin === true;
+  const isSuperAdmin = (session?.user as any)?.isSuperAdmin === true || session?.user?.role === "SUPER_ADMIN";
   const isStandardUser = !["SUPER_ADMIN", "ADMIN", "RESPONSABILE"].includes(session?.user?.role || "");
   const isWorker = (session?.user as any)?.isWorker === true;
   const inWorkerMode = !isStandardUser && isWorker && getWorkModeCookie() === "worker";
   const canEditEvent = !inWorkerMode && ["SUPER_ADMIN", "ADMIN"].includes(session?.user?.role || "");
-  const isSuperAdmin = (session?.user as any)?.isSuperAdmin === true || session?.user?.role === "SUPER_ADMIN";
 
   useEffect(() => {
     if (status === "loading") return;

@@ -855,7 +855,7 @@ export default function EventsPage() {
   const canDeleteEvents = !inWorkerModeEvents && (["SUPER_ADMIN", "ADMIN"].includes(session?.user?.role || "") || (session?.user as any)?.isAdmin === true || (session?.user as any)?.isSuperAdmin === true);
   
   // Utenti e Coordinatori vedono solo eventi aperti, senza filtro
-  const canSeeAllEvents = canSeeAllEvents(sessionUser);
+  const userCanSeeAllEvents = canSeeAllEvents(sessionUser);
   
   // Solo super admin, admin e responsabile possono aprire eventi chiusi
   const canOpenClosedEvents = ["SUPER_ADMIN", "ADMIN", "RESPONSABILE"].includes(userRole);
@@ -878,7 +878,7 @@ export default function EventsPage() {
   }, []);
 
   // Carica indisponibilità per vista Programma (solo admin)
-  const showPersoneMancanti = canSeeAllEvents && !inWorkerModeEvents;
+  const showPersoneMancanti = userCanSeeAllEvents && !inWorkerModeEvents;
   useEffect(() => {
     if (!showPersoneMancanti || viewMode !== "programma") return;
     const monthStart = new Date(selectedMonth.getFullYear(), selectedMonth.getMonth(), 1);
@@ -899,7 +899,7 @@ export default function EventsPage() {
     const enabledAreas = allAreas.filter(
       (a) => a?.id && a?.name && (a.enabledInWorkdayPlanning === true || a.enabledInWorkdayPlanning === undefined)
     );
-    if (canSeeAllEvents) {
+    if (userCanSeeAllEvents) {
       setProgrammaAreasToShow(enabledAreas.map((a) => ({ id: a.id, name: a.name })));
     } else if (enabledAreas.length > 0) {
       fetch("/api/users/me")
@@ -919,7 +919,7 @@ export default function EventsPage() {
     } else {
       setProgrammaAreasToShow([]);
     }
-  }, [canSeeAllEvents, allAreas]);
+  }, [userCanSeeAllEvents, allAreas]);
 
   // Chiudi il dropdown quando si clicca fuori
   useEffect(() => {
@@ -1247,7 +1247,7 @@ export default function EventsPage() {
         <div className="flex flex-col lg:flex-row lg:justify-between lg:items-center gap-4 mb-6">
           <h1 className="text-2xl lg:text-3xl font-bold text-gray-900">Eventi</h1>
           <div className="flex flex-wrap gap-2 lg:gap-4 items-center">
-            {canSeeAllEvents && (
+            {userCanSeeAllEvents && (
               <select
                 value={filterStatus}
                 onChange={(e) => setFilterStatus(e.target.value as "open" | "closed" | "all")}

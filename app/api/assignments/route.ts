@@ -331,7 +331,6 @@ export async function POST(req: NextRequest) {
     }
     
     // Solo il SUPER_ADMIN può creare assignments per eventi passati
-    const isSuperAdmin = (session.user as any).isSuperAdmin === true;
     if (eventStatus.isPast && !isSuperAdmin) {
       return NextResponse.json(
         { error: "Non è possibile creare assegnazioni per eventi passati (solo Super Admin)" },
