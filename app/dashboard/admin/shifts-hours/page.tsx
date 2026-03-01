@@ -111,6 +111,7 @@ export default function AdminShiftsHoursPage() {
   });
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [entryToDelete, setEntryToDelete] = useState<string | null>(null);
+  const [showNotifyMissingHoursConfirm, setShowNotifyMissingHoursConfirm] = useState(false);
   const [onlyMissingHours, setOnlyMissingHours] = useState(false);
   const [notifyLoading, setNotifyLoading] = useState(false);
   const [notifyResultModal, setNotifyResultModal] = useState<{ message: string; isError?: boolean } | null>(null);
@@ -718,7 +719,7 @@ export default function AdminShiftsHoursPage() {
               {missingHoursReminderActive && (
                 <button
                   type="button"
-                  onClick={handleNotifyMissingHours}
+                  onClick={() => setShowNotifyMissingHoursConfirm(true)}
                   disabled={notifyLoading}
                   className="px-4 py-2 h-10 bg-gray-900 text-white rounded-lg text-sm hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
@@ -1529,6 +1530,26 @@ export default function AdminShiftsHoursPage() {
             </div>
           );
         })()}
+
+        <ConfirmDialog
+          isOpen={showNotifyMissingHoursConfirm}
+          title="Notifica inserimento ore"
+          message={(() => {
+            const period = `${new Date(startDate).toLocaleDateString("it-IT")} - ${new Date(endDate).toLocaleDateString("it-IT")}`;
+            const target = selectedUserId && selectedUserId !== "all" && selectedUserName
+              ? `il dipendente ${selectedUserName}`
+              : "tutti i dipendenti";
+            const scope = onlyMissingHours ? " Solo le ore non ancora inserite verranno incluse." : "";
+            return `Verrà inviata una notifica a ${target} per il periodo ${period}.${scope} Vuoi continuare?`;
+          })()}
+          onConfirm={async () => {
+            setShowNotifyMissingHoursConfirm(false);
+            await handleNotifyMissingHours();
+          }}
+          onCancel={() => setShowNotifyMissingHoursConfirm(false)}
+          cancelLabel="Annulla"
+          confirmLabel="Invia"
+        />
 
         <ConfirmDialog
           isOpen={showDeleteDialog}

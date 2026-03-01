@@ -2161,8 +2161,8 @@ export default function WorkdayViewPage() {
     <>
     <DashboardShell>
       <div>
-        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 mb-4 lg:mb-6">
-          <div className="flex items-center gap-3 min-w-0">
+        <div className="flex flex-row justify-between items-center gap-3 mb-4 lg:mb-6">
+          <div className="flex items-center gap-3 min-w-0 flex-1">
             <button
               onClick={() => router.push(`/dashboard/events/${eventId}?tab=workdays`)}
               aria-label="Indietro"
@@ -2204,16 +2204,16 @@ export default function WorkdayViewPage() {
             {canEditEvents && workday.isOpen && !isReadOnly && (
               <div className="flex flex-wrap gap-2">
                 <button
-                  onClick={() => setShowResetConfirmModal(true)}
-                  className="w-full sm:w-auto px-4 py-2.5 border border-red-300 text-red-700 rounded-lg hover:bg-red-50 active:scale-100 transition-all duration-200 cursor-pointer text-sm"
-                >
-                  Reset
-                </button>
-                <button
                   onClick={handleOpenActivitiesModal}
                   className="w-full sm:w-auto px-4 py-2.5 bg-gray-900 text-white rounded-lg hover:bg-gray-800 active:scale-100 transition-all duration-200 cursor-pointer text-sm"
                 >
                   Definisci attività
+                </button>
+                <button
+                  onClick={() => setShowResetConfirmModal(true)}
+                  className="w-full sm:w-auto px-4 py-2.5 border border-red-300 text-red-700 rounded-lg hover:bg-red-50 active:scale-100 transition-all duration-200 cursor-pointer text-sm"
+                >
+                  Reset
                 </button>
               </div>
             )}

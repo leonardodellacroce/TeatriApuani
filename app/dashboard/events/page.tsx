@@ -873,6 +873,7 @@ export default function EventsPage() {
     key: keyof Event;
     direction: "asc" | "desc";
   } | null>(null);
+  const [showNotifyShiftChangesConfirm, setShowNotifyShiftChangesConfirm] = useState(false);
   const [notifyShiftChangesLoading, setNotifyShiftChangesLoading] = useState(false);
   const [notifyShiftChangesResult, setNotifyShiftChangesResult] = useState<{ created: number; updated: number } | null>(null);
   const [notifyShiftChangesError, setNotifyShiftChangesError] = useState<string | null>(null);
@@ -1248,44 +1249,14 @@ export default function EventsPage() {
   return (
     <DashboardShell>
       <div>
-        <div className="flex flex-col lg:flex-row lg:justify-between lg:items-center gap-4 mb-6">
-          <h1 className="text-2xl lg:text-3xl font-bold text-gray-900">Eventi</h1>
-          <div className="flex flex-wrap gap-2 lg:gap-4 items-center">
-            {canOpenClosedEvents && (
-              <button
-                type="button"
-                onClick={async () => {
-                  setNotifyShiftChangesLoading(true);
-                  setNotifyShiftChangesResult(null);
-                  setNotifyShiftChangesError(null);
-                  try {
-                    const res = await fetch("/api/admin/notify-shift-changes", { method: "POST" });
-                    const data = await res.json().catch(() => ({}));
-                    if (res.ok) {
-                      const created = data.created ?? 0;
-                      const updated = data.updated ?? 0;
-                      setNotifyShiftChangesResult({ created, updated });
-                    } else {
-                      setNotifyShiftChangesError(data.details || data.error || "Errore nell'invio");
-                    }
-                  } catch (e) {
-                    setNotifyShiftChangesError(e instanceof Error ? e.message : "Errore di rete");
-                  } finally {
-                    setNotifyShiftChangesLoading(false);
-                  }
-                }}
-                disabled={notifyShiftChangesLoading}
-                className="px-4 py-2 h-10 border border-gray-300 rounded-lg text-sm hover:bg-gray-50 hover:border-gray-400 transition-all duration-200 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-                title="Invia ai lavoratori le notifiche sui cambiamenti ai turni (inserimenti, modifiche, eliminazioni)"
-              >
-                {notifyShiftChangesLoading ? "Invio..." : "Notifica cambiamenti"}
-              </button>
-            )}
+        <div className="mb-6">
+          <h1 className="text-2xl lg:text-3xl font-bold text-gray-900 mb-4">Eventi</h1>
+          <div className="flex flex-wrap gap-2 lg:gap-4 items-center mb-3 w-full">
             {userCanSeeAllEvents && (
               <select
                 value={filterStatus}
                 onChange={(e) => setFilterStatus(e.target.value as "open" | "closed" | "all")}
-                className="pl-4 py-2 h-10 border border-gray-300 rounded-lg text-sm hover:border-gray-400 hover:shadow-md hover:bg-gray-50 focus:ring-2 focus:ring-gray-900 focus:border-transparent transition-all duration-200 cursor-pointer"
+                className="w-32 shrink-0 pl-4 py-2 h-10 border border-gray-300 rounded-lg text-sm hover:border-gray-400 hover:shadow-md hover:bg-gray-50 focus:ring-2 focus:ring-gray-900 focus:border-transparent transition-all duration-200 cursor-pointer"
               >
                 <option value="open">Solo Aperti</option>
                 <option value="closed">Solo Chiusi</option>
@@ -1293,11 +1264,11 @@ export default function EventsPage() {
               </select>
             )}
             {canEditEvents && (
-              <div className="relative client-filter-container">
+              <div className="relative client-filter-container flex-1 min-w-0">
               <button
                 type="button"
                 onClick={() => setShowClientDropdown(!showClientDropdown)}
-                className="pl-4 pr-3 py-2 h-10 border border-gray-300 rounded-lg text-sm hover:bg-gray-50 hover:border-gray-400 hover:shadow-md hover:scale-[1.02] active:scale-100 transition-all duration-200 cursor-pointer w-64 text-left flex justify-between items-center"
+                className="w-full min-w-0 pl-4 pr-3 py-2 h-10 border border-gray-300 rounded-lg text-sm hover:bg-gray-50 hover:border-gray-400 hover:shadow-md hover:scale-[1.02] active:scale-100 transition-all duration-200 cursor-pointer text-left flex justify-between items-center"
               >
                 <span>
                   {selectedClients.length === 0
@@ -1364,7 +1335,9 @@ export default function EventsPage() {
               )}
               </div>
             )}
-            <div className="relative flex bg-gray-300 rounded-lg px-1.5 py-1 shadow-[inset_2px_2px_4px_rgba(0,0,0,0.1),inset_-2px_-2px_4px_rgba(255,255,255,0.8)]" style={{ height: '44px' }}>
+          </div>
+          <div className="flex flex-wrap items-center gap-3 mb-3">
+            <div className="relative flex bg-gray-300 rounded-lg px-1.5 py-1 shadow-[inset_2px_2px_4px_rgba(0,0,0,0.1),inset_-2px_-2px_4px_rgba(255,255,255,0.8)] flex-1 min-w-0" style={{ height: '44px' }}>
               <button
                 onClick={() => setViewMode("list")}
                 className={`relative px-4 h-full text-sm font-medium rounded-md transition-all duration-300 cursor-pointer z-10 flex items-center justify-center ${
@@ -1396,15 +1369,26 @@ export default function EventsPage() {
                 Programma
               </button>
             </div>
-            {canEditEvents && (
+            {canOpenClosedEvents && (
               <button
-                onClick={() => router.push("/dashboard/events/new")}
-                className="px-4 py-2 h-10 bg-gray-900 text-white rounded-lg text-sm hover:bg-gray-800 hover:shadow-lg hover:scale-105 active:scale-100 transition-all duration-200 cursor-pointer"
+                type="button"
+                onClick={() => setShowNotifyShiftChangesConfirm(true)}
+                disabled={notifyShiftChangesLoading}
+                className="px-4 py-2 h-11 border border-gray-300 rounded-lg text-sm hover:bg-gray-50 hover:border-gray-400 transition-all duration-200 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed flex-shrink-0 flex items-center justify-center"
+                title="Invia ai lavoratori le notifiche sui cambiamenti ai turni (inserimenti, modifiche, eliminazioni)"
               >
-                Nuovo Evento
+                <span className="text-center leading-tight">Notifica<br />cambiamenti</span>
               </button>
             )}
           </div>
+          {canEditEvents && (
+            <button
+              onClick={() => router.push("/dashboard/events/new")}
+              className="w-full px-4 py-2 h-11 bg-gray-900 text-white rounded-lg text-sm hover:bg-gray-800 hover:shadow-lg hover:scale-[1.02] active:scale-100 transition-all duration-200 cursor-pointer"
+            >
+              Nuovo Evento
+            </button>
+          )}
         </div>
 
         {viewMode === "calendar" && (
@@ -1758,6 +1742,36 @@ export default function EventsPage() {
           </div>
         )}
       </div>
+
+      <ConfirmDialog
+        isOpen={showNotifyShiftChangesConfirm}
+        title="Notifica cambiamenti turni"
+        message="Verranno inviate notifiche a tutti i lavoratori che hanno modifiche ai turni nei prossimi giorni (inserimenti in un turno, modifiche di turni assegnati, eliminazioni da un turno). Vuoi continuare?"
+        onConfirm={async () => {
+          setShowNotifyShiftChangesConfirm(false);
+          setNotifyShiftChangesLoading(true);
+          setNotifyShiftChangesResult(null);
+          setNotifyShiftChangesError(null);
+          try {
+            const res = await fetch("/api/admin/notify-shift-changes", { method: "POST" });
+            const data = await res.json().catch(() => ({}));
+            if (res.ok) {
+              const created = data.created ?? 0;
+              const updated = data.updated ?? 0;
+              setNotifyShiftChangesResult({ created, updated });
+            } else {
+              setNotifyShiftChangesError(data.details || data.error || "Errore nell'invio");
+            }
+          } catch (e) {
+            setNotifyShiftChangesError(e instanceof Error ? e.message : "Errore di rete");
+          } finally {
+            setNotifyShiftChangesLoading(false);
+          }
+        }}
+        onCancel={() => setShowNotifyShiftChangesConfirm(false)}
+        cancelLabel="Annulla"
+        confirmLabel="Invia"
+      />
 
       <ConfirmDialog
         isOpen={deleteTarget !== null}

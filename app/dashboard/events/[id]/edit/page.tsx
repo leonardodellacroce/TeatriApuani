@@ -459,8 +459,8 @@ export default function EditEventPage() {
           </div>
         )}
 
-        <div className="bg-white rounded-lg shadow p-6 border border-gray-200 mb-6 max-w-xl">
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <div className="bg-white rounded-lg shadow p-6 border border-gray-200 mb-6 max-w-xl min-w-0 overflow-hidden">
+        <form onSubmit={handleSubmit} className="space-y-4 min-w-0">
           {error && (
             <div className="p-4 bg-red-50 border border-red-200 text-red-700 rounded-lg">
               {error}
@@ -548,8 +548,8 @@ export default function EditEventPage() {
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div>
+          <div className="grid grid-cols-2 gap-4 min-w-0">
+            <div className="min-w-0 overflow-hidden">
               <label htmlFor="startDate" className="block text-sm font-medium text-gray-700 mb-1">
                 Data Inizio *
               </label>
@@ -560,11 +560,11 @@ export default function EditEventPage() {
                 value={formData.startDate}
                 onChange={handleChange}
                 required
-                className="w-full px-3 py-2 h-10 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-gray-900 focus:border-transparent"
+                className="w-full min-w-0 px-3 py-2 h-10 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-gray-900 focus:border-transparent box-border"
               />
             </div>
 
-            <div>
+            <div className="min-w-0 overflow-hidden">
               <label htmlFor="endDate" className="block text-sm font-medium text-gray-700 mb-1">
                 Data Fine *
               </label>
@@ -575,7 +575,7 @@ export default function EditEventPage() {
                 value={formData.endDate}
                 onChange={handleChange}
                 required
-                className="w-full px-3 py-2 h-10 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-gray-900 focus:border-transparent"
+                className="w-full min-w-0 px-3 py-2 h-10 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-gray-900 focus:border-transparent box-border"
               />
             </div>
           </div>

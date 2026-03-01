@@ -509,7 +509,7 @@ export default function EventDetailPage() {
   return (
     <DashboardShell>
       <div>
-        <div className="mb-6">
+        <div className="mb-1 md:mb-2">
           <div className="flex items-start gap-3">
             <button
               onClick={() => router.push("/dashboard/events")}
@@ -643,7 +643,7 @@ export default function EventDetailPage() {
 
         {/* Tab Navigation - Solo per admin/responsabili */}
         {!isStandardUser && (
-          <div className="border-b border-gray-200 mb-6">
+          <div className="border-b border-gray-200 mb-4 md:mb-6">
             <nav className="-mb-px flex space-x-8">
               <button
                 onClick={() => setActiveTab("details")}
