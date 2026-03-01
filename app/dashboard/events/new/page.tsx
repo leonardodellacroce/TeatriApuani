@@ -324,8 +324,9 @@ export default function NewEventPage() {
             />
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 min-w-0 w-full max-w-full">
-            <div className="min-w-0 overflow-hidden">
+          {/* Mobile: flex (stessa larghezza di Note). Desktop: grid affiancato */}
+          <div className="flex flex-col gap-4 w-full sm:grid sm:grid-cols-2 sm:gap-4 min-w-0">
+            <div className="min-w-0 w-full">
               <label htmlFor="startDate" className="block text-sm font-medium text-gray-700 mb-1">
                 Data Inizio *
               </label>
@@ -340,7 +341,7 @@ export default function NewEventPage() {
               />
             </div>
 
-            <div className="min-w-0 overflow-hidden">
+            <div className="min-w-0 w-full">
               <label htmlFor="endDate" className="block text-sm font-medium text-gray-700 mb-1">
                 Data Fine *
               </label>

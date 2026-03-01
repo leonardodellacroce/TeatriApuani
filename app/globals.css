@@ -76,16 +76,21 @@ input[type="week"] {
   height: var(--input-height) !important; /* 44px = h-11, come pulsante Nuovo Evento */
 }
 
-/* @bugfix Chrome mobile: riduce padding e forza max-width per campi date/time affiancati (evita taglio bordo destro) */
+/* @bugfix Mobile: campi date/time larghi come Note (cross-browser)
+   - min-width: 100% forza larghezza = parent (Safari iOS ignora width:100%)
+   - flex layout nel form evita calcoli grid che restringono */
 @media (max-width: 767.98px) {
   input[type="date"],
   input[type="time"],
   input[type="datetime-local"],
   input[type="month"],
   input[type="week"] {
+    width: 100% !important;
+    min-width: 100% !important;
     max-width: 100% !important;
     padding-left: 0.5rem !important;
     padding-right: 0.5rem !important;
+    box-sizing: border-box !important;
   }
 }
 
