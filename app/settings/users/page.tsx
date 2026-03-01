@@ -46,7 +46,7 @@ type SortOrder = "asc" | "desc";
 
 export default function UsersPage() {
   const router = useRouter();
-  const { data: session } = useSession();
+  const { data: session, status } = useSession();
   const [users, setUsers] = useState<User[]>([]);
   const [allUsers, setAllUsers] = useState<User[]>([]);
   const [companies, setCompanies] = useState<Company[]>([]);
@@ -65,8 +65,11 @@ export default function UsersPage() {
   const isSuperAdminOrAdmin = session?.user?.role === "SUPER_ADMIN" || session?.user?.role === "ADMIN";
 
   useEffect(() => {
-    fetchUsers();
-  }, []);
+    if (status === "loading" || status === "unauthenticated") return;
+    const controller = new AbortController();
+    fetchUsers(controller.signal);
+    return () => controller.abort();
+  }, [status]);
 
   useEffect(() => {
     if (isSuperAdminOrAdmin) {
@@ -75,9 +78,9 @@ export default function UsersPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isSuperAdminOrAdmin]);
 
-  const fetchUsers = async () => {
+  const fetchUsers = async (signal?: AbortSignal) => {
     try {
-      const res = await fetch("/api/users");
+      const res = await fetch("/api/users", { credentials: "include", signal });
       if (res.ok) {
         const data = await res.json();
         // Filtra solo gli utenti normali, non i management users

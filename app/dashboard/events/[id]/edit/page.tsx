@@ -64,6 +64,9 @@ export default function EditEventPage() {
   const [showPastEventDialog, setShowPastEventDialog] = useState(false);
   const [originalClients, setOriginalClients] = useState<SelectedClient[]>([]);
   const [isEventPast, setIsEventPast] = useState(false);
+  const [workdayDateRange, setWorkdayDateRange] = useState<{ min: string; max: string } | null>(null);
+  const [conflictingEvents, setConflictingEvents] = useState<any[]>([]);
+  const [showConflictDialog, setShowConflictDialog] = useState(false);
   const { data: session, status } = useSession();
   const isSuperAdmin = (session?.user as any)?.isSuperAdmin === true || session?.user?.role === "SUPER_ADMIN";
   const isStandardUser = !["SUPER_ADMIN", "ADMIN", "RESPONSABILE"].includes(session?.user?.role || "");
@@ -162,6 +165,19 @@ export default function EditEventPage() {
         
         setFormData(initialFormData);
         setOriginalData(initialFormData);
+
+        // Range date giornate di lavoro (per vincolo modifica date)
+        const workdaysList = eventData.workdays || [];
+        if (workdaysList.length > 0) {
+          const dates = workdaysList.map((wd: { date: string }) => {
+            const d = new Date(wd.date);
+            return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+          });
+          const sorted = [...dates].sort();
+          setWorkdayDateRange({ min: sorted[0], max: sorted[sorted.length - 1] });
+        } else {
+          setWorkdayDateRange(null);
+        }
         
         // Verifica se l'evento è passato: confronta le date di calendario, non i datetime.
         // Un evento che termina il 24/02 non è "passato" se siamo ancora il 24/02.
@@ -304,49 +320,68 @@ export default function EditEventPage() {
       return;
     }
 
+    // Verifica sovrapposizioni con altri eventi nella stessa location
+    if (formData.locationId) {
+      try {
+        const res = await fetch("/api/events");
+        if (res.ok) {
+          const allEvents = await res.json();
+          const newStart = new Date(formData.startDate);
+          const newEnd = new Date(formData.endDate);
+
+          const conflicts = allEvents.filter((ev: any) => {
+            if (ev.id === eventId) return false;
+            if (!ev.locationId || ev.locationId !== formData.locationId) return false;
+            const eventStart = new Date(ev.startDate);
+            const eventEnd = new Date(ev.endDate);
+            return newStart <= eventEnd && newEnd >= eventStart;
+          });
+
+          if (conflicts.length > 0) {
+            setConflictingEvents(conflicts);
+            setShowConflictDialog(true);
+            return;
+          }
+        }
+      } catch (err) {
+        console.error("Error checking for conflicts:", err);
+      }
+    }
+
     // Mostra il dialog di conferma normale
     setShowConfirmDialog(true);
   };
 
-  const confirmSave = async () => {
+  const performSave = async () => {
     setLoading(true);
-    setShowConfirmDialog(false);
 
     try {
+      // Vincolo date: se ci sono giornate di lavoro, le date devono contenerle
+      if (workdayDateRange) {
+        if (formData.startDate > workdayDateRange.min || formData.endDate < workdayDateRange.max) {
+          setError("Non è possibile modificare le date: le giornate di lavoro esistenti devono restare nell'intervallo dell'evento.");
+          setLoading(false);
+          return;
+        }
+      }
+
       const validClients = selectedClients.filter(c => c.name && c.name.trim() !== "");
-      console.log('[confirmSave] selectedClients:', selectedClients);
-      console.log('[confirmSave] validClients:', validClients);
-      
       const clientNames = validClients.map(c => c.name).join(", ");
       const clientIds = validClients.map(c => c.id).filter(id => id);
-      
-      console.log('[confirmSave] clientNames:', clientNames);
-      console.log('[confirmSave] clientIds before filter:', validClients.map(c => c.id));
-      console.log('[confirmSave] clientIds after filter:', clientIds);
-      
+
       const payload: any = {
         title: formData.title,
-        clientName: clientNames || null, // Mantieni per retrocompatibilità
+        clientName: clientNames || null,
         locationId: formData.locationId || null,
         startDate: formData.startDate,
         endDate: formData.endDate,
         notes: formData.notes,
       };
-      
-      // Invia clientIds SOLO se ci sono ID validi, altrimenti non inviare il campo
-      if (clientIds.length > 0) {
-        payload.clientIds = clientIds;
-      } else {
-        console.warn('[confirmSave] No valid clientIds, not sending clientIds field to preserve existing value');
-      }
-      
-      console.log('[confirmSave] Final payload:', JSON.stringify(payload, null, 2));
-      
+      if (clientIds.length > 0) payload.clientIds = clientIds;
+
       const res = await fetch(`/api/events/${eventId}`, {
         method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
 
@@ -366,12 +401,7 @@ export default function EditEventPage() {
         }
       } else {
         const data = await res.json();
-        console.error('Error response from server:', data);
         setError(data.error || "Errore durante la modifica dell'evento");
-        if (data.details) {
-          console.error('Error details:', data.details);
-          alert('Errore dettagliato: ' + data.details);
-        }
       }
     } catch (error) {
       console.error("Error updating event:", error);
@@ -379,6 +409,22 @@ export default function EditEventPage() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const confirmSave = async () => {
+    setShowConfirmDialog(false);
+    await performSave();
+  };
+
+  const handleConfirmConflictSave = async () => {
+    setShowConflictDialog(false);
+    setConflictingEvents([]);
+    await performSave();
+  };
+
+  const handleCancelConflictSave = () => {
+    setShowConflictDialog(false);
+    setConflictingEvents([]);
   };
 
   const cancelSave = () => {
@@ -643,6 +689,58 @@ export default function EditEventPage() {
           notes: "Note",
         }}
       />
+
+      {/* Conflict Dialog */}
+      {showConflictDialog && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-2xl w-full mx-4">
+            <h2 className="text-xl font-bold text-gray-900 mb-4">
+              Evento già presente nella location
+            </h2>
+            <p className="text-gray-700 mb-4">
+              Esistono già eventi nella stessa location nel periodo selezionato:
+            </p>
+            <div className="border border-gray-200 rounded-lg overflow-hidden mb-4 max-h-60 overflow-y-auto">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Evento</th>
+                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Data Inizio</th>
+                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Data Fine</th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {conflictingEvents.map((ev) => {
+                    const startDate = new Date(ev.startDate).toLocaleDateString("it-IT");
+                    const endDate = new Date(ev.endDate).toLocaleDateString("it-IT");
+                    return (
+                      <tr key={ev.id}>
+                        <td className="px-4 py-2 text-sm text-gray-900">{ev.title}</td>
+                        <td className="px-4 py-2 text-sm text-gray-600">{startDate}</td>
+                        <td className="px-4 py-2 text-sm text-gray-600">{endDate}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+            <div className="flex gap-3 justify-end">
+              <button
+                onClick={handleCancelConflictSave}
+                className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 hover:border-gray-400"
+              >
+                Annulla
+              </button>
+              <button
+                onClick={handleConfirmConflictSave}
+                className="px-4 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800"
+              >
+                Conferma comunque
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </DashboardShell>
   );
 }

@@ -443,8 +443,44 @@ export async function POST(req: NextRequest) {
             color: true,
           },
         },
+        workday: {
+          select: {
+            id: true,
+            date: true,
+            event: { select: { title: true } },
+            location: { select: { name: true } },
+          },
+        },
       },
     });
+
+    // Log per notifiche cambiamenti turni (solo SHIFT) - per tutti gli utenti assegnati (userId + assignedUsers)
+    if (taskType.type === "SHIFT") {
+      try {
+        const { logAssignmentChange, getAssignmentUserIds } = await import("@/lib/assignmentChangeLog");
+        const userIds = getAssignmentUserIds(assignment);
+        if (userIds.length > 0) {
+          const wd = assignment.workday as unknown as { id: string; date: Date; event?: { title: string }; location?: { name: string } };
+          await logAssignmentChange({
+            assignmentId: assignment.id,
+            workdayId: wd.id,
+            workdayDate: wd.date,
+            userIds,
+            action: "ADDED",
+            details: {
+              eventTitle: wd.event?.title,
+              locationName: wd.location?.name,
+              taskTypeName: taskType.name,
+              startTime: assignment.startTime,
+              endTime: assignment.endTime,
+              area: assignment.area,
+            },
+          });
+        }
+      } catch (e) {
+        console.error("assignmentChangeLog ADDED:", e);
+      }
+    }
 
     return NextResponse.json(assignment, { status: 201 });
   } catch (error) {

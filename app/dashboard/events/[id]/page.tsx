@@ -71,6 +71,12 @@ export default function EventDetailPage() {
   const [showPastEventEditDialog, setShowPastEventEditDialog] = useState(false);
   const [showPastWorkdayEditDialog, setShowPastWorkdayEditDialog] = useState(false);
   const [pendingWorkdayEditId, setPendingWorkdayEditId] = useState<string | null>(null);
+  const [showMoveEventModal, setShowMoveEventModal] = useState(false);
+  const [moveNewStartDate, setMoveNewStartDate] = useState("");
+  const [moveLoading, setMoveLoading] = useState(false);
+  const [moveError, setMoveError] = useState<string | null>(null);
+  const [showMoveConflictDialog, setShowMoveConflictDialog] = useState(false);
+  const [moveConflictingEvents, setMoveConflictingEvents] = useState<any[]>([]);
   const [areaNamesMap, setAreaNamesMap] = useState<Record<string, string>>({});
   const [dutyIdToName, setDutyIdToName] = useState<Record<string, string>>({});
   const [dutyMapByWorkday, setDutyMapByWorkday] = useState<Record<string, Record<string,string>>>({});
@@ -290,6 +296,93 @@ export default function EventDetailPage() {
     }
   };
 
+  const openMoveEventModal = () => {
+    if (!event) return;
+    const start = new Date(event.startDate);
+    const yyyy = start.getFullYear();
+    const mm = String(start.getMonth() + 1).padStart(2, "0");
+    const dd = String(start.getDate()).padStart(2, "0");
+    setMoveNewStartDate(`${yyyy}-${mm}-${dd}`);
+    setMoveError(null);
+    setShowMoveEventModal(true);
+  };
+
+  const doMoveEvent = async () => {
+    if (!event || !moveNewStartDate) return;
+    setMoveLoading(true);
+    setMoveError(null);
+    try {
+      const res = await fetch(`/api/events/${event.id}/move`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ newStartDate: moveNewStartDate }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok) {
+        await fetchEventFull();
+        setShowMoveEventModal(false);
+        setShowMoveConflictDialog(false);
+        setMoveNewStartDate("");
+        setMoveConflictingEvents([]);
+      } else {
+        setMoveError(data.error || "Errore durante lo spostamento dell'evento");
+      }
+    } catch (error) {
+      console.error("Error moving event:", error);
+      setMoveError("Errore durante lo spostamento dell'evento");
+    } finally {
+      setMoveLoading(false);
+    }
+  };
+
+  const handleMoveEvent = async () => {
+    if (!event || !moveNewStartDate || moveLoading) return;
+
+    const locationId = (event as any).locationId ?? (event.location as { id?: string })?.id;
+    if (locationId) {
+      try {
+        const res = await fetch("/api/events");
+        if (res.ok) {
+          const allEvents = await res.json();
+          const oldStart = new Date(event.startDate);
+          const oldEnd = new Date(event.endDate);
+          const newStart = new Date(moveNewStartDate);
+          const deltaMs = newStart.getTime() - oldStart.getTime();
+          const newEnd = new Date(oldEnd.getTime() + deltaMs);
+
+          const conflicts = allEvents.filter((ev: any) => {
+            if (ev.id === event.id) return false;
+            if (!ev.locationId || ev.locationId !== locationId) return false;
+            const evStart = new Date(ev.startDate);
+            const evEnd = new Date(ev.endDate);
+            return newStart <= evEnd && newEnd >= evStart;
+          });
+
+          if (conflicts.length > 0) {
+            setMoveConflictingEvents(conflicts);
+            setShowMoveConflictDialog(true);
+            return;
+          }
+        }
+      } catch (err) {
+        console.error("Error checking move conflicts:", err);
+      }
+    }
+
+    await doMoveEvent();
+  };
+
+  const handleConfirmMoveConflict = async () => {
+    setShowMoveConflictDialog(false);
+    setMoveConflictingEvents([]);
+    await doMoveEvent();
+  };
+
+  const handleCancelMoveConflict = () => {
+    setShowMoveConflictDialog(false);
+    setMoveConflictingEvents([]);
+  };
+
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
     const day = String(date.getDate()).padStart(2, '0');
@@ -499,6 +592,31 @@ export default function EventDetailPage() {
                       className={`h-10 w-10 inline-flex items-center justify-center rounded-lg transition-colors ${hasAnyWorkdayInClosedMonth ? "bg-gray-400 text-gray-200 cursor-not-allowed" : "bg-gray-900 text-white hover:bg-gray-800 hover:shadow-lg"}`}
                     >
                       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.232 5.232l3.536 3.536M4 20h4l10.293-10.293a1 1 0 000-1.414l-2.586-2.586a1 1 0 00-1.414 0L4 16v4z" /></svg>
+                    </button>
+                    <button
+                      onClick={() => {
+                        if (hasAnyWorkdayInClosedMonth) {
+                          setAlertMessage({ message: "Impossibile spostare: una giornata dell'evento è in un mese chiuso" });
+                          return;
+                        }
+                        if (event) {
+                          const eventEndDate = new Date(event.endDate);
+                          const now = new Date();
+                          const eventEndDay = new Date(eventEndDate.getFullYear(), eventEndDate.getMonth(), eventEndDate.getDate());
+                          const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+                          const isPast = eventEndDay < today;
+                          if (isPast && !isSuperAdmin) {
+                            setAlertMessage({ message: "Gli eventi passati possono essere spostati solo dal Super Admin" });
+                            return;
+                          }
+                        }
+                        openMoveEventModal();
+                      }}
+                      aria-label="Sposta Evento"
+                      title={hasAnyWorkdayInClosedMonth ? "Impossibile spostare: una giornata è in un mese chiuso" : "Sposta evento (trasla date e giornate)"}
+                      className={`h-10 w-10 inline-flex items-center justify-center rounded-lg transition-colors ${hasAnyWorkdayInClosedMonth ? "bg-gray-400 text-gray-200 cursor-not-allowed" : "bg-gray-900 text-white hover:bg-gray-800 hover:shadow-lg"}`}
+                    >
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" /></svg>
                     </button>
                     {canDeleteEvents && (
                       <button
@@ -1101,6 +1219,98 @@ export default function EventDetailPage() {
           setPendingWorkdayEditId(null);
         }}
       />
+
+      <ConfirmDialog
+        isOpen={showMoveEventModal}
+        title="Sposta evento"
+        message="Seleziona la nuova data di inizio. L'evento e tutte le giornate di lavoro verranno traslate mantenendo la stessa distanza."
+        onConfirm={handleMoveEvent}
+        onCancel={() => {
+          setShowMoveEventModal(false);
+          setMoveError(null);
+        }}
+        cancelLabel="Annulla"
+        confirmLabel={moveLoading ? "Spostamento..." : "Sposta"}
+      >
+        {event && (
+          <div className="space-y-3 mt-2">
+            <div className="text-sm text-gray-600">
+              Data attuale di inizio: <strong>{formatDate(event.startDate)}</strong>
+            </div>
+            <div>
+              <label htmlFor="move-new-start" className="block text-sm font-medium text-gray-700 mb-1">
+                Nuova data di inizio
+              </label>
+              <input
+                id="move-new-start"
+                type="date"
+                value={moveNewStartDate}
+                onChange={(e) => setMoveNewStartDate(e.target.value)}
+                disabled={moveLoading}
+                className="w-full px-3 py-2 h-10 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-gray-900 focus:border-transparent"
+              />
+            </div>
+            {moveError && (
+              <div className="p-2 bg-red-50 border border-red-200 text-red-700 rounded text-sm">
+                {moveError}
+              </div>
+            )}
+          </div>
+        )}
+      </ConfirmDialog>
+
+      {/* Move conflict dialog */}
+      {showMoveConflictDialog && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[10000]">
+          <div className="bg-white rounded-lg p-6 max-w-2xl w-full mx-4">
+            <h2 className="text-xl font-bold text-gray-900 mb-4">
+              Evento già presente nella location
+            </h2>
+            <p className="text-gray-700 mb-4">
+              Esistono già eventi nella stessa location nel periodo di destinazione:
+            </p>
+            <div className="border border-gray-200 rounded-lg overflow-hidden mb-4 max-h-60 overflow-y-auto">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Evento</th>
+                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Data Inizio</th>
+                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Data Fine</th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {moveConflictingEvents.map((ev) => {
+                    const startDate = new Date(ev.startDate).toLocaleDateString("it-IT");
+                    const endDate = new Date(ev.endDate).toLocaleDateString("it-IT");
+                    return (
+                      <tr key={ev.id}>
+                        <td className="px-4 py-2 text-sm text-gray-900">{ev.title}</td>
+                        <td className="px-4 py-2 text-sm text-gray-600">{startDate}</td>
+                        <td className="px-4 py-2 text-sm text-gray-600">{endDate}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+            <div className="flex gap-3 justify-end">
+              <button
+                onClick={handleCancelMoveConflict}
+                className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 hover:border-gray-400"
+              >
+                Annulla
+              </button>
+              <button
+                onClick={handleConfirmMoveConflict}
+                disabled={moveLoading}
+                className="px-4 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800 disabled:opacity-50"
+              >
+                {moveLoading ? "Spostamento..." : "Conferma comunque"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <AlertDialog
         isOpen={alertMessage !== null}

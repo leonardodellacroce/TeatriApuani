@@ -95,7 +95,7 @@ export async function PATCH(
     // Verifica se l'evento esiste e ottieni i dati attuali
     const existingEvent = await prisma.event.findUnique({
       where: { id },
-      select: { endDate: true, clientIds: true },
+      select: { startDate: true, endDate: true, clientIds: true },
     });
 
     if (!existingEvent) {
@@ -215,6 +215,37 @@ export async function PATCH(
             );
           }
         }
+      }
+    }
+
+    // Se ci sono giornate di lavoro, le nuove date devono contenerle tutte
+    if (workdays.length > 0 && (startDate !== undefined || endDate !== undefined)) {
+      const toDateOnly = (d: Date) => {
+        const y = d.getUTCFullYear();
+        const m = d.getUTCMonth();
+        const day = d.getUTCDate();
+        return Date.UTC(y, m, day);
+      };
+      const wdDates = workdays.map((wd) => toDateOnly(new Date(wd.date)));
+      const minWd = Math.min(...wdDates);
+      const maxWd = Math.max(...wdDates);
+
+      const newStart = startDate !== undefined
+        ? (typeof startDate === 'string' && startDate.length === 10 && !startDate.includes('T')
+            ? (() => { const [y, m, day] = startDate.split('-').map(Number); return Date.UTC(y, m - 1, day); })()
+            : toDateOnly(new Date(startDate)))
+        : toDateOnly(existingEvent.startDate);
+      const newEnd = endDate !== undefined
+        ? (typeof endDate === 'string' && endDate.length === 10 && !endDate.includes('T')
+            ? (() => { const [y, m, day] = endDate.split('-').map(Number); return Date.UTC(y, m - 1, day); })()
+            : toDateOnly(new Date(endDate)))
+        : toDateOnly(existingEvent.endDate);
+
+      if (newStart > minWd || newEnd < maxWd) {
+        return NextResponse.json(
+          { error: "Non è possibile modificare le date: le giornate di lavoro esistenti devono restare nell'intervallo dell'evento." },
+          { status: 400 }
+        );
       }
     }
     

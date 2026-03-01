@@ -32,9 +32,10 @@ const LABELS: Record<string, string> = {
   FREE_HOURS_MODIFIED_BY_WORKER: "Ore libere modificate da dipendente",
   FREE_HOURS_DELETED_BY_WORKER: "Ore libere eliminate da dipendente",
   WORKDAY_ISSUES: "Problemi programmazione",
+  SHIFT_CHANGES_REMINDER: "Modifiche turni",
 };
 
-const TYPES_WITH_PARAMS = ["WORKDAY_ISSUES", "MISSING_HOURS_REMINDER", "DAILY_SHIFT_REMINDER"];
+const TYPES_WITH_PARAMS = ["WORKDAY_ISSUES", "MISSING_HOURS_REMINDER", "DAILY_SHIFT_REMINDER", "SHIFT_CHANGES_REMINDER"];
 
 /** Impostazioni di default per ogni tipo (priorità, modal, metadata) */
 function getDefaultSettings(): Array<{
@@ -66,6 +67,7 @@ function getDefaultSettings(): Array<{
     FREE_HOURS_MODIFIED_BY_WORKER: { priority: "MEDIUM", showInDashboardModal: false },
     FREE_HOURS_DELETED_BY_WORKER: { priority: "MEDIUM", showInDashboardModal: false },
     WORKDAY_ISSUES: { priority: "HIGH", showInDashboardModal: false },
+    SHIFT_CHANGES_REMINDER: { priority: "HIGH", showInDashboardModal: true },
   };
   return allTypes.map((type) => {
     const d = defaults[type] ?? {
@@ -73,7 +75,10 @@ function getDefaultSettings(): Array<{
       showInDashboardModal: true,
     };
     const metadata: Record<string, unknown> = {};
-    if (type === "WORKDAY_ISSUES") metadata.workdayIssuesDaysAhead = 7;
+    if (type === "WORKDAY_ISSUES") {
+      metadata.workdayIssuesDaysAhead = 7;
+      metadata.cronHour = 8;
+    }
     if (type === "MISSING_HOURS_REMINDER") {
       metadata.cronHour = 7;
       metadata.giorniIndietro = 60;
@@ -81,6 +86,11 @@ function getDefaultSettings(): Array<{
     }
     if (type === "DAILY_SHIFT_REMINDER") {
       metadata.cronHour = 7;
+    }
+    if (type === "SHIFT_CHANGES_REMINDER") {
+      metadata.cronHour1 = 7;
+      metadata.cronHour2 = 19;
+      metadata.daysAhead = 30;
     }
     return {
       type,

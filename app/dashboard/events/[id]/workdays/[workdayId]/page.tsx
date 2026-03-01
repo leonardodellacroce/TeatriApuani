@@ -82,6 +82,7 @@ export default function WorkdayViewPage() {
   const inWorkerMode = isNonStandardWorker && workMode === "worker";
 
   const canEditEvents = !inWorkerMode && ["SUPER_ADMIN", "ADMIN", "RESPONSABILE"].includes(session?.user?.role || "");
+  const canToggleWorkday = !inWorkerMode && ["SUPER_ADMIN", "ADMIN"].includes(session?.user?.role || "");
   const isSuperAdmin = (session?.user as any)?.isSuperAdmin === true || session?.user?.role === "SUPER_ADMIN";
   const isReadOnlyParam = (searchParams?.get('readonly') === '1' || searchParams?.get('readonly') === 'true');
   const [closedMonths, setClosedMonths] = useState<Array<{ year: number; month: number }>>([]);
@@ -96,6 +97,7 @@ export default function WorkdayViewPage() {
   const isReadOnly = isReadOnlyParam || !canEditEvents || (workday ? (isWorkdayMonthClosed(workday.date) && !isSuperAdmin) : false);
   const [showActivitiesModal, setShowActivitiesModal] = useState(false);
   const [showResetConfirmModal, setShowResetConfirmModal] = useState(false);
+  const [showToggleStatusConfirm, setShowToggleStatusConfirm] = useState(false);
   const [taskTypes, setTaskTypes] = useState<any[]>([]);
   const [selectedTaskTypes, setSelectedTaskTypes] = useState<string[]>([]);
   const [activityTimes, setActivityTimes] = useState<Record<string, Array<{ start: string; end: string }>>>({});
@@ -811,6 +813,27 @@ export default function WorkdayViewPage() {
       ...prev,
       [areaId]: !prev[areaId]
     }));
+  };
+
+  const handleToggleWorkdayStatus = async () => {
+    if (!workday) return;
+    setShowToggleStatusConfirm(false);
+    try {
+      const res = await fetch(`/api/workdays/${workdayId}/toggle`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ isOpen: !workday.isOpen }),
+      });
+      if (res.ok) {
+        await fetchWorkday();
+      } else {
+        const data = await res.json();
+        alert(data.error || "Errore nella modifica dello stato");
+      }
+    } catch (e) {
+      console.error("Toggle workday status error:", e);
+      alert("Errore nella modifica dello stato");
+    }
   };
 
   const handleOpenShiftModal = async (areaId: string) => {
@@ -2153,21 +2176,24 @@ export default function WorkdayViewPage() {
             <h1 className="text-2xl lg:text-3xl font-bold truncate">Giornata di Lavoro</h1>
           </div>
           <div className="flex gap-2 pointer-events-auto flex-shrink-0">
-            {canEditEvents && !isReadOnly && (
-              <>
-                <button
-                  onClick={() => router.push(`/dashboard/events/${eventId}/workdays/${workdayId}/edit`)}
-                  className="px-4 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800 hover:shadow-lg hover:scale-105 active:scale-100 transition-all duration-200 cursor-pointer"
-                >
-                  Modifica
-                </button>
-                <button
-                  onClick={() => router.push(`/dashboard/events/${eventId}/workdays/${workdayId}`)}
-                  className="px-4 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800 hover:shadow-lg hover:scale-105 active:scale-100 transition-all duration-200 cursor-pointer"
-                >
-                  Gestisci
-                </button>
-              </>
+            {canEditEvents && (
+              <button
+                onClick={() => {
+                  if (isReadOnly) return;
+                  router.push(`/dashboard/events/${eventId}/workdays/${workdayId}/edit`);
+                }}
+                aria-label="Modifica"
+                title={isReadOnly ? "Impossibile modificare: giornata chiusa o mese chiuso" : "Modifica"}
+                className={`h-10 w-10 inline-flex items-center justify-center rounded-lg transition-colors ${
+                  isReadOnly
+                    ? "bg-gray-400 text-gray-200 cursor-not-allowed opacity-60"
+                    : "bg-gray-900 text-white hover:bg-gray-800 hover:shadow-lg cursor-pointer"
+                }`}
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.232 5.232l3.536 3.536M4 20h4l10.293-10.293a1 1 0 000-1.414l-2.586-2.586a1 1 0 00-1.414 0L4 16v4z" />
+                </svg>
+              </button>
             )}
           </div>
         </div>
@@ -2214,15 +2240,42 @@ export default function WorkdayViewPage() {
             <div>
               <dt className="text-sm font-medium text-gray-500">Stato</dt>
               <dd className="mt-1">
-                <span
-                  className={`px-2 py-1 text-xs font-semibold rounded-full ${
-                    workday.isOpen
-                      ? "bg-green-100 text-green-800"
-                      : "bg-red-100 text-red-800"
-                  }`}
-                >
-                  {workday.isOpen ? "Aperta" : "Chiusa"}
-                </span>
+                {canToggleWorkday ? (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (isReadOnly && !isSuperAdmin) return;
+                      setShowToggleStatusConfirm(true);
+                    }}
+                    disabled={isReadOnly && !isSuperAdmin}
+                    title={
+                      isReadOnly && !isSuperAdmin
+                        ? "Impossibile modificare: mese chiuso"
+                        : workday.isOpen
+                          ? "Clicca per chiudere la giornata"
+                          : "Clicca per aprire la giornata"
+                    }
+                    className={`px-2 py-1 text-xs font-semibold rounded-full transition-colors ${
+                      isReadOnly && !isSuperAdmin
+                        ? "bg-gray-200 text-gray-500 cursor-not-allowed opacity-60"
+                        : workday.isOpen
+                          ? "bg-green-100 text-green-800 hover:bg-green-200 cursor-pointer"
+                          : "bg-red-100 text-red-800 hover:bg-red-200 cursor-pointer"
+                    }`}
+                  >
+                    {workday.isOpen ? "Aperta" : "Chiusa"}
+                  </button>
+                ) : (
+                  <span
+                    className={`px-2 py-1 text-xs font-semibold rounded-full ${
+                      workday.isOpen
+                        ? "bg-green-100 text-green-800"
+                        : "bg-red-100 text-red-800"
+                    }`}
+                  >
+                    {workday.isOpen ? "Aperta" : "Chiusa"}
+                  </span>
+                )}
               </dd>
             </div>
           </dl>
@@ -4467,6 +4520,19 @@ export default function WorkdayViewPage() {
           </div>
         </div>
       </div>
+    )}
+    {showToggleStatusConfirm && (
+      <ConfirmDialog
+        isOpen={true}
+        title="Conferma Operazione"
+        message={
+          workday?.isOpen
+            ? "Sei sicuro di voler chiudere questa giornata?"
+            : "Sei sicuro di voler aprire questa giornata?"
+        }
+        onConfirm={handleToggleWorkdayStatus}
+        onCancel={() => setShowToggleStatusConfirm(false)}
+      />
     )}
     {showResetConfirmModal && (
       <ConfirmDialog

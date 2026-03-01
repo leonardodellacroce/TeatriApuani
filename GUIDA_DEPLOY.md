@@ -53,6 +53,17 @@ npx tsx scripts/reset-superadmin-password.ts email@utente.com nuova_password
 
 ---
 
+## Notifiche «Modifiche turni» (SHIFT_CHANGES_REMINDER)
+
+Per le notifiche sui cambiamenti ai turni:
+
+1. **Migrazione** – esegui `npx prisma migrate deploy` se non l’hai fatto (tabella `AssignmentChangeLog`).
+2. **Impostazioni** – in Impostazioni > Notifiche verifica che «Modifiche turni» sia attiva.
+3. **Log** – le notifiche partono solo se ci sono **modifiche ai turni** (inserimento, modifica, rimozione) registrate dopo l’ultima notifica letta; le giornate devono essere **da oggi in poi** (entro i «Giorni in avanti» configurati).
+4. **Cron** – su Vercel imposta `CRON_SECRET` nelle variabili d’ambiente; il cron orario gira ogni ora e invia le notifiche agli orari configurati (es. 7 e 19 UTC).
+
+---
+
 ## Note
 
 - **`git add .`** – aggiunge tutto dalla cartella corrente in giù

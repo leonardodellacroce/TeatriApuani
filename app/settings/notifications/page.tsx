@@ -13,8 +13,8 @@ const NOTIFICATION_INFO: Record<string, { desc: string; example: string }> = {
     example: "Mario Rossi ha svolto un turno tre giorni fa ma non ha ancora inserito le ore. Riceve una notifica: «Hai turni con ore non inserite. Inserisci le ore dalla sezione I miei turni.»\nCon Giorni da escludere = 1 il cron non notifica per i turni di ieri.\nEsempio orario: 7 UTC = 8:00 Italia (inverno), 9:00 Italia (estate).",
   },
   DAILY_SHIFT_REMINDER: {
-    desc: "Notifica inviata ai lavoratori ogni mattina per ricordare i turni della giornata odierna. Viene inviata automaticamente dal cron alle 7:00 UTC. Se il lavoratore non ha turni oggi, la notifica non viene inviata.\nIl parametro «Ora cron» è in UTC: 7 = 8:00 Italia (inverno), 8:00 Italia (estate).",
-    example: "Mario Rossi ha un turno oggi 18 febbraio. Alle 7 UTC riceve: «Hai turni oggi. Controlla i dettagli su I Miei Turni.» Se non ha turni, non riceve alcuna notifica.",
+    desc: "Notifica inviata ai lavoratori ogni mattina per ricordare i turni della giornata odierna. Viene inviata automaticamente dal cron agli orari configurati. Se il lavoratore non ha turni oggi, la notifica non viene inviata.\nIl parametro «Ora cron» è in UTC: per le 8:00 in Italia, usa 7 in inverno (CET) o 6 in estate (CEST).",
+    example: "Mario Rossi ha un turno oggi 18 febbraio. Alle 7 UTC riceve: «Hai turni oggi. Controlla i dettagli su I Miei Turni.» Se non ha turni, non riceve alcuna notifica.\nEsempio orario: 7 UTC = 8:00 Italia (inverno), 9:00 Italia (estate).",
   },
   UNAVAILABILITY_CREATED_BY_ADMIN: {
     desc: "Notifica inviata al lavoratore quando un amministratore inserisce un'indisponibilità al suo posto (es. ferie, malattia).",
@@ -85,8 +85,12 @@ const NOTIFICATION_INFO: Record<string, { desc: string; example: string }> = {
     example: "Mario aveva inserito ore libere per il 18/02. Le elimina (es. inserimento errato). Gli admin ricevono la notifica.",
   },
   WORKDAY_ISSUES: {
-    desc: "Notifica inviata agli amministratori sui problemi di programmazione: workday senza assegnazioni, personale insufficiente, clienti non impostati.\nViene inviata dal cron ogni giorno per i giorni configurati.\nIl parametro «Giorni in avanti» indica quanti giorni in avanti considerare per i problemi di programmazione (workday, personale, clienti).",
-    example: "Il 18/02 gli admin ricevono: «20/02: Workday senza assegnazioni | Personale insufficiente in Sala» per i problemi nei prossimi 7 giorni.",
+    desc: "Notifica inviata agli amministratori sui problemi di programmazione: workday senza assegnazioni, personale insufficiente, clienti non impostati.\nViene inviata dal cron ogni giorno agli orari configurati.\n«Giorni in avanti»: quanti giorni considerare (es. 7 = oggi + 6 giorni successivi).\n«Ora cron» (UTC): per le 8:00 in Italia, usa 7 in inverno (CET) o 6 in estate (CEST).",
+    example: "Il 18/02 gli admin ricevono: «20/02: Workday senza assegnazioni | Personale insufficiente in Sala» per i problemi nei prossimi 7 giorni.\nEsempio orario: 8 UTC = 9:00 Italia (inverno), 10:00 Italia (estate).",
+  },
+  SHIFT_CHANGES_REMINDER: {
+    desc: "Notifica inviata ai lavoratori sui cambiamenti ai turni nei giorni successivi: inserimento in un turno, modifica di un turno assegnato, eliminazione da un turno.\nViene inviata automaticamente agli orari configurati (due volte al giorno) oppure manualmente dal pulsante «Notifica cambiamenti» nella schermata Eventi.\n«Giorni in avanti»: quanti giorni considerare (es. 7 = oggi + 6 giorni successivi).\n«Ora 1» e «Ora 2» sono in UTC: per le 8:00 in Italia, usa 7 in inverno (CET) o 6 in estate (CEST); per le 20:00 in Italia, usa 19 in inverno o 18 in estate.",
+    example: "L'admin modifica il turno di Mario per il 25/02. Mario riceve: «Modifiche ai tuoi turni: 25/02 - Turno modificato (Evento X, Sala)».\nEsempio orario: 7 UTC = 8:00 Italia (inverno), 9:00 Italia (estate); 19 UTC = 20:00 Italia (inverno), 21:00 Italia (estate).",
   },
 };
 
@@ -107,7 +111,7 @@ interface NotificationSetting {
   isActive: boolean;
   priority: string;
   showInDashboardModal: boolean;
-  metadata: { workdayIssuesDaysAhead?: number; cronHour?: number; giorniIndietro?: number; giorniEsclusi?: number } | null;
+  metadata: { workdayIssuesDaysAhead?: number; cronHour?: number; cronHour1?: number; cronHour2?: number; daysAhead?: number; giorniIndietro?: number; giorniEsclusi?: number } | null;
   hasParams: boolean;
 }
 
@@ -145,6 +149,10 @@ export default function NotificationsSettingsPage() {
   const [paramsModalDraft, setParamsModalDraft] = useState<Record<string, unknown>>({});
   const [resetConfirmOpen, setResetConfirmOpen] = useState(false);
   const [userResetConfirmOpen, setUserResetConfirmOpen] = useState(false);
+  const [showUnsavedModal, setShowUnsavedModal] = useState(false);
+  const [pendingNavigationUrl, setPendingNavigationUrl] = useState<string | null>(null);
+
+  const hasUnsavedSystemChanges = systemDirty.size > 0 || requireModalActionDirty;
 
   const userRole = (session?.user as { role?: string })?.role || "";
   const userCompanyId = (session?.user as { companyId?: string })?.companyId;
@@ -165,6 +173,39 @@ export default function NotificationsSettingsPage() {
       setActiveTab("system");
     }
   }, [tabParam, isSuperAdmin]);
+
+  // beforeunload: avvisa se refresh/chiudi con modifiche non salvate
+  useEffect(() => {
+    if (!hasUnsavedSystemChanges) return;
+    const handler = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+    };
+    window.addEventListener("beforeunload", handler);
+    return () => window.removeEventListener("beforeunload", handler);
+  }, [hasUnsavedSystemChanges]);
+
+  // Intercetta click su link per navigazione con modifiche non salvate
+  useEffect(() => {
+    if (!hasUnsavedSystemChanges) return;
+    const handleClick = (e: MouseEvent) => {
+      const anchor = (e.target as HTMLElement).closest("a");
+      if (!anchor || !anchor.href) return;
+      if (anchor.target === "_blank" || anchor.hasAttribute("download")) return;
+      try {
+        const url = new URL(anchor.href);
+        if (url.origin !== window.location.origin) return;
+        if (url.pathname === "/settings/notifications") return;
+        e.preventDefault();
+        e.stopPropagation();
+        setPendingNavigationUrl(url.pathname + url.search);
+        setShowUnsavedModal(true);
+      } catch {
+        return;
+      }
+    };
+    document.addEventListener("click", handleClick, true);
+    return () => document.removeEventListener("click", handleClick, true);
+  }, [hasUnsavedSystemChanges]);
 
   const fetchData = async () => {
     try {
@@ -724,7 +765,7 @@ export default function NotificationsSettingsPage() {
                   </div>
                 </div>
                 <div className="mt-8 pl-4">
-                  <label className="flex items-center gap-2 cursor-pointer mb-6">
+                  <label className="flex items-center gap-2 cursor-pointer mb-1">
                     <input
                       type="checkbox"
                       checked={requireModalActionToMarkRead}
@@ -735,7 +776,7 @@ export default function NotificationsSettingsPage() {
                       className="rounded border-gray-300"
                     />
                     <span className="text-sm font-medium text-gray-900">
-                      Se modal attivo impedisci di segnare come lette
+                      Se modal dashboard attivo impedisci di segnare come lette
                     </span>
                   </label>
                   <p className="text-sm text-gray-600 mb-6 pl-6">
@@ -774,11 +815,31 @@ export default function NotificationsSettingsPage() {
           </div>
         )}
 
+        <ConfirmDialog
+          isOpen={showUnsavedModal}
+          title="Modifiche non salvate"
+          message="Hai modifiche non salvate. Continuare?"
+          cancelLabel="No"
+          confirmLabel="Sì"
+          onConfirm={() => {
+            setShowUnsavedModal(false);
+            if (pendingNavigationUrl) {
+              router.push(pendingNavigationUrl);
+              setPendingNavigationUrl(null);
+            }
+          }}
+          onCancel={() => {
+            setShowUnsavedModal(false);
+            setPendingNavigationUrl(null);
+          }}
+        />
+
         {paramsModal && (() => {
-          const meta = paramsModalDraft as { cronHour?: number; giorniIndietro?: number; giorniEsclusi?: number; workdayIssuesDaysAhead?: number };
+          const meta = paramsModalDraft as { cronHour?: number; cronHour1?: number; cronHour2?: number; daysAhead?: number; giorniIndietro?: number; giorniEsclusi?: number; workdayIssuesDaysAhead?: number };
           const isMissingHours = paramsModal.type === "MISSING_HOURS_REMINDER";
           const isDailyShiftReminder = paramsModal.type === "DAILY_SHIFT_REMINDER";
           const isWorkday = paramsModal.type === "WORKDAY_ISSUES";
+          const isShiftChanges = paramsModal.type === "SHIFT_CHANGES_REMINDER";
           const info = NOTIFICATION_INFO[paramsModal.type];
           return (
             <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[9998]">
@@ -870,22 +931,92 @@ export default function NotificationsSettingsPage() {
                     </>
                   )}
                   {isWorkday && (
-                    <div className="flex items-center justify-between gap-4">
-                      <label className="text-sm text-gray-700">Giorni in avanti:</label>
-                      <input
-                        type="number"
-                        min={1}
-                        max={90}
-                        value={meta.workdayIssuesDaysAhead ?? 7}
-                        onChange={(e) =>
-                          setParamsModalDraft((prev) => ({
-                            ...prev,
-                            workdayIssuesDaysAhead: Math.max(1, Math.min(90, parseInt(e.target.value, 10) || 7)),
-                          }))
-                        }
-                        className="w-20 px-2 py-1.5 border border-gray-300 rounded text-sm"
-                      />
-                    </div>
+                    <>
+                      <div className="flex items-center justify-between gap-4">
+                        <label className="text-sm text-gray-700">Ora cron (UTC):</label>
+                        <input
+                          type="number"
+                          min={0}
+                          max={23}
+                          value={meta.cronHour ?? 8}
+                          onChange={(e) =>
+                            setParamsModalDraft((prev) => ({
+                              ...prev,
+                              cronHour: Math.max(0, Math.min(23, parseInt(e.target.value, 10) || 8)),
+                            }))
+                          }
+                          className="w-20 px-2 py-1.5 border border-gray-300 rounded text-sm"
+                        />
+                      </div>
+                      <div className="flex items-center justify-between gap-4">
+                        <label className="text-sm text-gray-700">Giorni in avanti:</label>
+                        <input
+                          type="number"
+                          min={1}
+                          max={90}
+                          value={meta.workdayIssuesDaysAhead ?? 7}
+                          onChange={(e) =>
+                            setParamsModalDraft((prev) => ({
+                              ...prev,
+                              workdayIssuesDaysAhead: Math.max(1, Math.min(90, parseInt(e.target.value, 10) || 7)),
+                            }))
+                          }
+                          className="w-20 px-2 py-1.5 border border-gray-300 rounded text-sm"
+                        />
+                      </div>
+                    </>
+                  )}
+                  {isShiftChanges && (
+                    <>
+                      <div className="flex items-center justify-between gap-4">
+                        <label className="text-sm text-gray-700">Giorni in avanti:</label>
+                        <input
+                          type="number"
+                          min={1}
+                          max={90}
+                          value={meta.daysAhead ?? 30}
+                          onChange={(e) =>
+                            setParamsModalDraft((prev) => ({
+                              ...prev,
+                              daysAhead: Math.max(1, Math.min(90, parseInt(e.target.value, 10) || 30)),
+                            }))
+                          }
+                          className="w-20 px-2 py-1.5 border border-gray-300 rounded text-sm"
+                        />
+                      </div>
+                      <div className="flex items-center justify-between gap-4">
+                        <label className="text-sm text-gray-700">Ora 1 (UTC):</label>
+                        <input
+                          type="number"
+                          min={0}
+                          max={23}
+                          value={meta.cronHour1 ?? 7}
+                          onChange={(e) =>
+                            setParamsModalDraft((prev) => ({
+                              ...prev,
+                              cronHour1: Math.max(0, Math.min(23, parseInt(e.target.value, 10) || 7)),
+                            }))
+                          }
+                          className="w-20 px-2 py-1.5 border border-gray-300 rounded text-sm"
+                        />
+                      </div>
+                      <div className="flex items-center justify-between gap-4">
+                        <label className="text-sm text-gray-700">Ora 2 (UTC):</label>
+                        <input
+                          type="number"
+                          min={0}
+                          max={23}
+                          value={meta.cronHour2 ?? 19}
+                          onChange={(e) =>
+                            setParamsModalDraft((prev) => ({
+                              ...prev,
+                              cronHour2: Math.max(0, Math.min(23, parseInt(e.target.value, 10) || 19)),
+                            }))
+                          }
+                          className="w-20 px-2 py-1.5 border border-gray-300 rounded text-sm"
+                        />
+                      </div>
+                    </>
                   )}
                 </div>
                 <div className="flex justify-end gap-2">

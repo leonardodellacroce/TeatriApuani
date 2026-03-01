@@ -6,6 +6,7 @@ import { useSession } from "next-auth/react";
 import DashboardShell from "@/components/DashboardShell";
 import PageSkeleton from "@/components/PageSkeleton";
 import ConfirmDialog from "@/components/ConfirmDialog";
+import AlertDialog from "@/components/AlertDialog";
 import { getIncompleteScheduleInfo, getWorkdayAlertStates, getPersonnelAlertState, getClientAlertState } from "./utils";
 import { getWorkModeCookie } from "@/lib/workMode";
 import { isPreviousMonth } from "@/lib/previousMonth";
@@ -872,6 +873,9 @@ export default function EventsPage() {
     key: keyof Event;
     direction: "asc" | "desc";
   } | null>(null);
+  const [notifyShiftChangesLoading, setNotifyShiftChangesLoading] = useState(false);
+  const [notifyShiftChangesResult, setNotifyShiftChangesResult] = useState<{ created: number; updated: number } | null>(null);
+  const [notifyShiftChangesError, setNotifyShiftChangesError] = useState<string | null>(null);
 
   useEffect(() => {
     fetchEventsWithMeta();
@@ -1247,6 +1251,36 @@ export default function EventsPage() {
         <div className="flex flex-col lg:flex-row lg:justify-between lg:items-center gap-4 mb-6">
           <h1 className="text-2xl lg:text-3xl font-bold text-gray-900">Eventi</h1>
           <div className="flex flex-wrap gap-2 lg:gap-4 items-center">
+            {canOpenClosedEvents && (
+              <button
+                type="button"
+                onClick={async () => {
+                  setNotifyShiftChangesLoading(true);
+                  setNotifyShiftChangesResult(null);
+                  setNotifyShiftChangesError(null);
+                  try {
+                    const res = await fetch("/api/admin/notify-shift-changes", { method: "POST" });
+                    const data = await res.json().catch(() => ({}));
+                    if (res.ok) {
+                      const created = data.created ?? 0;
+                      const updated = data.updated ?? 0;
+                      setNotifyShiftChangesResult({ created, updated });
+                    } else {
+                      setNotifyShiftChangesError(data.details || data.error || "Errore nell'invio");
+                    }
+                  } catch (e) {
+                    setNotifyShiftChangesError(e instanceof Error ? e.message : "Errore di rete");
+                  } finally {
+                    setNotifyShiftChangesLoading(false);
+                  }
+                }}
+                disabled={notifyShiftChangesLoading}
+                className="px-4 py-2 h-10 border border-gray-300 rounded-lg text-sm hover:bg-gray-50 hover:border-gray-400 transition-all duration-200 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                title="Invia ai lavoratori le notifiche sui cambiamenti ai turni (inserimenti, modifiche, eliminazioni)"
+              >
+                {notifyShiftChangesLoading ? "Invio..." : "Notifica cambiamenti"}
+              </button>
+            )}
             {userCanSeeAllEvents && (
               <select
                 value={filterStatus}
@@ -1753,6 +1787,25 @@ export default function EventsPage() {
         onCancel={() => setToggleMonthTarget(null)}
         cancelLabel="No"
         confirmLabel="Sì"
+      />
+
+      <AlertDialog
+        isOpen={notifyShiftChangesResult !== null || notifyShiftChangesError !== null}
+        title={notifyShiftChangesError ? "Errore" : "Notifica cambiamenti"}
+        message={
+          notifyShiftChangesError
+            ? notifyShiftChangesError
+            : notifyShiftChangesResult
+              ? notifyShiftChangesResult.created + notifyShiftChangesResult.updated > 0
+                ? `Inviate ${notifyShiftChangesResult.created + notifyShiftChangesResult.updated} notifiche ai lavoratori.`
+                : "Nessuna modifica da notificare. Non ci sono cambiamenti ai turni nei prossimi giorni da comunicare ai lavoratori."
+              : ""
+        }
+        onClose={() => {
+          setNotifyShiftChangesResult(null);
+          setNotifyShiftChangesError(null);
+        }}
+        buttonLabel="Ok"
       />
     </DashboardShell>
   );

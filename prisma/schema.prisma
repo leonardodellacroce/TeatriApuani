@@ -200,6 +200,21 @@ model TaskType {
   @@index([type])
 }
 
+model AssignmentChangeLog {
+  id            String   @id @default(cuid())
+  assignmentId  String?  // null se assignment eliminato
+  workdayId     String
+  workdayDate   DateTime // Data della giornata (per query rapide)
+  userId        String   // Lavoratore interessato
+  action        String   // ADDED | MODIFIED | REMOVED
+  createdAt     DateTime @default(now())
+  details       Json?    // { eventTitle, locationName, taskTypeName, startTime, endTime, area }
+
+  @@index([userId])
+  @@index([workdayDate])
+  @@index([createdAt])
+}
+
 model Assignment {
   id          String   @id @default(cuid())
   workdayId   String

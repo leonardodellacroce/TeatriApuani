@@ -365,37 +365,105 @@ export async function PATCH(
 
     console.log("Update data:", updateData);
 
-    try {
-      const assignment = await prisma.assignment.update({
-        where: { id },
-        data: updateData,
-        include: {
-          user: {
-            select: {
-              id: true,
-              name: true,
-              code: true,
-            },
-          },
-          taskType: {
-            select: {
-              id: true,
-              name: true,
-              type: true,
-              color: true,
-            },
+    const existingFull = await prisma.assignment.findUnique({
+      where: { id },
+      include: {
+        taskType: { select: { type: true } },
+        workday: {
+          select: {
+            id: true,
+            date: true,
+            event: { select: { title: true } },
+            location: { select: { name: true } },
           },
         },
-      });
+      },
+    });
 
-      console.log("Assignment updated successfully");
-      return NextResponse.json(assignment);
-    } catch (prismaError: any) {
-      console.error("Prisma error:", prismaError);
-      console.error("Error code:", prismaError?.code);
-      console.error("Error message:", prismaError?.message);
-      throw prismaError;
+    const assignment = await prisma.assignment.update({
+      where: { id },
+      data: updateData,
+      include: {
+        user: {
+          select: {
+            id: true,
+            name: true,
+            code: true,
+          },
+        },
+        taskType: {
+          select: {
+            id: true,
+            name: true,
+            type: true,
+            color: true,
+          },
+        },
+        workday: {
+          select: {
+            id: true,
+            date: true,
+            event: { select: { title: true } },
+            location: { select: { name: true } },
+          },
+        },
+      },
+    });
+
+    if (existingFull?.taskType?.type === "SHIFT" && assignment.taskType?.type === "SHIFT" && assignment.workday) {
+      try {
+        const { logAssignmentChange, getAssignmentUserIds } = await import("@/lib/assignmentChangeLog");
+        const wd = assignment.workday as { id: string; date: Date; event?: { title: string }; location?: { name: string } };
+        const oldIds = new Set(getAssignmentUserIds(existingFull));
+        const newIds = new Set(getAssignmentUserIds(assignment));
+        const details = {
+          eventTitle: wd.event?.title,
+          locationName: wd.location?.name,
+          taskTypeName: assignment.taskType?.name,
+          startTime: assignment.startTime,
+          endTime: assignment.endTime,
+          area: assignment.area,
+        };
+        for (const uid of newIds) {
+          if (oldIds.has(uid)) {
+            await logAssignmentChange({
+              assignmentId: assignment.id,
+              workdayId: wd.id,
+              workdayDate: wd.date,
+              userIds: [uid],
+              action: "MODIFIED",
+              details,
+            });
+          } else {
+            await logAssignmentChange({
+              assignmentId: assignment.id,
+              workdayId: wd.id,
+              workdayDate: wd.date,
+              userIds: [uid],
+              action: "ADDED",
+              details,
+            });
+          }
+        }
+        for (const uid of oldIds) {
+          if (!newIds.has(uid)) {
+            await logAssignmentChange({
+              assignmentId: assignment.id,
+              workdayId: wd.id,
+              workdayDate: wd.date,
+              userIds: [uid],
+              action: "REMOVED",
+              details,
+            });
+          }
+        }
+      } catch (e) {
+        console.error("assignmentChangeLog PATCH:", e);
+      }
     }
+
+    console.log("Assignment updated successfully");
+    return NextResponse.json(assignment);
   } catch (error: any) {
     console.error("Error updating assignment:", error);
     console.error("Error details:", {
@@ -480,9 +548,51 @@ export async function DELETE(
       );
     }
 
+    const toDelete = await prisma.assignment.findUnique({
+      where: { id },
+      include: {
+        taskType: { select: { type: true, name: true } },
+        workday: {
+          select: {
+            id: true,
+            date: true,
+            event: { select: { title: true } },
+            location: { select: { name: true } },
+          },
+        },
+      },
+    });
+
     await prisma.assignment.delete({
       where: { id },
     });
+
+    if (toDelete?.taskType?.type === "SHIFT" && toDelete.workday) {
+      try {
+        const { logAssignmentChange, getAssignmentUserIds } = await import("@/lib/assignmentChangeLog");
+        const wd = toDelete.workday as { id: string; date: Date; event?: { title: string }; location?: { name: string } };
+        const userIds = getAssignmentUserIds(toDelete);
+        if (userIds.length > 0) {
+          await logAssignmentChange({
+            assignmentId: null,
+            workdayId: wd.id,
+            workdayDate: wd.date,
+            userIds,
+            action: "REMOVED",
+            details: {
+              eventTitle: wd.event?.title,
+              locationName: wd.location?.name,
+              taskTypeName: toDelete.taskType?.name,
+              startTime: toDelete.startTime,
+              endTime: toDelete.endTime,
+              area: toDelete.area,
+            },
+          });
+        }
+      } catch (e) {
+        console.error("assignmentChangeLog DELETE:", e);
+      }
+    }
 
     return NextResponse.json({ success: true });
   } catch (error) {
