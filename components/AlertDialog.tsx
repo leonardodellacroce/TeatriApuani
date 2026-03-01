@@ -1,15 +1,17 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { type ReactNode, useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 
 interface AlertDialogProps {
   isOpen: boolean;
   title?: string;
-  message: string;
+  message: ReactNode;
   onClose: () => void;
   /** Etichetta pulsante (default: Ok) */
   buttonLabel?: string;
+  /** Dimensione del dialog: sm (default), lg */
+  size?: "sm" | "lg";
 }
 
 export default function AlertDialog({
@@ -18,6 +20,7 @@ export default function AlertDialog({
   message,
   onClose,
   buttonLabel = "Ok",
+  size = "sm",
 }: AlertDialogProps) {
   const [mounted, setMounted] = useState(false);
 
@@ -45,9 +48,9 @@ export default function AlertDialog({
 
   const dialogContent = (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[9999]">
-      <div className="bg-white rounded-lg shadow-xl p-6 max-w-md w-full mx-4">
+      <div className={`bg-white rounded-lg shadow-xl p-6 w-full mx-4 ${size === "lg" ? "max-w-lg" : "max-w-md"}`}>
         <h2 className="text-xl font-bold mb-4 text-gray-900">{title}</h2>
-        <p className="mb-6 text-gray-700">{message}</p>
+        <div className="mb-6 text-gray-700">{message}</div>
         <div className="flex justify-end">
           <button
             onClick={onClose}
