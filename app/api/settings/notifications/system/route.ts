@@ -22,10 +22,15 @@ const LABELS: Record<string, string> = {
   ORE_INSERITE_DA_ADMIN: "Ore lavorate inserite",
   ORE_MODIFICATE_DA_ADMIN: "Ore lavorate modificate",
   ORE_ELIMINATE_DA_ADMIN: "Ore lavorate eliminate",
+  FREE_HOURS_CONVERTED_BY_ADMIN: "Ore libere convertite in evento",
+  FREE_HOURS_DELETED_BY_ADMIN: "Ore libere eliminate",
   ADMIN_LOCKED_ACCOUNTS: "Account bloccati",
   UNAVAILABILITY_PENDING_APPROVAL: "Indisponibilità in attesa",
   UNAVAILABILITY_MODIFIED_BY_WORKER: "Indisponibilità modificata da dipendente",
   UNAVAILABILITY_DELETED_BY_WORKER: "Indisponibilità eliminata da dipendente",
+  FREE_HOURS_ADDED_BY_WORKER: "Ore libere inserite",
+  FREE_HOURS_MODIFIED_BY_WORKER: "Ore libere modificate da dipendente",
+  FREE_HOURS_DELETED_BY_WORKER: "Ore libere eliminate da dipendente",
   WORKDAY_ISSUES: "Problemi programmazione",
 };
 
@@ -51,10 +56,15 @@ function getDefaultSettings(): Array<{
     ORE_INSERITE_DA_ADMIN: { priority: "LOW", showInDashboardModal: false },
     ORE_MODIFICATE_DA_ADMIN: { priority: "MEDIUM", showInDashboardModal: false },
     ORE_ELIMINATE_DA_ADMIN: { priority: "MEDIUM", showInDashboardModal: false },
+    FREE_HOURS_CONVERTED_BY_ADMIN: { priority: "LOW", showInDashboardModal: false },
+    FREE_HOURS_DELETED_BY_ADMIN: { priority: "MEDIUM", showInDashboardModal: true },
     ADMIN_LOCKED_ACCOUNTS: { priority: "HIGH", showInDashboardModal: true },
     UNAVAILABILITY_PENDING_APPROVAL: { priority: "HIGH", showInDashboardModal: true },
     UNAVAILABILITY_MODIFIED_BY_WORKER: { priority: "MEDIUM", showInDashboardModal: true },
     UNAVAILABILITY_DELETED_BY_WORKER: { priority: "MEDIUM", showInDashboardModal: true },
+    FREE_HOURS_ADDED_BY_WORKER: { priority: "MEDIUM", showInDashboardModal: true },
+    FREE_HOURS_MODIFIED_BY_WORKER: { priority: "MEDIUM", showInDashboardModal: false },
+    FREE_HOURS_DELETED_BY_WORKER: { priority: "MEDIUM", showInDashboardModal: false },
     WORKDAY_ISSUES: { priority: "HIGH", showInDashboardModal: false },
   };
   return allTypes.map((type) => {

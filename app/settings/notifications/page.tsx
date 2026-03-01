@@ -48,6 +48,14 @@ const NOTIFICATION_INFO: Record<string, { desc: string; example: string }> = {
     desc: "Notifica inviata al lavoratore quando un amministratore elimina le ore da lui inserite per un turno.",
     example: "L'admin elimina le ore inserite da Mario per il turno del 15/02. Mario riceve la notifica con i dettagli del turno.",
   },
+  FREE_HOURS_CONVERTED_BY_ADMIN: {
+    desc: "Notifica inviata al lavoratore quando un amministratore converte le sue ore libere in un evento. Le ore libere diventano un turno assegnato nella giornata di lavoro.",
+    example: "Mario aveva inserito ore libere per il 18/02. L'admin crea un evento e converte quelle ore. Mario riceve: «Le tue ore libere del 18/02 sono state convertite in evento.»",
+  },
+  FREE_HOURS_DELETED_BY_ADMIN: {
+    desc: "Notifica inviata al lavoratore quando un amministratore elimina le ore libere da lui inserite.",
+    example: "Mario aveva inserito ore libere per il 18/02. L'admin le elimina (es. per errore o duplicato). Mario riceve la notifica con i dettagli.",
+  },
   ADMIN_LOCKED_ACCOUNTS: {
     desc: "Notifica inviata ai SuperAdmin quando ci sono account bloccati (es. dopo troppi tentativi di login errati).\nSolo i SuperAdmin la ricevono.",
     example: "Dopo 5 login errati, l'account di mario.rossi@teatro.it viene bloccato. I SuperAdmin ricevono: «1 account bloccato: Mario Rossi - mario.rossi@teatro.it»",
@@ -63,6 +71,18 @@ const NOTIFICATION_INFO: Record<string, { desc: string; example: string }> = {
   UNAVAILABILITY_DELETED_BY_WORKER: {
     desc: "Notifica inviata agli amministratori quando un lavoratore elimina la propria indisponibilità in giornate con eventi attivi.",
     example: "Mario elimina la sua indisponibilità per il 15 aprile. Gli admin ricevono la notifica.",
+  },
+  FREE_HOURS_ADDED_BY_WORKER: {
+    desc: "Notifica inviata agli amministratori quando un lavoratore inserisce ore libere (ore non associate a un evento). L'admin può convertire le ore libere in un evento dal pulsante nella notifica o dalla sezione Turni e ore.",
+    example: "Mario inserisce ore libere: 18/02 dalle 15:00 alle 18:00. Gli admin ricevono la notifica e possono creare un evento per quelle ore.",
+  },
+  FREE_HOURS_MODIFIED_BY_WORKER: {
+    desc: "Notifica inviata agli amministratori quando un lavoratore modifica le ore libere già inserite (data, orario, location, ecc.).",
+    example: "Mario aveva inserito ore libere per il 18/02. Le modifica per il 19/02 con orario diverso. Gli admin ricevono la notifica con i dettagli della modifica.",
+  },
+  FREE_HOURS_DELETED_BY_WORKER: {
+    desc: "Notifica inviata agli amministratori quando un lavoratore elimina le ore libere che aveva inserito.",
+    example: "Mario aveva inserito ore libere per il 18/02. Le elimina (es. inserimento errato). Gli admin ricevono la notifica.",
   },
   WORKDAY_ISSUES: {
     desc: "Notifica inviata agli amministratori sui problemi di programmazione: workday senza assegnazioni, personale insufficiente, clienti non impostati.\nViene inviata dal cron ogni giorno per i giorni configurati.\nIl parametro «Giorni in avanti» indica quanti giorni in avanti considerare per i problemi di programmazione (workday, personale, clienti).",

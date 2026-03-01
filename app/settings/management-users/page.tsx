@@ -78,7 +78,7 @@ export default function UsersPage() {
         const data = await res.json();
         // Mostra solo utenti di gestione: SUPER_ADMIN, ADMIN, RESPONSABILE
         const managementUsers = data.filter((u: User) =>
-          (u.isSuperAdmin || u.isAdmin || u.isResponsabile) && !u.isCoordinatore
+          u.isSuperAdmin || u.isAdmin || u.isResponsabile
         );
         setUsers(managementUsers);
       }

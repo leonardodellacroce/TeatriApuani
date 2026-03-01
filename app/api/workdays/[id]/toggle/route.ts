@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
+import { isMonthClosed } from "@/lib/closedMonth";
+import { isDateInPreviousMonth } from "@/lib/previousMonth";
 
 export async function PATCH(
   request: NextRequest,
@@ -36,6 +38,23 @@ export async function PATCH(
 
     if (!workday) {
       return NextResponse.json({ error: "Workday not found" }, { status: 404 });
+    }
+
+    // Blocca qualsiasi modifica se il mese è chiuso (Super Admin può bypassare)
+    const isSuperAdmin = (session.user as any).isSuperAdmin === true || session.user.role === "SUPER_ADMIN";
+    const wdDate = new Date(workday.date);
+    const monthClosed = await isMonthClosed(wdDate.getFullYear(), wdDate.getMonth() + 1);
+    if (monthClosed && !isSuperAdmin) {
+      // ADMIN può riaprire solo giornate del mese precedente
+      const isReopening = isOpen && !workday.isOpen;
+      const isAdmin = session.user.role === "ADMIN";
+      const canAdminReopen = isAdmin && isReopening && isDateInPreviousMonth(workday.date);
+      if (!canAdminReopen) {
+        return NextResponse.json(
+          { error: "Impossibile modificare: il mese è chiuso. L'Admin può riaprire solo giornate del mese precedente." },
+          { status: 403 }
+        );
+      }
     }
 
     // Vincolo: una giornata può essere aperta/chiusa una volta

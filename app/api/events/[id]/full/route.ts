@@ -16,7 +16,7 @@ export async function GET(
     }
 
     const { id } = await params;
-    const [event, areas, duties] = await Promise.all([
+    const [event, areas, duties, closedMonthsResult] = await Promise.all([
       prisma.event.findUnique({
         where: { id },
         include: {
@@ -51,7 +51,9 @@ export async function GET(
       }),
       prisma.area.findMany({ orderBy: { createdAt: "desc" } }),
       prisma.duty.findMany({ orderBy: { createdAt: "desc" } }),
+      prisma.closedMonth.findMany({ select: { year: true, month: true } }).catch(() => []),
     ]);
+    const closedMonths = Array.isArray(closedMonthsResult) ? closedMonthsResult : [];
 
     if (!event) {
       return NextResponse.json({ error: "Event not found" }, { status: 404 });
@@ -94,7 +96,7 @@ export async function GET(
       (event as any).clientName = null;
     }
 
-    return NextResponse.json({ event, areas, duties, eventClientsNames });
+    return NextResponse.json({ event, areas, duties, eventClientsNames, closedMonths });
   } catch (error) {
     console.error("Error fetching event full:", error);
     return NextResponse.json(

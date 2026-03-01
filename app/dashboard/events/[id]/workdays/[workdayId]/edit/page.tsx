@@ -57,6 +57,7 @@ export default function EditWorkdayPage() {
   const isNonStandardWorker = !isStandardUser && isWorker;
   const inWorkerMode = isNonStandardWorker && getWorkModeCookie() === "worker";
   const isAdminOrSuperAdmin = !inWorkerMode && ["SUPER_ADMIN", "ADMIN"].includes(session?.user?.role || "");
+  const isSuperAdmin = (session?.user as any)?.isSuperAdmin === true || session?.user?.role === "SUPER_ADMIN";
 
   useEffect(() => {
     if (status === "loading") return;
@@ -126,13 +127,20 @@ export default function EditWorkdayPage() {
     try {
       const res = await fetch(`/api/workdays/${workdayId}`);
       if (res.ok) {
-        const data: Workday = await res.json();
-        setWorkday(data);
-        const workdayDate = new Date(data.date);
+        const data = await res.json();
+        const { closedMonths: cm, ...wdData } = data;
+        const closedMonths = Array.isArray(cm) ? cm : [];
+        const workdayDate = new Date(wdData.date);
+        const monthClosed = closedMonths.some((c: { year: number; month: number }) => c.year === workdayDate.getFullYear() && c.month === workdayDate.getMonth() + 1);
+        if (monthClosed && !isSuperAdmin) {
+          router.replace(`/dashboard/events/${eventId}/workdays/${workdayId}?readonly=1`);
+          return;
+        }
+        setWorkday(wdData);
         setDate(workdayDate.toISOString().split('T')[0]);
-        const spans = parseSpans(data.timeSpans);
-        setTimeSpans(spans.length > 0 ? spans : [{ start: data.startTime || "", end: data.endTime || "" }]);
-        setNotes(data.notes || "");
+        const spans = parseSpans(wdData.timeSpans);
+        setTimeSpans(spans.length > 0 ? spans : [{ start: wdData.startTime || "", end: wdData.endTime || "" }]);
+        setNotes(wdData.notes || "");
         
         // Verifica se la giornata è passata
         const now = new Date();

@@ -463,22 +463,6 @@ export default function NewUserPage() {
             }}
           />
 
-          {/* Checkbox Coordinatore - Solo per ADMIN e SUPER_ADMIN */}
-          {session?.user?.role === "SUPER_ADMIN" || session?.user?.role === "ADMIN" ? (
-            <div className="flex items-center gap-2">
-              <input
-                type="checkbox"
-                id="isCoordinatore"
-                checked={isCoordinatore}
-                onChange={(e) => setIsCoordinatore(e.target.checked)}
-                className="w-4 h-4 text-gray-900 border-gray-300 rounded focus:ring-gray-500"
-              />
-              <label htmlFor="isCoordinatore" className="text-sm font-medium text-gray-700">
-                Coordinatore
-              </label>
-            </div>
-          ) : null}
-
           <p className="text-sm text-gray-500">
             All'utente verrà inviata automaticamente una mail con il link per l'accesso alla piattaforma e la password provvisoria da cambiare al primo accesso.
           </p>

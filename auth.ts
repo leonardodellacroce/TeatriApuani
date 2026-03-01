@@ -171,6 +171,7 @@ export const { auth, handlers, signIn, signOut } = NextAuth({
           isSuperAdmin: user.isSuperAdmin,
           isAdmin: user.isAdmin,
           isResponsabile: user.isResponsabile,
+          isCoordinatore: (user as any).isCoordinatore === true,
           isWorker: (user as any).isWorker === true,
           companyId: user.companyId,
           mustChangePassword,
@@ -213,6 +214,7 @@ export const { auth, handlers, signIn, signOut } = NextAuth({
         token.isSuperAdmin = (user as any).isSuperAdmin;
         token.isAdmin = (user as any).isAdmin;
         token.isResponsabile = (user as any).isResponsabile;
+        token.isCoordinatore = (user as any).isCoordinatore;
         token.isWorker = (user as any).isWorker;
         token.companyId = (user as any).companyId;
         token.mustChangePassword = (user as any).mustChangePassword;
@@ -238,6 +240,7 @@ export const { auth, handlers, signIn, signOut } = NextAuth({
         (session.user as any).isSuperAdmin = token.isSuperAdmin as boolean;
         (session.user as any).isAdmin = token.isAdmin as boolean;
         (session.user as any).isResponsabile = token.isResponsabile as boolean;
+        (session.user as any).isCoordinatore = token.isCoordinatore as boolean;
         (session.user as any).isWorker = token.isWorker as boolean;
         (session.user as any).companyId = token.companyId as string;
         (session.user as any).mustChangePassword = token.mustChangePassword as boolean;

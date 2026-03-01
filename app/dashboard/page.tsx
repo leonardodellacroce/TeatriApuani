@@ -48,6 +48,8 @@ export default function Dashboard() {
   const [workerModalNotification, setWorkerModalNotification] = useState<NotificationItem | null>(null);
   const [workerModalMultiple, setWorkerModalMultiple] = useState(false);
   const [adminModalOpen, setAdminModalOpen] = useState(false);
+  const [adminModalNotification, setAdminModalNotification] = useState<NotificationItem | null>(null);
+  const [adminModalMultiple, setAdminModalMultiple] = useState(false);
   const [highPriorityCounts, setHighPriorityCounts] = useState<{
     indisponibilita: number;
     impostazioniTecniche: number;
@@ -214,7 +216,11 @@ export default function Dashboard() {
             setWorkerModalMultiple(false);
             setWorkerModalNotification(null);
           }
-          if (!showAdmin) setAdminModalOpen(false);
+          if (!showAdmin) {
+            setAdminModalOpen(false);
+            setAdminModalNotification(null);
+            setAdminModalMultiple(false);
+          }
         })
         .catch(() => { if (!isStale()) { setWorkerModalNotification(null); setWorkerModalMultiple(false); } });
       refreshWorkerMissingHours();
@@ -242,12 +248,16 @@ export default function Dashboard() {
               map[item.type] = { showInDashboardModal: item.showInDashboardModal };
             }
           }
-          const hasImportant = arr.some(
+          const withModal = arr.filter(
             (n) =>
               !n.read &&
               (map[n.type]?.showInDashboardModal ?? isAdminModalPriority(getEffectivePriority(n.priority, n.type)))
           );
+          const hasImportant = withModal.length >= 1;
+          const hasMultiple = withModal.length >= 2;
           setAdminModalOpen(hasImportant);
+          setAdminModalNotification(hasMultiple ? null : withModal[0] ?? null);
+          setAdminModalMultiple(hasMultiple);
           setWorkerModalNotification(null);
           setWorkerModalMultiple(false);
         })
@@ -264,13 +274,18 @@ export default function Dashboard() {
       window.dispatchEvent(new Event("notificationsUpdated"));
     } catch {}
     setWorkerModalNotification(null);
+    if (WORKER_DELETE_TYPES.includes(n.type)) {
+      return;
+    }
     if (n.type === "MISSING_HOURS_REMINDER") {
       router.push(buildMyShiftsUrlWithDates(n.message, n.metadata));
     } else if (n.type === "DAILY_SHIFT_REMINDER") {
       router.push("/dashboard/my-shifts");
-    } else if (["UNAVAILABILITY_CREATED_BY_ADMIN", "UNAVAILABILITY_MODIFIED_BY_ADMIN", "UNAVAILABILITY_DELETED_BY_ADMIN", "UNAVAILABILITY_APPROVED", "UNAVAILABILITY_REJECTED"].includes(n.type)) {
+    } else if (["UNAVAILABILITY_CREATED_BY_ADMIN", "UNAVAILABILITY_MODIFIED_BY_ADMIN", "UNAVAILABILITY_APPROVED", "UNAVAILABILITY_REJECTED"].includes(n.type)) {
       router.push("/dashboard/unavailabilities");
-    } else if (["ORE_INSERITE_DA_ADMIN", "ORE_MODIFICATE_DA_ADMIN", "ORE_ELIMINATE_DA_ADMIN"].includes(n.type)) {
+    } else if (
+      ["ORE_INSERITE_DA_ADMIN", "ORE_MODIFICATE_DA_ADMIN", "FREE_HOURS_CONVERTED_BY_ADMIN"].includes(n.type)
+    ) {
       router.push(buildMyShiftsUrlForOreNotification(n.metadata));
     } else {
       router.push("/dashboard/my-shifts");
@@ -279,7 +294,38 @@ export default function Dashboard() {
 
   const handleVaiAlleNotifiche = () => {
     setAdminModalOpen(false);
+    setAdminModalNotification(null);
+    setAdminModalMultiple(false);
     router.push("/dashboard/admin-notifications");
+  };
+
+  const ADMIN_DELETE_TYPES = ["UNAVAILABILITY_DELETED_BY_WORKER", "FREE_HOURS_DELETED_BY_WORKER"];
+  const WORKER_DELETE_TYPES = ["UNAVAILABILITY_DELETED_BY_ADMIN", "ORE_ELIMINATE_DA_ADMIN", "FREE_HOURS_DELETED_BY_ADMIN"];
+
+  const handleAdminModalAction = async () => {
+    if (!adminModalNotification) return;
+    const n = adminModalNotification;
+    try {
+      await fetch(`/api/notifications/${n.id}`, { method: "PATCH" });
+      window.dispatchEvent(new Event("notificationsUpdated"));
+    } catch {}
+    setAdminModalOpen(false);
+    setAdminModalNotification(null);
+    setAdminModalMultiple(false);
+    if (ADMIN_DELETE_TYPES.includes(n.type)) {
+      return;
+    }
+    if (n.type === "ADMIN_LOCKED_ACCOUNTS") {
+      router.push("/settings/technical");
+    } else if (n.type === "UNAVAILABILITY_PENDING_APPROVAL" || n.type === "UNAVAILABILITY_MODIFIED_BY_WORKER") {
+      router.push("/dashboard/unavailabilities");
+    } else if (n.type === "FREE_HOURS_ADDED_BY_WORKER" || n.type === "FREE_HOURS_MODIFIED_BY_WORKER") {
+      router.push("/dashboard/admin/shifts-hours");
+    } else if (n.type === "WORKDAY_ISSUES") {
+      router.push("/dashboard/events");
+    } else {
+      router.push("/dashboard/admin-notifications");
+    }
   };
 
   const handleVaiAlleNotificheLavoratore = () => {
@@ -507,7 +553,7 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {adminModalOpen && (
+      {adminModalOpen && adminModalMultiple && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
           <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-6 border border-gray-200">
             <h2 className="text-xl font-bold text-gray-900 mb-3">
@@ -518,7 +564,7 @@ export default function Dashboard() {
             </p>
             <div className="flex gap-3 justify-end">
               <button
-                onClick={() => setAdminModalOpen(false)}
+                onClick={() => { setAdminModalOpen(false); setAdminModalMultiple(false); }}
                 className="px-4 py-2 text-sm font-medium border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
               >
                 Dopo
@@ -528,6 +574,43 @@ export default function Dashboard() {
                 className="px-4 py-2 text-sm font-medium bg-gray-900 text-white rounded-lg hover:bg-gray-800"
               >
                 Vai alle notifiche
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {adminModalOpen && adminModalNotification && !adminModalMultiple && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-6 border border-gray-200">
+            <h2 className="text-xl font-bold text-gray-900 mb-3">Notifica importante!</h2>
+            <p className="text-gray-700 text-sm mb-6 whitespace-pre-wrap">
+              {adminModalNotification.message.includes("~~")
+                ? renderMessageWithStrikethrough(adminModalNotification.message)
+                : adminModalNotification.message}
+            </p>
+            <div className="flex gap-3 justify-end">
+              <button
+                onClick={() => { setAdminModalOpen(false); setAdminModalNotification(null); }}
+                className="px-4 py-2 text-sm font-medium border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
+              >
+                Dopo
+              </button>
+              <button
+                onClick={handleAdminModalAction}
+                className="px-4 py-2 text-sm font-medium bg-gray-900 text-white rounded-lg hover:bg-gray-800"
+              >
+                {ADMIN_DELETE_TYPES.includes(adminModalNotification.type)
+                  ? "OK"
+                  : adminModalNotification.type === "ADMIN_LOCKED_ACCOUNTS"
+                    ? "Vai a impostazioni tecniche"
+                    : adminModalNotification.type === "UNAVAILABILITY_PENDING_APPROVAL" || adminModalNotification.type === "UNAVAILABILITY_MODIFIED_BY_WORKER"
+                      ? "Vai alle indisponibilità"
+                      : adminModalNotification.type === "FREE_HOURS_ADDED_BY_WORKER" || adminModalNotification.type === "FREE_HOURS_MODIFIED_BY_WORKER"
+                        ? "Vai a Turni e ore"
+                        : adminModalNotification.type === "WORKDAY_ISSUES"
+                          ? "Vai agli eventi"
+                          : "Vai alle notifiche"}
               </button>
             </div>
           </div>
@@ -581,15 +664,17 @@ export default function Dashboard() {
                 onClick={handleWorkerModalAction}
                 className="px-4 py-2 text-sm font-medium bg-gray-900 text-white rounded-lg hover:bg-gray-800"
               >
-                {workerModalNotification.type === "MISSING_HOURS_REMINDER"
-                  ? "Inserisci"
-                  : workerModalNotification.type === "DAILY_SHIFT_REMINDER"
-                    ? "Vai ai turni"
-                    : ["UNAVAILABILITY_CREATED_BY_ADMIN", "UNAVAILABILITY_MODIFIED_BY_ADMIN", "UNAVAILABILITY_DELETED_BY_ADMIN", "UNAVAILABILITY_APPROVED", "UNAVAILABILITY_REJECTED"].includes(workerModalNotification.type)
-                      ? "Vai alle indisponibilità"
-                      : ["ORE_INSERITE_DA_ADMIN", "ORE_MODIFICATE_DA_ADMIN", "ORE_ELIMINATE_DA_ADMIN"].includes(workerModalNotification.type)
-                        ? "Visualizza"
-                        : "Vai"}
+                {WORKER_DELETE_TYPES.includes(workerModalNotification.type)
+                  ? "OK"
+                  : workerModalNotification.type === "MISSING_HOURS_REMINDER"
+                    ? "Inserisci"
+                    : workerModalNotification.type === "DAILY_SHIFT_REMINDER"
+                      ? "Vai ai turni"
+                      : ["UNAVAILABILITY_CREATED_BY_ADMIN", "UNAVAILABILITY_MODIFIED_BY_ADMIN", "UNAVAILABILITY_APPROVED", "UNAVAILABILITY_REJECTED"].includes(workerModalNotification.type)
+                        ? "Vai alle indisponibilità"
+                        : ["ORE_INSERITE_DA_ADMIN", "ORE_MODIFICATE_DA_ADMIN", "FREE_HOURS_CONVERTED_BY_ADMIN"].includes(workerModalNotification.type)
+                          ? "Visualizza"
+                          : "Vai"}
               </button>
             </div>
           </div>

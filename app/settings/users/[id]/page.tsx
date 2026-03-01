@@ -570,20 +570,6 @@ export default function EditUserPage() {
             }}
           />
 
-          {/* Checkbox Coordinatore */}
-          <div className="flex items-center gap-2">
-            <input
-              type="checkbox"
-              id="isCoordinatore"
-              checked={isCoordinatore}
-              onChange={(e) => setIsCoordinatore(e.target.checked)}
-              className="w-4 h-4 text-gray-900 border-gray-300 rounded focus:ring-gray-500"
-            />
-            <label htmlFor="isCoordinatore" className="text-sm font-medium text-gray-700">
-              Coordinatore
-            </label>
-          </div>
-
           {/* Mostra il campo azienda solo se NON è un RESPONSABILE */}
           {session?.user?.role !== "RESPONSABILE" && (
             <div>

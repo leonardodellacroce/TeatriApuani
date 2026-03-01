@@ -82,13 +82,20 @@ export default function WorkdayViewPage() {
   const inWorkerMode = isNonStandardWorker && workMode === "worker";
 
   const canEditEvents = !inWorkerMode && ["SUPER_ADMIN", "ADMIN", "RESPONSABILE"].includes(session?.user?.role || "");
+  const isSuperAdmin = (session?.user as any)?.isSuperAdmin === true || session?.user?.role === "SUPER_ADMIN";
   const isReadOnlyParam = (searchParams?.get('readonly') === '1' || searchParams?.get('readonly') === 'true');
-  // Utente standard: sempre sola lettura anche se prova ad accedere senza query param
-  const isReadOnly = isReadOnlyParam || !canEditEvents;
+  const [closedMonths, setClosedMonths] = useState<Array<{ year: number; month: number }>>([]);
+  const isWorkdayMonthClosed = (date: string | Date) => {
+    const d = new Date(date);
+    return closedMonths.some((c) => c.year === d.getFullYear() && c.month === d.getMonth() + 1);
+  };
 
   const [workday, setWorkday] = useState<Workday | null>(null);
   const [loading, setLoading] = useState(true);
+  // Utente standard: sempre sola lettura. Mese chiuso: solo visualizzazione (Super Admin può bypassare)
+  const isReadOnly = isReadOnlyParam || !canEditEvents || (workday ? (isWorkdayMonthClosed(workday.date) && !isSuperAdmin) : false);
   const [showActivitiesModal, setShowActivitiesModal] = useState(false);
+  const [showResetConfirmModal, setShowResetConfirmModal] = useState(false);
   const [taskTypes, setTaskTypes] = useState<any[]>([]);
   const [selectedTaskTypes, setSelectedTaskTypes] = useState<string[]>([]);
   const [activityTimes, setActivityTimes] = useState<Record<string, Array<{ start: string; end: string }>>>({});
@@ -1647,7 +1654,9 @@ export default function WorkdayViewPage() {
       const res = await fetch(`/api/workdays/${workdayId}`);
       if (res.ok) {
         const data = await res.json();
-        setWorkday(data);
+        const { closedMonths: cm, ...wdData } = data;
+        setWorkday(wdData);
+        setClosedMonths(Array.isArray(cm) ? cm : []);
         
         // Carica i clienti dell'evento (solo per admin/responsabili)
         console.log('[fetchWorkday] data.event?.clientIds:', data.event?.clientIds);
@@ -1721,6 +1730,10 @@ export default function WorkdayViewPage() {
           } catch (e) {
             console.error("Error parsing areaEnabledStates:", e);
           }
+        } else {
+          // areaEnabledStates null (es. dopo reset): tutte le aree disattivate
+          setAreaEnabledSwitches({});
+          setExpandedAreas({});
         }
       }
     } catch (error) {
@@ -2140,7 +2153,7 @@ export default function WorkdayViewPage() {
             <h1 className="text-2xl lg:text-3xl font-bold truncate">Giornata di Lavoro</h1>
           </div>
           <div className="flex gap-2 pointer-events-auto flex-shrink-0">
-            {canEditEvents && isReadOnly && (
+            {canEditEvents && !isReadOnly && (
               <>
                 <button
                   onClick={() => router.push(`/dashboard/events/${eventId}/workdays/${workdayId}/edit`)}
@@ -2164,6 +2177,12 @@ export default function WorkdayViewPage() {
             <h2 className="text-xl font-semibold">Dettagli Giornata</h2>
             {canEditEvents && workday.isOpen && !isReadOnly && (
               <div className="flex flex-wrap gap-2">
+                <button
+                  onClick={() => setShowResetConfirmModal(true)}
+                  className="w-full sm:w-auto px-4 py-2.5 border border-red-300 text-red-700 rounded-lg hover:bg-red-50 active:scale-100 transition-all duration-200 cursor-pointer text-sm"
+                >
+                  Reset
+                </button>
                 <button
                   onClick={handleOpenActivitiesModal}
                   className="w-full sm:w-auto px-4 py-2.5 bg-gray-900 text-white rounded-lg hover:bg-gray-800 active:scale-100 transition-all duration-200 cursor-pointer text-sm"
@@ -3504,6 +3523,19 @@ export default function WorkdayViewPage() {
           >
             <div className="bg-white rounded-lg p-6 w-full max-w-2xl max-h-[80vh] overflow-y-auto">
               <h2 className="text-2xl font-bold mb-4">Imposta Turni</h2>
+              {(() => {
+                const activitiesCount = (workday?.assignments || []).filter(a => a.taskType?.type === "ACTIVITY").length;
+                const activitiesNotCovering = activitiesCount === 0 || hasActivityCoverageGaps();
+                if (!activitiesNotCovering) return null;
+                return (
+                  <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg flex items-center gap-2">
+                    <svg className="w-5 h-5 flex-shrink-0 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                    </svg>
+                    <span className="text-sm font-medium text-red-800">Attenzione: le attività non coprono tutto l&apos;intervallo orario</span>
+                  </div>
+                );
+              })()}
               <p className="text-gray-600 mb-6">
                 Seleziona i turni da definire per {enabledAreas.find(a => a.id === shiftModalAreaId)?.name || "questa area"}
               </p>
@@ -3558,10 +3590,11 @@ export default function WorkdayViewPage() {
                              }
                            }}
                            disabled={Boolean(disabledShiftTypes[shiftType.id])}
+                           title={disabledShiftTypes[shiftType.id] ? 'Ci sono lavoratori assegnati a questo turno' : undefined}
                            className={`w-4 h-4 text-gray-900 border-gray-300 rounded focus:ring-gray-500 ${disabledShiftTypes[shiftType.id] ? 'opacity-60 cursor-not-allowed' : ''}`}
                           />
                           {disabledShiftTypes[shiftType.id] && (
-                            <div className="absolute right-0 bottom-full mb-2 hidden group-hover:flex items-center px-3 py-2 bg-gray-900 text-white text-xs rounded-lg shadow-lg z-50 whitespace-nowrap">
+                            <div className="absolute left-0 top-full mt-2 hidden group-hover:flex items-center px-3 py-2 bg-gray-900 text-white text-xs rounded-lg shadow-lg z-[100] whitespace-nowrap">
                               Ci sono lavoratori assegnati a questo turno
                             </div>
                           )}
@@ -3861,7 +3894,7 @@ export default function WorkdayViewPage() {
                                      ×
                                    </button>
                                     {disabledIntervalKeys[`${shiftType.id}|${interval.start}-${interval.end}`] && (
-                                      <div className="absolute right-0 bottom-full mb-2 hidden group-hover:flex items-center px-3 py-2 bg-gray-900 text-white text-xs rounded-lg shadow-lg z-50 whitespace-nowrap">
+                                      <div className="absolute left-0 top-full mt-2 hidden group-hover:flex items-center px-3 py-2 bg-gray-900 text-white text-xs rounded-lg shadow-lg z-[100] whitespace-nowrap">
                                        Ci sono lavoratori assegnati a questo turno
                                      </div>
                                    )}
@@ -4184,23 +4217,44 @@ export default function WorkdayViewPage() {
               if (!hasExisting) {
                 hasExisting = Object.values(personnelQuantities).some(q => (q || 0) > 0);
               }
+              let hasAssignedPersonnel = false;
+              if (selectedAssignment?.userId) hasAssignedPersonnel = true;
+              if (!hasAssignedPersonnel && selectedAssignment?.assignedUsers) {
+                try {
+                  const arr = typeof selectedAssignment.assignedUsers === "string" ? JSON.parse(selectedAssignment.assignedUsers) : selectedAssignment.assignedUsers;
+                  hasAssignedPersonnel = Array.isArray(arr) && arr.some((x: { userId?: string }) => x?.userId);
+                } catch {}
+              }
               return (
                 <div className="flex items-center justify-between">
                   <div>
                     {hasExisting && (
-                      <button
-                        onClick={() => {
-                          setIsClearing(true);
-                          setPersonnelQuantities(prev => {
-                            const next: Record<string, number> = {};
-                            duties.forEach(d => { next[d.id] = 0; });
-                            return next;
-                          });
-                        }}
-                        className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 hover:shadow-md transition-all duration-200"
-                      >
-                        Svuota
-                      </button>
+                      <div className="relative group inline-block">
+                        <button
+                          onClick={() => {
+                            if (hasAssignedPersonnel) return;
+                            setIsClearing(true);
+                            setPersonnelQuantities(prev => {
+                              const next: Record<string, number> = {};
+                              duties.forEach(d => { next[d.id] = 0; });
+                              return next;
+                            });
+                          }}
+                          disabled={hasAssignedPersonnel}
+                          className={`px-4 py-2 rounded-lg transition-all duration-200 ${
+                            hasAssignedPersonnel
+                              ? "bg-gray-300 text-gray-500 cursor-not-allowed"
+                              : "bg-red-600 text-white hover:bg-red-700 hover:shadow-md"
+                          }`}
+                        >
+                          Svuota
+                        </button>
+                        {hasAssignedPersonnel && (
+                          <div className="absolute left-0 bottom-full mb-2 hidden group-hover:flex items-center px-3 py-2 bg-gray-900 text-white text-xs rounded-lg shadow-lg z-[100] whitespace-nowrap">
+                            Impossibile svuotare: c&apos;è personale assegnato a questo turno
+                          </div>
+                        )}
+                      </div>
                     )}
                   </div>
                   <div className="flex justify-end gap-3">
@@ -4413,6 +4467,29 @@ export default function WorkdayViewPage() {
           </div>
         </div>
       </div>
+    )}
+    {showResetConfirmModal && (
+      <ConfirmDialog
+        isOpen={true}
+        title="Reset giornata"
+        message="Sei sicuro di voler resettare la giornata? Verranno eliminati personale assegnato, tipologie personale, turni e attività. L'operazione non può essere annullata."
+        onCancel={() => setShowResetConfirmModal(false)}
+        onConfirm={async () => {
+          try {
+            const res = await fetch(`/api/workdays/${workdayId}/reset`, { method: "POST" });
+            if (res.ok) {
+              setShowResetConfirmModal(false);
+              await fetchWorkday();
+            } else {
+              const data = await res.json();
+              alert(data.error || "Errore nel reset della giornata");
+            }
+          } catch (e) {
+            console.error("Reset workday error:", e);
+            alert("Errore nel reset della giornata");
+          }
+        }}
+      />
     )}
     {areaDisableConfirm && (
       <ConfirmDialog

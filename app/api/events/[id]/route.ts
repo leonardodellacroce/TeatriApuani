@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { isLocationArchived, isEventPast } from "@/lib/validation";
+import { isMonthClosed } from "@/lib/closedMonth";
+import { isDateInPreviousMonth } from "@/lib/previousMonth";
 import { getWorkModeFromRequest } from "@/lib/workMode";
 
 export async function GET(
@@ -54,7 +56,9 @@ export async function GET(
       event.clientName = null;
     }
 
-    return NextResponse.json(event);
+    const closedMonthsResult = await prisma.closedMonth.findMany({ select: { year: true, month: true } }).catch(() => []);
+    const closedMonths = Array.isArray(closedMonthsResult) ? closedMonthsResult : [];
+    return NextResponse.json({ ...event, closedMonths });
   } catch (error) {
     console.error("Error fetching event:", error);
     return NextResponse.json(
@@ -86,20 +90,21 @@ export async function PATCH(
     }
 
     const { id } = await params;
-    
+    const body = await request.json();
+
     // Verifica se l'evento esiste e ottieni i dati attuali
     const existingEvent = await prisma.event.findUnique({
       where: { id },
       select: { endDate: true, clientIds: true },
     });
-    
+
     if (!existingEvent) {
       return NextResponse.json({ error: "Event not found" }, { status: 404 });
     }
-    
+
     // Verifica se l'evento è passato
     const eventIsPast = isEventPast(existingEvent.endDate);
-    
+
     // Solo il SUPER_ADMIN può modificare eventi passati
     const isSuperAdmin = (session.user as any).isSuperAdmin === true;
     if (eventIsPast && !isSuperAdmin) {
@@ -109,7 +114,43 @@ export async function PATCH(
       );
     }
 
-    const body = await request.json();
+    // Blocca qualsiasi modifica se una giornata dell'evento è in un mese chiuso (Super Admin può bypassare)
+    const isSuperAdminForMonth = (session.user as any).isSuperAdmin === true || session.user.role === "SUPER_ADMIN";
+    const workdays = await prisma.workday.findMany({
+      where: { eventId: id },
+      select: { date: true },
+    });
+    if (!isSuperAdminForMonth) {
+      const isAdmin = session.user.role === "ADMIN";
+      const isReopeningOnly = body.isClosed === false && Object.keys(body).every((k) => k === "isClosed" || body[k] === undefined);
+      for (const wd of workdays) {
+        const d = new Date(wd.date);
+        const closed = await isMonthClosed(d.getFullYear(), d.getMonth() + 1);
+        if (closed) {
+          // ADMIN può riaprire solo eventi del mese precedente (e solo con isClosed: false, senza altre modifiche)
+          const inPrevMonth = isDateInPreviousMonth(wd.date);
+          if (!(isAdmin && body.isClosed === false && inPrevMonth)) {
+            return NextResponse.json(
+              { error: "Impossibile modificare: una giornata dell'evento è in un mese chiuso. L'Admin può riaprire solo eventi del mese precedente." },
+              { status: 403 }
+            );
+          }
+        }
+      }
+      // Se ADMIN riapre, non permettere altre modifiche oltre a isClosed
+      if (isAdmin && body.isClosed === false) {
+        const hasOtherChanges = ["title", "clientName", "clientIds", "locationId", "startDate", "endDate", "notes"].some(
+          (k) => body[k] !== undefined
+        );
+        if (hasOtherChanges) {
+          return NextResponse.json(
+            { error: "L'Admin può solo riaprire l'evento, senza modificare altri campi" },
+            { status: 403 }
+          );
+        }
+      }
+    }
+
     const { title, clientName, clientIds, locationId, startDate, endDate, notes, isClosed } = body;
     
     // Verifica che la location (se fornita) non sia archiviata
@@ -153,8 +194,29 @@ export async function PATCH(
         console.log('[PATCH /api/events] Ignoring empty clientIds - at least 1 client is required');
       }
     }
-    if (locationId !== undefined) updateData.locationId = locationId || null;
+    if (locationId !== undefined) {
+      updateData.locationId = locationId || null;
+    }
     if (isClosed !== undefined) updateData.isClosed = isClosed;
+
+    // Blocca apertura evento (isClosed: false) se una giornata è in un mese chiuso (Super Admin può bypassare)
+    if (isClosed === false && !isSuperAdminForMonth) {
+      const isAdmin = session.user.role === "ADMIN";
+      for (const wd of workdays) {
+        const d = new Date(wd.date);
+        const closed = await isMonthClosed(d.getFullYear(), d.getMonth() + 1);
+        if (closed) {
+          // ADMIN può riaprire solo eventi le cui giornate in mesi chiusi sono tutte nel mese precedente
+          const inPrevMonth = isDateInPreviousMonth(wd.date);
+          if (!(isAdmin && inPrevMonth)) {
+            return NextResponse.json(
+              { error: "Impossibile riaprire: una giornata dell'evento è in un mese chiuso. L'Admin può riaprire solo eventi del mese precedente." },
+              { status: 403 }
+            );
+          }
+        }
+      }
+    }
     
     // Converti le date usando UTC esplicito per evitare problemi di timezone
     if (startDate !== undefined) {
@@ -180,6 +242,7 @@ export async function PATCH(
 
     // Gestione cambiamenti clienti: reset selettivo solo per i clienti rimossi
     let removedClientIds: string[] = [];
+    let newClientIds: string[] = [];
     
     if (clientIds !== undefined) {
       try {
@@ -195,7 +258,6 @@ export async function PATCH(
         }
         
         // Gestisci null, stringa JSON, o array
-        let newClientIds: string[] = [];
         if (clientIds === null) {
           newClientIds = [];
         } else if (typeof clientIds === 'string') {
@@ -238,13 +300,13 @@ export async function PATCH(
       });
     }
 
+    const workdayIds = event.workdays.map(w => w.id);
+
     // Reset selettivo: resetta solo i turni con clienti rimossi
-    if (removedClientIds.length > 0 && event.workdays.length > 0) {
+    if (removedClientIds.length > 0 && workdayIds.length > 0) {
       try {
         console.log('[PATCH /api/events] Resetting shifts with removed clients:', removedClientIds);
-        const workdayIds = event.workdays.map(w => w.id);
         
-        // Trova tutti gli assignment con i clienti rimossi
         const shiftsToReset = await prisma.assignment.findMany({
           where: {
             workdayId: { in: workdayIds },
@@ -253,22 +315,44 @@ export async function PATCH(
           select: { id: true }
         });
         
-        console.log('[PATCH /api/events] Found', shiftsToReset.length, 'shifts to reset');
-        
         if (shiftsToReset.length > 0) {
-          const updateResult = await prisma.assignment.updateMany({
-            where: {
-              id: { in: shiftsToReset.map(s => s.id) }
-            },
-            data: {
-              clientId: null
-            }
+          await prisma.assignment.updateMany({
+            where: { id: { in: shiftsToReset.map(s => s.id) } },
+            data: { clientId: null }
           });
-          console.log('[PATCH /api/events] Reset', updateResult.count, 'shifts to null');
         }
       } catch (shiftUpdateError) {
         console.error('[PATCH /api/events] Error resetting shift clients:', shiftUpdateError);
-        // Non bloccare l'update dell'evento se fallisce l'update dei turni
+      }
+    }
+
+    // Associa il primo cliente ai turni senza cliente (es. da conversione ore libere)
+    if (newClientIds.length > 0 && workdayIds.length > 0) {
+      try {
+        const firstClientId = newClientIds[0];
+        if (firstClientId) {
+          await prisma.assignment.updateMany({
+            where: {
+              workdayId: { in: workdayIds },
+              clientId: null
+            },
+            data: { clientId: firstClientId }
+          });
+        }
+      } catch (e) {
+        console.error('[PATCH /api/events] Error associating client to shifts:', e);
+      }
+    }
+
+    // Aggiorna location delle giornate quando si imposta la location dell'evento (es. da conversione ore libere)
+    if (locationId !== undefined && workdayIds.length > 0) {
+      try {
+        await prisma.workday.updateMany({
+          where: { eventId: id },
+          data: { locationId: locationId || null }
+        });
+      } catch (e) {
+        console.error('[PATCH /api/events] Error updating workday locations:', e);
       }
     }
 
@@ -334,6 +418,25 @@ export async function DELETE(
         { error: "Gli eventi passati possono essere eliminati solo dal Super Admin" },
         { status: 403 }
       );
+    }
+
+    // Blocca eliminazione se una giornata dell'evento è in un mese chiuso (Super Admin può bypassare)
+    const isSuperAdminForDelete = (session.user as any).isSuperAdmin === true || session.user.role === "SUPER_ADMIN";
+    if (!isSuperAdminForDelete) {
+      const workdaysForDelete = await prisma.workday.findMany({
+        where: { eventId: id },
+        select: { date: true },
+      });
+      for (const wd of workdaysForDelete) {
+        const d = new Date(wd.date);
+        const closed = await isMonthClosed(d.getFullYear(), d.getMonth() + 1);
+        if (closed) {
+          return NextResponse.json(
+            { error: "Impossibile eliminare: una giornata dell'evento è in un mese chiuso" },
+            { status: 403 }
+          );
+        }
+      }
     }
     
     await prisma.event.delete({

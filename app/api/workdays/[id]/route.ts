@@ -3,6 +3,7 @@ import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { isLocationArchived, checkEventStatus } from "@/lib/validation";
 import { getWorkModeFromRequest } from "@/lib/workMode";
+import { isMonthClosed } from "@/lib/closedMonth";
 
 export async function GET(
   request: NextRequest,
@@ -157,7 +158,9 @@ export async function GET(
       return NextResponse.json({ error: "Workday not found" }, { status: 404 });
     }
 
-    return NextResponse.json(workday);
+    const closedMonthsResult = await prisma.closedMonth.findMany({ select: { year: true, month: true } }).catch(() => []);
+    const closedMonths = Array.isArray(closedMonthsResult) ? closedMonthsResult : [];
+    return NextResponse.json({ ...workday, closedMonths });
   } catch (error) {
     console.error("Error fetching workday:", error);
     return NextResponse.json(
@@ -184,14 +187,25 @@ export async function PATCH(
 
     const { id } = await params;
     
-    // Recupera il workday esistente per ottenere l'eventId
+    // Recupera il workday esistente per ottenere eventId e date
     const existingWorkday = await prisma.workday.findUnique({
       where: { id },
-      select: { eventId: true },
+      select: { eventId: true, date: true },
     });
     
     if (!existingWorkday) {
       return NextResponse.json({ error: "Workday not found" }, { status: 404 });
+    }
+
+    // Blocca modifiche se il mese è chiuso (Super Admin può bypassare)
+    const isSuperAdmin = (session.user as any).isSuperAdmin === true || session.user.role === "SUPER_ADMIN";
+    const wdDate = new Date(existingWorkday.date);
+    const monthClosed = await isMonthClosed(wdDate.getFullYear(), wdDate.getMonth() + 1);
+    if (monthClosed && !isSuperAdmin) {
+      return NextResponse.json(
+        { error: "Impossibile modificare: il mese è chiuso" },
+        { status: 403 }
+      );
     }
     
     // Verifica che l'evento associato esista e non sia passato
@@ -204,7 +218,6 @@ export async function PATCH(
     }
     
     // Solo il SUPER_ADMIN può modificare workdays per eventi passati
-    const isSuperAdmin = (session.user as any).isSuperAdmin === true;
     if (eventStatus.isPast && !isSuperAdmin) {
       return NextResponse.json(
         { error: "Non è possibile modificare giornate per eventi passati (solo Super Admin)" },
@@ -342,11 +355,22 @@ export async function DELETE(
     // Verifica che la giornata esista e recupera l'eventId
     const workday = await prisma.workday.findUnique({
       where: { id },
-      select: { eventId: true },
+      select: { eventId: true, date: true },
     });
 
     if (!workday) {
       return NextResponse.json({ error: "Workday not found" }, { status: 404 });
+    }
+
+    // Blocca eliminazione se il mese è chiuso (Super Admin può bypassare)
+    const isSuperAdminDel = (session.user as any).isSuperAdmin === true || session.user.role === "SUPER_ADMIN";
+    const wdDateDel = new Date(workday.date);
+    const monthClosedDel = await isMonthClosed(wdDateDel.getFullYear(), wdDateDel.getMonth() + 1);
+    if (monthClosedDel && !isSuperAdminDel) {
+      return NextResponse.json(
+        { error: "Impossibile eliminare: il mese è chiuso" },
+        { status: 403 }
+      );
     }
     
     // Verifica che l'evento associato esista e non sia passato
@@ -359,8 +383,7 @@ export async function DELETE(
     }
     
     // Solo il SUPER_ADMIN può eliminare workdays per eventi passati
-    const isSuperAdmin = (session.user as any).isSuperAdmin === true;
-    if (eventStatus.isPast && !isSuperAdmin) {
+    if (eventStatus.isPast && !isSuperAdminDel) {
       return NextResponse.json(
         { error: "Non è possibile eliminare giornate per eventi passati (solo Super Admin)" },
         { status: 403 }

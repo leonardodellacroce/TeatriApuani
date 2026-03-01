@@ -92,10 +92,14 @@ export async function GET(req: NextRequest) {
       return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
     });
 
+    // Restituiamo tutte le notifiche (nessuna deduplicazione per tipo).
+    // Il frontend raggruppa le non lette dello stesso tipo a prescindere dal tempo.
+    const notificationsToReturn = notifications;
+
     // Filtra notifiche MISSING_HOURS_REMINDER obsolete (utente non ha più turni per quelle date)
     if (notificationTypes.includes("MISSING_HOURS_REMINDER")) {
       const filtered: typeof notifications = [];
-      for (const n of notifications) {
+      for (const n of notificationsToReturn) {
         if (n.type !== "MISSING_HOURS_REMINDER") {
           filtered.push(n);
           continue;
@@ -159,13 +163,13 @@ export async function GET(req: NextRequest) {
         .filter((s) => s.showInDashboardModal)
         .map((s) => s.type);
       return NextResponse.json({
-        notifications,
+        notifications: notificationsToReturn,
         requireModalActionToMarkRead,
         typesWithModalActivo,
       });
     }
 
-    return NextResponse.json(notifications);
+    return NextResponse.json(notificationsToReturn);
   } catch (error) {
     console.error("Error fetching notifications:", error);
     const msg = error instanceof Error ? error.message : String(error);

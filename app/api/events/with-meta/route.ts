@@ -11,7 +11,7 @@ export async function GET() {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const [events, areas, duties] = await Promise.all([
+    const [events, areas, duties, closedMonthsResult] = await Promise.all([
       prisma.event.findMany({
         include: {
           location: true,
@@ -45,7 +45,9 @@ export async function GET() {
       }),
       prisma.area.findMany({ orderBy: { createdAt: "desc" } }),
       prisma.duty.findMany({ orderBy: { createdAt: "desc" } }),
+      prisma.closedMonth.findMany({ select: { year: true, month: true } }).catch(() => []),
     ]);
+    const closedMonths = Array.isArray(closedMonthsResult) ? closedMonthsResult : [];
 
     const allAssignedUserIds = new Set<string>();
     events.forEach((event) => {
@@ -111,7 +113,7 @@ export async function GET() {
       });
     }
 
-    return NextResponse.json({ events, areas, duties });
+    return NextResponse.json({ events, areas, duties, closedMonths });
   } catch (error) {
     console.error("Error fetching events with meta:", error);
     return NextResponse.json(

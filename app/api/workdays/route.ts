@@ -3,6 +3,7 @@ import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { isLocationArchived, checkEventStatus } from "@/lib/validation";
 import { getWorkModeFromRequest } from "@/lib/workMode";
+import { isMonthClosed } from "@/lib/closedMonth";
 
 export async function GET(request: NextRequest) {
   try {
@@ -81,6 +82,21 @@ export async function POST(request: NextRequest) {
     if (eventStatus.isPast && !isSuperAdmin) {
       return NextResponse.json(
         { error: "Non è possibile creare giornate per eventi passati (solo Super Admin)" },
+        { status: 403 }
+      );
+    }
+
+    // Normalizza la data per il check mese chiuso
+    let workdayDateForCheck = new Date(date);
+    if (typeof date === 'string' && date.length === 10 && !date.includes('T')) {
+      const [y, m, d] = date.split('-').map(Number);
+      workdayDateForCheck = new Date(Date.UTC(y, m - 1, d, 0, 0, 0));
+    }
+    const isSuperAdmin = (session.user as any).isSuperAdmin === true || session.user.role === "SUPER_ADMIN";
+    const monthClosed = await isMonthClosed(workdayDateForCheck.getFullYear(), workdayDateForCheck.getMonth() + 1);
+    if (monthClosed && !isSuperAdmin) {
+      return NextResponse.json(
+        { error: "Impossibile creare: il mese è chiuso" },
         { status: 403 }
       );
     }

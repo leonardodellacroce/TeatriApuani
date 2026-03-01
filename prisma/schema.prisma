@@ -42,6 +42,7 @@ model User {
   unavailabilities Unavailability[]
   notifications Notification[]
   adminNotificationPreference AdminNotificationPreference?
+  freeHoursEntries FreeHoursEntry[]
 }
 
 model Notification {
@@ -77,6 +78,7 @@ model Company {
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
   users          User[]
+  freeHoursEntries FreeHoursEntry[]
 }
 
 model Location {
@@ -93,6 +95,7 @@ model Location {
   updatedAt  DateTime @updatedAt
   events     Event[]
   workdays   Workday[]
+  freeHoursEntries FreeHoursEntry[]
 }
 
 model Client {
@@ -134,6 +137,7 @@ model Duty {
   area      String   // "Area Tecnica", "Area di Sala", "Area Amministrativa"
   createdAt  DateTime  @default(now())
   updatedAt DateTime @updatedAt
+  freeHoursEntries FreeHoursEntry[]
 }
 
 model Event {
@@ -190,6 +194,7 @@ model TaskType {
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
   assignments     Assignment[]
+  freeHoursEntries FreeHoursEntry[]
 
   @@unique([name, type])
   @@index([type])
@@ -283,6 +288,36 @@ model TimeEntry {
   @@index([date])
 }
 
+model FreeHoursEntry {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  companyId   String?
+  company     Company? @relation(fields: [companyId], references: [id], onDelete: SetNull)
+  locationId  String?
+  location    Location? @relation(fields: [locationId], references: [id], onDelete: SetNull)
+  date        DateTime // Data delle ore
+  startTime   String   // HH:MM
+  endTime     String   // HH:MM
+  hoursWorked Float
+  taskTypeId  String?  // Tipologia turno (es. Assistenza) - obbligatorio per nuove inserzioni
+  taskType    TaskType? @relation(fields: [taskTypeId], references: [id], onDelete: SetNull)
+  dutyId      String?  // Mansione svolta (es. Macchinista, Elettricista)
+  duty        Duty?     @relation(fields: [dutyId], references: [id], onDelete: SetNull)
+  area        String?  // Area (es. Area Tecnica) - derivata da duty o inserita
+  actualBreaks String? // JSON: [{"start":"11:05","end":"11:32"}, ...]
+  notes       String?
+  status      String   @default("PENDING") // PENDING | CONVERTED
+  convertedToAssignmentId String? // Se convertito, ID dell'assignment creato
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([userId])
+  @@index([companyId])
+  @@index([status])
+  @@index([date])
+}
+
 model Unavailability {
   id        String   @id @default(cuid())
   userId    String
@@ -306,6 +341,17 @@ model SystemSetting {
   key       String   @unique
   value     String
   updatedAt DateTime @updatedAt
+}
+
+model ClosedMonth {
+  id              String    @id @default(cuid())
+  year            Int
+  month           Int
+  closedByUserId  String?
+  closedAt        DateTime  @default(now())
+
+  @@unique([year, month])
+  @@index([year, month])
 }
 
 model AdminNotificationPreference {

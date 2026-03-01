@@ -5,7 +5,12 @@ import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import DashboardShell from "@/components/DashboardShell";
-import { buildMyShiftsUrlWithDates, buildMyShiftsUrlForOreNotification } from "@/lib/notificationDates";
+import {
+  buildMyShiftsUrlWithDates,
+  buildMyShiftsUrlForOreNotification,
+  buildMyShiftsUrlForMissingHoursGroup,
+  buildMyShiftsUrlForOreNotificationGroup,
+} from "@/lib/notificationDates";
 import { getEffectivePriority, getPriorityIcon } from "@/lib/notifications";
 
 type Notification = {
@@ -19,6 +24,71 @@ type Notification = {
   createdAt: string;
 };
 
+const GROUPABLE_TYPES = [
+  "MISSING_HOURS_REMINDER",
+  "DAILY_SHIFT_REMINDER",
+  "UNAVAILABILITY_CREATED_BY_ADMIN",
+  "UNAVAILABILITY_MODIFIED_BY_ADMIN",
+  "UNAVAILABILITY_DELETED_BY_ADMIN",
+  "UNAVAILABILITY_APPROVED",
+  "UNAVAILABILITY_REJECTED",
+  "ORE_INSERITE_DA_ADMIN",
+  "ORE_MODIFICATE_DA_ADMIN",
+  "ORE_ELIMINATE_DA_ADMIN",
+  "FREE_HOURS_CONVERTED_BY_ADMIN",
+  "FREE_HOURS_DELETED_BY_ADMIN",
+];
+const MAX_BLOCKS_DISPLAY = 12;
+const MAX_LINES_BEFORE_EXPAND = 15;
+
+function groupNotifications(list: Notification[]): Array<Notification | { group: Notification[] }> {
+  const result: Array<Notification | { group: Notification[] }> = [];
+  const unreadByType = new Map<string, Notification[]>();
+  const read: Notification[] = [];
+
+  for (const n of list) {
+    if (n.read) {
+      read.push(n);
+    } else if (GROUPABLE_TYPES.includes(n.type)) {
+      const arr = unreadByType.get(n.type) ?? [];
+      arr.push(n);
+      unreadByType.set(n.type, arr);
+    } else {
+      result.push(n);
+    }
+  }
+
+  for (const [, arr] of unreadByType) {
+    arr.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+    if (arr.length === 1) {
+      result.push(arr[0]);
+    } else {
+      result.push({ group: arr });
+    }
+  }
+
+  result.sort((a, b) => {
+    const aItem = "group" in a ? a.group[0] : a;
+    const bItem = "group" in b ? b.group[0] : b;
+    return new Date(bItem.createdAt).getTime() - new Date(aItem.createdAt).getTime();
+  });
+  read.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  result.push(...read);
+  return result;
+}
+
+/** Costruisce messaggio per gruppo: max 12 blocchi, poi "e altre X" */
+function buildGroupDisplayMessage(group: Notification[]): { message: string; totalCount: number } {
+  const toShow = group.slice(0, MAX_BLOCKS_DISPLAY);
+  const rest = group.length - MAX_BLOCKS_DISPLAY;
+  const parts = toShow.map((x) => x.message);
+  let message = parts.join("\n\n---\n\n");
+  if (rest > 0) {
+    message += `\n\n… e altre ${rest}`;
+  }
+  return { message, totalCount: group.length };
+}
+
 const TITLE_BY_TYPE: Record<string, string> = {
   MISSING_HOURS_REMINDER: "Orari da inserire",
   DAILY_SHIFT_REMINDER: "Promemoria turni di oggi",
@@ -30,6 +100,8 @@ const TITLE_BY_TYPE: Record<string, string> = {
   ORE_INSERITE_DA_ADMIN: "Ore lavorate inserite",
   ORE_MODIFICATE_DA_ADMIN: "Ore lavorate modificate",
   ORE_ELIMINATE_DA_ADMIN: "Ore lavorate eliminate",
+  FREE_HOURS_CONVERTED_BY_ADMIN: "Ore libere convertite in evento",
+  FREE_HOURS_DELETED_BY_ADMIN: "Ore libere eliminate",
 };
 
 function getTitle(n: Notification) {
@@ -75,7 +147,18 @@ export default function NotificationsPage() {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [requireModalActionToMarkRead, setRequireModalActionToMarkRead] = useState(false);
   const [typesWithModalActivo, setTypesWithModalActivo] = useState<string[]>([]);
+  const [expandedCards, setExpandedCards] = useState<Set<string>>(new Set());
 
+  const grouped = groupNotifications(notifications);
+
+  const toggleCardExpanded = (key: string) => {
+    setExpandedCards((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  };
   const readNotifications = notifications.filter((n) => n.read);
   const allReadSelected =
     readNotifications.length > 0 &&
@@ -101,19 +184,23 @@ export default function NotificationsPage() {
       .finally(() => setLoading(false));
   }, [status, session?.user, router]);
 
-  const handleInserisci = async (n: Notification) => {
+  const handleInserisci = async (item: Notification | { group: Notification[] }) => {
+    const n = "group" in item ? item.group[0] : item;
+    const ids = "group" in item ? item.group.map((x) => x.id) : [n.id];
     const url =
       n.type === "MISSING_HOURS_REMINDER"
-        ? buildMyShiftsUrlWithDates(n.message, n.metadata)
+        ? "group" in item && item.group.length > 1
+          ? buildMyShiftsUrlForMissingHoursGroup(item.group)
+          : buildMyShiftsUrlWithDates(n.message, n.metadata)
         : "/dashboard/my-shifts";
     try {
-      await fetch(`/api/notifications/${n.id}`, { method: "PATCH" });
+      await Promise.all(ids.map((id) => fetch(`/api/notifications/${id}`, { method: "PATCH" })));
       setNotifications((prev) =>
-        prev.map((x) => (x.id === n.id ? { ...x, read: true } : x))
+        prev.map((x) => (ids.includes(x.id) ? { ...x, read: true } : x))
       );
       setSelectedIds((prev) => {
         const next = new Set(prev);
-        next.delete(n.id);
+        ids.forEach((id) => next.delete(id));
         return next;
       });
       window.dispatchEvent(new Event("notificationsUpdated"));
@@ -129,17 +216,30 @@ export default function NotificationsPage() {
     "UNAVAILABILITY_REJECTED",
   ];
 
-  const ORE_TYPES = ["ORE_INSERITE_DA_ADMIN", "ORE_MODIFICATE_DA_ADMIN", "ORE_ELIMINATE_DA_ADMIN"];
+  const ORE_TYPES = [
+    "ORE_INSERITE_DA_ADMIN",
+    "ORE_MODIFICATE_DA_ADMIN",
+    "ORE_ELIMINATE_DA_ADMIN",
+    "FREE_HOURS_CONVERTED_BY_ADMIN",
+    "FREE_HOURS_DELETED_BY_ADMIN",
+  ];
 
-  const handleVaiAlleIndisponibilita = async (n: Notification) => {
+  const DELETE_TYPES = [
+    "UNAVAILABILITY_DELETED_BY_ADMIN",
+    "ORE_ELIMINATE_DA_ADMIN",
+    "FREE_HOURS_DELETED_BY_ADMIN",
+  ];
+
+  const handleVaiAlleIndisponibilita = async (item: Notification | { group: Notification[] }) => {
+    const ids = "group" in item ? item.group.map((x) => x.id) : [item.id];
     try {
-      await fetch(`/api/notifications/${n.id}`, { method: "PATCH" });
+      await Promise.all(ids.map((id) => fetch(`/api/notifications/${id}`, { method: "PATCH" })));
       setNotifications((prev) =>
-        prev.map((x) => (x.id === n.id ? { ...x, read: true } : x))
+        prev.map((x) => (ids.includes(x.id) ? { ...x, read: true } : x))
       );
       setSelectedIds((prev) => {
         const next = new Set(prev);
-        next.delete(n.id);
+        ids.forEach((id) => next.delete(id));
         return next;
       });
       window.dispatchEvent(new Event("notificationsUpdated"));
@@ -147,16 +247,21 @@ export default function NotificationsPage() {
     router.push("/dashboard/unavailabilities");
   };
 
-  const handleVisualizza = async (n: Notification) => {
-    const url = buildMyShiftsUrlForOreNotification(n.metadata);
+  const handleVisualizza = async (item: Notification | { group: Notification[] }) => {
+    const n = "group" in item ? item.group[0] : item;
+    const ids = "group" in item ? item.group.map((x) => x.id) : [n.id];
+    const url =
+      "group" in item && item.group.length > 1
+        ? buildMyShiftsUrlForOreNotificationGroup(item.group)
+        : buildMyShiftsUrlForOreNotification(n.metadata);
     try {
-      await fetch(`/api/notifications/${n.id}`, { method: "PATCH" });
+      await Promise.all(ids.map((id) => fetch(`/api/notifications/${id}`, { method: "PATCH" })));
       setNotifications((prev) =>
-        prev.map((x) => (x.id === n.id ? { ...x, read: true } : x))
+        prev.map((x) => (ids.includes(x.id) ? { ...x, read: true } : x))
       );
       setSelectedIds((prev) => {
         const next = new Set(prev);
-        next.delete(n.id);
+        ids.forEach((id) => next.delete(id));
         return next;
       });
       window.dispatchEvent(new Event("notificationsUpdated"));
@@ -164,15 +269,16 @@ export default function NotificationsPage() {
     router.push(url);
   };
 
-  const handleMarkAsRead = async (n: Notification) => {
+  const handleMarkAsRead = async (item: Notification | { group: Notification[] }) => {
+    const ids = "group" in item ? item.group.map((x) => x.id) : [item.id];
     try {
-      await fetch(`/api/notifications/${n.id}`, { method: "PATCH" });
+      await Promise.all(ids.map((id) => fetch(`/api/notifications/${id}`, { method: "PATCH" })));
       setNotifications((prev) =>
-        prev.map((x) => (x.id === n.id ? { ...x, read: true } : x))
+        prev.map((x) => (ids.includes(x.id) ? { ...x, read: true } : x))
       );
       setSelectedIds((prev) => {
         const next = new Set(prev);
-        next.delete(n.id);
+        ids.forEach((id) => next.delete(id));
         return next;
       });
       window.dispatchEvent(new Event("notificationsUpdated"));
@@ -257,89 +363,125 @@ export default function NotificationsPage() {
           </div>
         ) : (
           <div className="space-y-4">
-            {notifications.map((n) => (
-              <div
-                key={n.id}
-                className={`rounded-2xl border overflow-hidden shadow-sm transition-all ${
-                  n.read
-                    ? "border-gray-200 bg-gray-50/50 opacity-75"
-                    : "border-gray-300 bg-white hover:shadow-md"
-                }`}
-              >
-                <div className="bg-gray-900 px-4 py-2.5 flex items-center gap-3">
-                  {n.read && (
-                    <input
-                      type="checkbox"
-                      checked={selectedIds.has(n.id)}
-                      onChange={() => toggleSelect(n.id)}
-                      className="w-4 h-4 rounded border-gray-400 text-gray-900 focus:ring-gray-500"
-                      aria-label={`Seleziona notifica ${getTitle(n)}`}
-                    />
-                  )}
-                  <span className="text-white/80 text-xs font-mono" title={`Priorità ${getEffectivePriority(n.priority, n.type)}`}>
-                    {getPriorityIcon(getEffectivePriority(n.priority, n.type))}
-                  </span>
-                  <h2 className="text-white font-semibold text-sm">
-                    {getTitle(n)}
-                  </h2>
-                </div>
-                <div className="px-4 py-4 bg-white/95 shadow-[0_2px_8px_rgba(0,0,0,0.06)]">
-                  <p className="text-gray-700 text-sm whitespace-pre-wrap mb-3">
-                    {n.message.includes("~~")
-                      ? renderMessageWithStrikethrough(n.message)
-                      : n.message}
-                  </p>
-                  <div className="flex items-center justify-between gap-4 flex-wrap">
-                    <span className="text-xs text-gray-500">
-                      {formatDate(n.createdAt)}
+            {grouped.map((item) => {
+              const isGroup = "group" in item;
+              const n = isGroup ? item.group[0] : item;
+              const ids = isGroup ? item.group.map((x) => x.id) : [n.id];
+              const cardKey = isGroup ? ids.join("-") : n.id;
+              const { message: rawGroupMessage, totalCount } =
+                isGroup && item.group.length > 1
+                  ? buildGroupDisplayMessage(item.group)
+                  : { message: n.message, totalCount: 1 };
+              const displayMessage = rawGroupMessage;
+              const lineCount = displayMessage.split("\n").length;
+              const needsExpand = lineCount > MAX_LINES_BEFORE_EXPAND;
+              const isExpanded = expandedCards.has(cardKey);
+              const shownMessage =
+                needsExpand && !isExpanded
+                  ? displayMessage.split("\n").slice(0, MAX_LINES_BEFORE_EXPAND).join("\n")
+                  : displayMessage;
+              return (
+                <div
+                  key={cardKey}
+                  className={`rounded-2xl border overflow-hidden shadow-sm transition-all ${
+                    n.read
+                      ? "border-gray-200 bg-gray-50/50 opacity-75"
+                      : "border-gray-300 bg-white hover:shadow-md"
+                  }`}
+                >
+                  <div className="bg-gray-900 px-4 py-2.5 flex items-center gap-3">
+                    {n.read && (
+                      <input
+                        type="checkbox"
+                        checked={selectedIds.has(n.id)}
+                        onChange={() => toggleSelect(n.id)}
+                        className="w-4 h-4 rounded border-gray-400 text-gray-900 focus:ring-gray-500"
+                        aria-label={`Seleziona notifica ${getTitle(n)}`}
+                      />
+                    )}
+                    <span className="text-white/80 text-xs font-mono" title={`Priorità ${getEffectivePriority(n.priority, n.type)}`}>
+                      {getPriorityIcon(getEffectivePriority(n.priority, n.type))}
                     </span>
-                    <div className="flex items-center gap-2">
-                      {!n.read && n.type === "MISSING_HOURS_REMINDER" && (
-                        <button
-                          onClick={() => handleInserisci(n)}
-                          className="px-4 py-2 bg-gray-900 text-white text-sm font-medium rounded-lg hover:bg-gray-800"
-                        >
-                          Inserisci
-                        </button>
-                      )}
-                      {!n.read && n.type === "DAILY_SHIFT_REMINDER" && (
-                        <button
-                          onClick={() => handleInserisci(n)}
-                          className="px-4 py-2 bg-gray-900 text-white text-sm font-medium rounded-lg hover:bg-gray-800"
-                        >
-                          Vai ai turni
-                        </button>
-                      )}
-                      {!n.read && UNAVAILABILITY_TYPES.includes(n.type) && (
-                        <button
-                          onClick={() => handleVaiAlleIndisponibilita(n)}
-                          className="px-4 py-2 bg-gray-900 text-white text-sm font-medium rounded-lg hover:bg-gray-800"
-                        >
-                          Vai alle indisponibilità
-                        </button>
-                      )}
-                      {!n.read && ORE_TYPES.includes(n.type) && (
-                        <button
-                          onClick={() => handleVisualizza(n)}
-                          className="px-4 py-2 bg-gray-900 text-white text-sm font-medium rounded-lg hover:bg-gray-800"
-                        >
-                          Visualizza
-                        </button>
-                      )}
-                      {!n.read &&
-                        !(requireModalActionToMarkRead && typesWithModalActivo.includes(n.type)) && (
-                        <button
-                          onClick={() => handleMarkAsRead(n)}
-                          className="px-4 py-2 border border-gray-300 text-gray-700 text-sm font-medium rounded-lg hover:bg-gray-50"
-                        >
-                          Letta
-                        </button>
-                      )}
+                    <h2 className="text-white font-semibold text-sm">
+                      {getTitle(n)}{isGroup && totalCount > 1 ? ` (${totalCount})` : ""}
+                    </h2>
+                  </div>
+                  <div className="px-4 py-4 bg-white/95 shadow-[0_2px_8px_rgba(0,0,0,0.06)]">
+                    <p className="text-gray-700 text-sm whitespace-pre-wrap mb-3">
+                      {shownMessage.includes("~~")
+                        ? renderMessageWithStrikethrough(shownMessage)
+                        : shownMessage}
+                    </p>
+                    {needsExpand && (
+                      <button
+                        type="button"
+                        onClick={() => toggleCardExpanded(cardKey)}
+                        className="text-sm text-gray-600 hover:text-gray-900 underline mb-3"
+                      >
+                        {isExpanded ? "Riduci" : "Espandi"}
+                      </button>
+                    )}
+                    <div className="flex items-center justify-between gap-4 flex-wrap">
+                      <span className="text-xs text-gray-500">
+                        {formatDate(n.createdAt)}
+                      </span>
+                      <div className="flex items-center gap-2">
+                        {!n.read && n.type === "MISSING_HOURS_REMINDER" && (
+                          <button
+                            onClick={() => handleInserisci(isGroup ? item : n)}
+                            className="px-4 py-2 bg-gray-900 text-white text-sm font-medium rounded-lg hover:bg-gray-800"
+                          >
+                            Inserisci
+                          </button>
+                        )}
+                        {!n.read && n.type === "DAILY_SHIFT_REMINDER" && (
+                          <button
+                            onClick={() => handleInserisci(isGroup ? item : n)}
+                            className="px-4 py-2 bg-gray-900 text-white text-sm font-medium rounded-lg hover:bg-gray-800"
+                          >
+                            Vai ai turni
+                          </button>
+                        )}
+                        {!n.read && DELETE_TYPES.includes(n.type) && (
+                          <button
+                            onClick={() => handleMarkAsRead(isGroup ? item : n)}
+                            className="px-4 py-2 bg-gray-900 text-white text-sm font-medium rounded-lg hover:bg-gray-800"
+                          >
+                            OK
+                          </button>
+                        )}
+                        {!n.read && UNAVAILABILITY_TYPES.includes(n.type) && !DELETE_TYPES.includes(n.type) && (
+                          <button
+                            onClick={() => handleVaiAlleIndisponibilita(isGroup ? item : n)}
+                            className="px-4 py-2 bg-gray-900 text-white text-sm font-medium rounded-lg hover:bg-gray-800"
+                          >
+                            Vai alle indisponibilità
+                          </button>
+                        )}
+                        {!n.read && ORE_TYPES.includes(n.type) && !DELETE_TYPES.includes(n.type) && (
+                          <button
+                            onClick={() => handleVisualizza(isGroup ? item : n)}
+                            className="px-4 py-2 bg-gray-900 text-white text-sm font-medium rounded-lg hover:bg-gray-800"
+                          >
+                            Visualizza
+                          </button>
+                        )}
+                        {!n.read &&
+                          !DELETE_TYPES.includes(n.type) &&
+                          !(requireModalActionToMarkRead && typesWithModalActivo.includes(n.type)) && (
+                            <button
+                              onClick={() => handleMarkAsRead(isGroup ? item : n)}
+                              className="px-4 py-2 border border-gray-300 text-gray-700 text-sm font-medium rounded-lg hover:bg-gray-50"
+                            >
+                              Letta
+                            </button>
+                          )}
+                      </div>
                     </div>
                   </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>

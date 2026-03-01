@@ -8,6 +8,9 @@ import PageSkeleton from "@/components/PageSkeleton";
 import ConfirmDialog from "@/components/ConfirmDialog";
 import { getIncompleteScheduleInfo, getWorkdayAlertStates, getPersonnelAlertState, getClientAlertState } from "./utils";
 import { getWorkModeCookie } from "@/lib/workMode";
+import { isPreviousMonth } from "@/lib/previousMonth";
+import Tooltip from "@/components/Tooltip";
+import { canManageWorkdays, canSeeAllEvents } from "@/lib/authz";
 import { formatUserName, type UserLike } from "@/lib/formatUserName";
 import { formatUnavailabilityTimeRange } from "@/lib/unavailabilityTime";
 
@@ -45,8 +48,37 @@ interface Event {
   workdays?: Workday[];
 }
 
-const CalendarView = ({ events, onEventClick, canOpenClosedEvents, areaNamesMap, dutyIdToName, showAdminIndicators }: { events: Event[]; onEventClick: (eventId: string) => void; canOpenClosedEvents: boolean, areaNamesMap: Record<string, string>, dutyIdToName: Record<string, string>, showAdminIndicators: boolean }) => {
-  const [currentDate, setCurrentDate] = useState(new Date());
+const CalendarView = ({
+  events,
+  onEventClick,
+  canOpenClosedEvents,
+  areaNamesMap,
+  dutyIdToName,
+  showAdminIndicators,
+  closedMonths,
+  canToggleMonth,
+  onMonthToggle,
+  currentDate,
+  setCurrentDate,
+  isMonthEnded,
+  isAdmin,
+  isSuperAdmin,
+}: {
+  events: Event[];
+  onEventClick: (eventId: string) => void;
+  canOpenClosedEvents: boolean;
+  areaNamesMap: Record<string, string>;
+  dutyIdToName: Record<string, string>;
+  showAdminIndicators: boolean;
+  closedMonths: Array<{ year: number; month: number }>;
+  canToggleMonth: boolean;
+  onMonthToggle: (year: number, month: number, isClosed: boolean) => void;
+  currentDate: Date;
+  setCurrentDate: (d: Date) => void;
+  isMonthEnded: (year: number, month: number) => boolean;
+  isAdmin: boolean;
+  isSuperAdmin: boolean;
+}) => {
   const [mobileDayDetail, setMobileDayDetail] = useState<{ date: Date; dayEvents: any[] } | null>(null);
 
   // Rimuovi il tooltip degli alert quando si naviga via (evita che resti visibile sulle pagine successive)
@@ -173,9 +205,44 @@ const CalendarView = ({ events, onEventClick, canOpenClosedEvents, areaNamesMap,
   return (
     <div>
       <div className="flex flex-nowrap items-center justify-between gap-2 mb-4 lg:mb-6">
-        <h2 className="text-xl lg:text-2xl font-bold whitespace-nowrap text-gray-900">
-          {monthNames[currentDate.getMonth()]} {currentDate.getFullYear()}
-        </h2>
+        <div className="flex items-center gap-2 flex-wrap">
+          <h2 className="text-xl lg:text-2xl font-bold whitespace-nowrap text-gray-900">
+            {monthNames[currentDate.getMonth()]} {currentDate.getFullYear()}
+          </h2>
+          {canToggleMonth && (() => {
+            const y = currentDate.getFullYear();
+            const m = currentDate.getMonth() + 1;
+            const closed = closedMonths.some((c) => c.year === y && c.month === m);
+            const adminCannotReopen = closed && isAdmin && !isSuperAdmin && !isPreviousMonth(y, m);
+            const baseDisabled = !closed && !isMonthEnded(y, m);
+            const disabled = baseDisabled || adminCannotReopen;
+            const tooltipText = adminCannotReopen
+              ? "È possibile riaprire solamente il mese precedente a quello in corso"
+              : closed
+                ? "Clicca per aprire il mese"
+                : !isMonthEnded(y, m)
+                  ? "Il mese può essere chiuso solo dopo che è terminato"
+                  : "Clicca per chiudere il mese";
+            return (
+              <Tooltip content={tooltipText}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (!closed && !isMonthEnded(y, m)) return;
+                    if (adminCannotReopen) return;
+                    onMonthToggle(y, m, !closed);
+                  }}
+                  disabled={disabled}
+                  className={`text-xs font-semibold px-2.5 py-1 rounded-full ${
+                    closed ? "bg-red-100 text-red-800" : "bg-green-100 text-green-800"
+                  } ${disabled ? "opacity-60 cursor-not-allowed pointer-events-none" : "hover:opacity-90 cursor-pointer"}`}
+                >
+                  {closed ? "Chiuso" : "Aperto"}
+                </button>
+              </Tooltip>
+            );
+          })()}
+        </div>
         <div className="flex gap-2 flex-shrink-0">
           <button
             onClick={goToPreviousMonth}
@@ -491,6 +558,12 @@ const ProgrammaView = ({
   setSelectedAreaFilter,
   unavailabilities,
   showPersoneMancanti,
+  closedMonths,
+  canToggleMonth,
+  onMonthToggle,
+  isMonthEnded,
+  isAdmin,
+  isSuperAdmin,
 }: {
   events: Event[];
   programmaMonth: Date;
@@ -502,6 +575,12 @@ const ProgrammaView = ({
   setSelectedAreaFilter: (v: string) => void;
   unavailabilities: UnavailabilityItem[];
   showPersoneMancanti: boolean;
+  closedMonths: Array<{ year: number; month: number }>;
+  canToggleMonth: boolean;
+  onMonthToggle: (year: number, month: number, isClosed: boolean) => void;
+  isMonthEnded: (year: number, month: number) => boolean;
+  isAdmin: boolean;
+  isSuperAdmin: boolean;
 }) => {
   const monthStart = new Date(programmaMonth.getFullYear(), programmaMonth.getMonth(), 1);
   const monthEnd = new Date(programmaMonth.getFullYear(), programmaMonth.getMonth() + 1, 0, 23, 59, 59);
@@ -601,12 +680,50 @@ const ProgrammaView = ({
       ? areasToShow
       : areasToShow.filter((a) => a.name === selectedAreaFilter);
 
+  const programmaMonthClosed = closedMonths.some(
+    (c) => c.year === programmaMonth.getFullYear() && c.month === programmaMonth.getMonth() + 1
+  );
+
   return (
     <div>
       <div className="flex flex-nowrap items-center justify-between gap-2 mb-4 lg:mb-6">
-        <h2 className="text-xl lg:text-2xl font-bold whitespace-nowrap text-gray-900">
-          {monthNames[programmaMonth.getMonth()]} {programmaMonth.getFullYear()}
-        </h2>
+        <div className="flex items-center gap-2 flex-wrap">
+          <h2 className="text-xl lg:text-2xl font-bold whitespace-nowrap text-gray-900">
+            {monthNames[programmaMonth.getMonth()]} {programmaMonth.getFullYear()}
+          </h2>
+          {canToggleMonth && (() => {
+            const y = programmaMonth.getFullYear();
+            const m = programmaMonth.getMonth() + 1;
+            const adminCannotReopen = programmaMonthClosed && isAdmin && !isSuperAdmin && !isPreviousMonth(y, m);
+            const baseDisabled = !programmaMonthClosed && !isMonthEnded(y, m);
+            const disabled = baseDisabled || adminCannotReopen;
+            const tooltipText = adminCannotReopen
+              ? "È possibile riaprire solamente il mese precedente a quello in corso"
+              : programmaMonthClosed
+                ? "Clicca per aprire il mese"
+                : !isMonthEnded(y, m)
+                  ? "Il mese può essere chiuso solo dopo che è terminato"
+                  : "Clicca per chiudere il mese";
+            return (
+              <Tooltip content={tooltipText}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (!programmaMonthClosed && !isMonthEnded(y, m)) return;
+                    if (adminCannotReopen) return;
+                    onMonthToggle(y, m, !programmaMonthClosed);
+                  }}
+                  disabled={disabled}
+                  className={`text-xs font-semibold px-2.5 py-1 rounded-full ${
+                    programmaMonthClosed ? "bg-red-100 text-red-800" : "bg-green-100 text-green-800"
+                  } ${disabled ? "opacity-60 cursor-not-allowed pointer-events-none" : "hover:opacity-90 cursor-pointer"}`}
+                >
+                  {programmaMonthClosed ? "Chiuso" : "Aperto"}
+                </button>
+              </Tooltip>
+            );
+          })()}
+        </div>
         <div className="flex gap-2 flex-shrink-0">
           <button
             onClick={() => setProgrammaMonth(new Date(programmaMonth.getFullYear(), programmaMonth.getMonth() - 1, 1))}
@@ -720,6 +837,8 @@ export default function EventsPage() {
   const [dutyIdToName, setDutyIdToName] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
+  const [closedMonths, setClosedMonths] = useState<Array<{ year: number; month: number }>>([]);
+  const [toggleMonthTarget, setToggleMonthTarget] = useState<{ year: number; month: number; isClosed: boolean } | null>(null);
   
   const monthNames = [
     "Gennaio", "Febbraio", "Marzo", "Aprile", "Maggio", "Giugno",
@@ -727,7 +846,8 @@ export default function EventsPage() {
   ];
   
   const userRole = session?.user?.role || "";
-  const isStandardUser = !["SUPER_ADMIN", "ADMIN", "RESPONSABILE"].includes(userRole);
+  const sessionUser = session?.user as { role?: string; isCoordinatore?: boolean } | undefined;
+  const isStandardUser = !canManageWorkdays(sessionUser);
   const isNonStandardWorkerEvents = !isStandardUser && (session?.user as any)?.isWorker === true;
   const workModeEvents = getWorkModeCookie();
   const inWorkerModeEvents = isNonStandardWorkerEvents && workModeEvents === "worker";
@@ -735,7 +855,7 @@ export default function EventsPage() {
   const canDeleteEvents = !inWorkerModeEvents && (["SUPER_ADMIN", "ADMIN"].includes(session?.user?.role || "") || (session?.user as any)?.isAdmin === true || (session?.user as any)?.isSuperAdmin === true);
   
   // Utenti e Coordinatori vedono solo eventi aperti, senza filtro
-  const canSeeAllEvents = ["SUPER_ADMIN", "ADMIN", "RESPONSABILE"].includes(userRole);
+  const canSeeAllEvents = canSeeAllEvents(sessionUser);
   
   // Solo super admin, admin e responsabile possono aprire eventi chiusi
   const canOpenClosedEvents = ["SUPER_ADMIN", "ADMIN", "RESPONSABILE"].includes(userRole);
@@ -744,8 +864,7 @@ export default function EventsPage() {
   const [clientSearchTerm, setClientSearchTerm] = useState("");
   const [showClientDropdown, setShowClientDropdown] = useState(false);
   const [viewMode, setViewMode] = useState<"list" | "calendar" | "programma">("calendar");
-  const [listMonth, setListMonth] = useState(new Date()); // Mese selezionato per la vista lista
-  const [programmaMonth, setProgrammaMonth] = useState(new Date()); // Mese per la vista programma
+  const [selectedMonth, setSelectedMonth] = useState(new Date()); // Mese condiviso tra calendario, lista e programma
   const [programmaAreasToShow, setProgrammaAreasToShow] = useState<Array<{ id: string; name: string }>>([]);
   const [selectedAreaFilter, setSelectedAreaFilter] = useState<string>("__all__");
   const [programmaUnavailabilities, setProgrammaUnavailabilities] = useState<UnavailabilityItem[]>([]);
@@ -762,8 +881,8 @@ export default function EventsPage() {
   const showPersoneMancanti = canSeeAllEvents && !inWorkerModeEvents;
   useEffect(() => {
     if (!showPersoneMancanti || viewMode !== "programma") return;
-    const monthStart = new Date(programmaMonth.getFullYear(), programmaMonth.getMonth(), 1);
-    const monthEnd = new Date(programmaMonth.getFullYear(), programmaMonth.getMonth() + 2, 0);
+    const monthStart = new Date(selectedMonth.getFullYear(), selectedMonth.getMonth(), 1);
+    const monthEnd = new Date(selectedMonth.getFullYear(), selectedMonth.getMonth() + 2, 0);
     const params = new URLSearchParams({
       all: "true",
       dateFrom: monthStart.toISOString().split("T")[0],
@@ -773,7 +892,7 @@ export default function EventsPage() {
       .then((r) => (r.ok ? r.json() : []))
       .then((d) => setProgrammaUnavailabilities(Array.isArray(d) ? d : []))
       .catch(() => setProgrammaUnavailabilities([]));
-  }, [showPersoneMancanti, viewMode, programmaMonth]);
+  }, [showPersoneMancanti, viewMode, selectedMonth]);
 
   // Deriva aree per vista Programma da allAreas (già caricate con with-meta)
   useEffect(() => {
@@ -822,8 +941,9 @@ export default function EventsPage() {
     try {
       const res = await fetch("/api/events/with-meta");
       if (res.ok) {
-        const { events: evts, areas: areasList, duties: dutiesList } = await res.json();
+        const { events: evts, areas: areasList, duties: dutiesList, closedMonths: cm } = await res.json();
         setEvents(evts || []);
+        setClosedMonths(Array.isArray(cm) ? cm : []);
         const areasArr = Array.isArray(areasList) ? areasList : [];
         setAllAreas(areasArr);
         const areaMap: Record<string, string> = {};
@@ -869,6 +989,38 @@ export default function EventsPage() {
       }
     } catch (error) {
       console.error("Error deleting event:", error);
+    }
+  };
+
+  const isMonthClosed = (year: number, month: number) =>
+    closedMonths.some((c) => c.year === year && c.month === month);
+
+  const isMonthEnded = (year: number, month: number) => {
+    const now = new Date();
+    const cy = now.getFullYear();
+    const cm = now.getMonth() + 1;
+    return year < cy || (year === cy && month < cm);
+  };
+
+  const handleToggleMonth = async () => {
+    if (!toggleMonthTarget) return;
+    const { year, month, isClosed } = toggleMonthTarget;
+    try {
+      const res = await fetch(`/api/months/${year}/${month}/toggle`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ isClosed }),
+      });
+      if (res.ok) {
+        await fetchEventsWithMeta();
+        setToggleMonthTarget(null);
+      } else {
+        const data = await res.json();
+        alert(data.error || "Errore nel toggle del mese");
+      }
+    } catch (error) {
+      console.error("Error toggling month:", error);
+      alert("Errore nel toggle del mese");
     }
   };
 
@@ -1040,23 +1192,30 @@ export default function EventsPage() {
       if (isEventOpen(event)) return false;
     }
     
-    // Filtro per mese (vista lista)
+    // Filtro per mese (vista lista) - stessa logica del calendario: workdays o startDate/endDate
     if (viewMode === "list") {
-      const eventStartDate = new Date(event.startDate);
-      const eventEndDate = new Date(event.endDate);
-      const listMonthStart = new Date(listMonth.getFullYear(), listMonth.getMonth(), 1);
-      const listMonthEnd = new Date(listMonth.getFullYear(), listMonth.getMonth() + 1, 0, 23, 59, 59);
-      
-      // L'evento è visibile se si sovrappone al mese selezionato
-      if (eventEndDate < listMonthStart || eventStartDate > listMonthEnd) {
-        return false;
+      const listMonthStart = new Date(selectedMonth.getFullYear(), selectedMonth.getMonth(), 1);
+      const listMonthEnd = new Date(selectedMonth.getFullYear(), selectedMonth.getMonth() + 1, 0, 23, 59, 59);
+
+      if (event.workdays && event.workdays.length > 0) {
+        const hasWorkdayInMonth = event.workdays.some((wd) => {
+          const wdDate = new Date(wd.date);
+          return wdDate >= listMonthStart && wdDate <= listMonthEnd;
+        });
+        if (!hasWorkdayInMonth) return false;
+      } else {
+        const eventStartDate = new Date(event.startDate);
+        const eventEndDate = new Date(event.endDate);
+        if (eventEndDate < listMonthStart || eventStartDate > listMonthEnd) {
+          return false;
+        }
       }
     }
     
     // Filtro per mese (vista programma): evento deve avere almeno una workday nel mese
     if (viewMode === "programma") {
-      const monthStart = new Date(programmaMonth.getFullYear(), programmaMonth.getMonth(), 1);
-      const monthEnd = new Date(programmaMonth.getFullYear(), programmaMonth.getMonth() + 1, 0, 23, 59, 59);
+      const monthStart = new Date(selectedMonth.getFullYear(), selectedMonth.getMonth(), 1);
+      const monthEnd = new Date(selectedMonth.getFullYear(), selectedMonth.getMonth() + 1, 0, 23, 59, 59);
       const hasWorkdayInMonth = event.workdays?.some((wd) => {
         const wdDate = new Date(wd.date);
         return wdDate >= monthStart && wdDate <= monthEnd;
@@ -1223,6 +1382,14 @@ export default function EventsPage() {
               areaNamesMap={areaNamesMap}
               dutyIdToName={dutyIdToName}
               showAdminIndicators={!isStandardUser && !inWorkerModeEvents}
+              closedMonths={closedMonths}
+              canToggleMonth={canEditEvents}
+              onMonthToggle={(y, m, isClosed) => setToggleMonthTarget({ year: y, month: m, isClosed })}
+              currentDate={selectedMonth}
+              setCurrentDate={setSelectedMonth}
+              isMonthEnded={isMonthEnded}
+              isAdmin={session?.user?.role === "ADMIN"}
+              isSuperAdmin={(session?.user as any)?.isSuperAdmin === true || session?.user?.role === "SUPER_ADMIN"}
             />
           </div>
         )}
@@ -1230,8 +1397,8 @@ export default function EventsPage() {
           <div className="bg-white border border-gray-200 rounded-lg p-6">
             <ProgrammaView
               events={filteredEvents}
-              programmaMonth={programmaMonth}
-              setProgrammaMonth={setProgrammaMonth}
+              programmaMonth={selectedMonth}
+              setProgrammaMonth={setSelectedMonth}
               monthNames={monthNames}
               onRowClick={(eventId, workdayId) => router.push(`/dashboard/events/${eventId}/workdays/${workdayId}`)}
               areasToShow={programmaAreasToShow}
@@ -1239,6 +1406,12 @@ export default function EventsPage() {
               setSelectedAreaFilter={setSelectedAreaFilter}
               unavailabilities={programmaUnavailabilities}
               showPersoneMancanti={showPersoneMancanti}
+              closedMonths={closedMonths}
+              canToggleMonth={canEditEvents}
+              onMonthToggle={(y, m, isClosed) => setToggleMonthTarget({ year: y, month: m, isClosed })}
+              isMonthEnded={isMonthEnded}
+              isAdmin={session?.user?.role === "ADMIN"}
+              isSuperAdmin={(session?.user as any)?.isSuperAdmin === true || session?.user?.role === "SUPER_ADMIN"}
             />
           </div>
         )}
@@ -1246,12 +1419,49 @@ export default function EventsPage() {
           <div className="bg-white border border-gray-200 rounded-lg p-6">
             {/* Navigazione mese per vista lista */}
             <div className="flex flex-nowrap items-center justify-between gap-2 mb-6">
-              <h2 className="text-xl lg:text-2xl font-bold whitespace-nowrap text-gray-900">
-                {monthNames[listMonth.getMonth()]} {listMonth.getFullYear()}
-              </h2>
+              <div className="flex items-center gap-2 flex-wrap">
+                <h2 className="text-xl lg:text-2xl font-bold whitespace-nowrap text-gray-900">
+                  {monthNames[selectedMonth.getMonth()]} {selectedMonth.getFullYear()}
+                </h2>
+                {canEditEvents && (() => {
+                  const y = selectedMonth.getFullYear();
+                  const m = selectedMonth.getMonth() + 1;
+                  const closed = isMonthClosed(y, m);
+                  const isAdmin = session?.user?.role === "ADMIN";
+                  const isSuperAdmin = (session?.user as any)?.isSuperAdmin === true || session?.user?.role === "SUPER_ADMIN";
+                  const adminCannotReopen = closed && isAdmin && !isSuperAdmin && !isPreviousMonth(y, m);
+                  const baseDisabled = !closed && !isMonthEnded(y, m);
+                  const disabled = baseDisabled || adminCannotReopen;
+                  const tooltipText = adminCannotReopen
+                    ? "È possibile riaprire solamente il mese precedente a quello in corso"
+                    : closed
+                      ? "Clicca per aprire il mese"
+                      : !isMonthEnded(y, m)
+                        ? "Il mese può essere chiuso solo dopo che è terminato"
+                        : "Clicca per chiudere il mese";
+                  return (
+                    <Tooltip content={tooltipText}>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (!closed && !isMonthEnded(y, m)) return;
+                          if (adminCannotReopen) return;
+                          setToggleMonthTarget({ year: y, month: m, isClosed: !closed });
+                        }}
+                        disabled={disabled}
+                        className={`text-xs font-semibold px-2.5 py-1 rounded-full ${
+                          closed ? "bg-red-100 text-red-800" : "bg-green-100 text-green-800"
+                        } ${disabled ? "opacity-60 cursor-not-allowed pointer-events-none" : "hover:opacity-90 cursor-pointer"}`}
+                      >
+                        {closed ? "Chiuso" : "Aperto"}
+                      </button>
+                    </Tooltip>
+                  );
+                })()}
+              </div>
               <div className="flex gap-2 flex-shrink-0">
                 <button
-                  onClick={() => setListMonth(new Date(listMonth.getFullYear(), listMonth.getMonth() - 1, 1))}
+                  onClick={() => setSelectedMonth(new Date(selectedMonth.getFullYear(), selectedMonth.getMonth() - 1, 1))}
                   className="w-10 h-10 inline-flex items-center justify-center border border-gray-300 rounded-lg hover:bg-gray-50 hover:border-gray-400 active:scale-100 transition-all duration-200 cursor-pointer"
                   aria-label="Mese precedente"
                 >
@@ -1260,13 +1470,13 @@ export default function EventsPage() {
                   </svg>
                 </button>
                 <button
-                  onClick={() => setListMonth(new Date())}
+                  onClick={() => setSelectedMonth(new Date())}
                   className="px-3 h-10 border border-gray-300 rounded-lg text-sm hover:bg-gray-50 hover:border-gray-400 active:scale-100 transition-all duration-200 cursor-pointer"
                 >
                   Oggi
                 </button>
                 <button
-                  onClick={() => setListMonth(new Date(listMonth.getFullYear(), listMonth.getMonth() + 1, 1))}
+                  onClick={() => setSelectedMonth(new Date(selectedMonth.getFullYear(), selectedMonth.getMonth() + 1, 1))}
                   className="w-10 h-10 inline-flex items-center justify-center border border-gray-300 rounded-lg hover:bg-gray-50 hover:border-gray-400 active:scale-100 transition-all duration-200 cursor-pointer"
                   aria-label="Mese successivo"
                 >
@@ -1529,6 +1739,20 @@ export default function EventsPage() {
         }
         onConfirm={handleDelete}
         onCancel={() => setDeleteTarget(null)}
+      />
+
+      <ConfirmDialog
+        isOpen={toggleMonthTarget !== null}
+        title={toggleMonthTarget?.isClosed ? "Chiudere il mese?" : "Aprire il mese?"}
+        message={
+          toggleMonthTarget?.isClosed
+            ? "Verranno chiusi automaticamente tutti gli eventi e le giornate di questo mese e di tutti i mesi precedenti. Gli utenti non potranno più interagire con essi finché i mesi non verranno riaperti."
+            : "Il mese verrà riaperto. Potrai poi riaprire singolarmente eventi e giornate."
+        }
+        onConfirm={handleToggleMonth}
+        onCancel={() => setToggleMonthTarget(null)}
+        cancelLabel="No"
+        confirmLabel="Sì"
       />
     </DashboardShell>
   );

@@ -3,6 +3,7 @@ import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { isUserArchived, checkEventStatus } from "@/lib/validation";
 import { getWorkModeFromRequest } from "@/lib/workMode";
+import { isMonthClosed } from "@/lib/closedMonth";
 
 // Helper per validare che i turni rientrino negli orari delle attività
 export async function validateShiftWithinActivities(
@@ -278,6 +279,7 @@ export async function POST(req: NextRequest) {
         select: { 
           id: true, 
           eventId: true,
+          date: true,
           event: {
             select: {
               clientIds: true
@@ -290,6 +292,17 @@ export async function POST(req: NextRequest) {
 
     if (!workday) {
       return NextResponse.json({ error: "Workday not found" }, { status: 404 });
+    }
+
+    // Blocca creazione se il mese della giornata è chiuso (Super Admin può bypassare)
+    const isSuperAdmin = (session.user as any).isSuperAdmin === true || session.user.role === "SUPER_ADMIN";
+    const wdDate = new Date(workday.date);
+    const monthClosed = await isMonthClosed(wdDate.getFullYear(), wdDate.getMonth() + 1);
+    if (monthClosed && !isSuperAdmin) {
+      return NextResponse.json(
+        { error: "Impossibile assegnare: il mese è chiuso" },
+        { status: 403 }
+      );
     }
     if (!taskType) {
       return NextResponse.json({ error: "TaskType not found" }, { status: 404 });

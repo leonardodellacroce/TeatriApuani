@@ -5,6 +5,7 @@ import React from "react";
 import { useSession } from "next-auth/react";
 import { getWorkModeCookie } from "@/lib/workMode";
 import { useRouter, useSearchParams } from "next/navigation";
+import Link from "next/link";
 import DashboardShell from "@/components/DashboardShell";
 import ConfirmDialog from "@/components/ConfirmDialog";
 
@@ -644,6 +645,14 @@ export default function MyShiftsPage() {
               >
                 Successivo →
               </button>
+            </div>
+            <div className="ml-auto">
+              <Link
+                href="/dashboard/my-shifts/free-hours"
+                className="inline-flex items-center justify-center px-4 h-10 bg-gray-900 text-white rounded-lg text-sm font-medium hover:bg-gray-800 transition-all duration-200"
+              >
+                Ore libere
+              </Link>
             </div>
           </div>
         </div>

@@ -6,8 +6,11 @@ import { useSession } from "next-auth/react";
 import DashboardShell from "@/components/DashboardShell";
 import PageSkeleton from "@/components/PageSkeleton";
 import ConfirmDialog from "@/components/ConfirmDialog";
+import AlertDialog from "@/components/AlertDialog";
 import { getIncompleteScheduleInfo, getWorkdayAlertStates, getPersonnelAlertState, getClientAlertState } from "../utils";
 import { getWorkModeCookie } from "@/lib/workMode";
+import { isDateInPreviousMonth } from "@/lib/previousMonth";
+import Tooltip from "@/components/Tooltip";
 
 interface Event {
   id: string;
@@ -55,7 +58,7 @@ export default function EventDetailPage() {
 
   const canEditEvents = !inWorkerMode && ["SUPER_ADMIN", "ADMIN"].includes(session?.user?.role || "");
   const canDeleteEvents = !inWorkerMode && (["SUPER_ADMIN", "ADMIN"].includes(session?.user?.role || "") || (session?.user as any)?.isAdmin === true || (session?.user as any)?.isSuperAdmin === true);
-  const canManageWorkdays = !inWorkerMode && ["SUPER_ADMIN", "ADMIN", "RESPONSABILE"].includes(session?.user?.role || "");
+  const canManageWorkdays = !inWorkerMode && (["SUPER_ADMIN", "ADMIN", "RESPONSABILE"].includes(session?.user?.role || "") || (session?.user as any)?.isCoordinatore === true);
   const [event, setEvent] = useState<Event | null>(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<"details" | "workdays">("details");
@@ -72,8 +75,33 @@ export default function EventDetailPage() {
   const [dutyIdToName, setDutyIdToName] = useState<Record<string, string>>({});
   const [dutyMapByWorkday, setDutyMapByWorkday] = useState<Record<string, Record<string,string>>>({});
   const [eventClientsNames, setEventClientsNames] = useState<string[]>([]);
-  const isSuperAdmin = (session?.user as any)?.isSuperAdmin === true;
+  const [closedMonths, setClosedMonths] = useState<Array<{ year: number; month: number }>>([]);
+  const [alertMessage, setAlertMessage] = useState<{ message: string } | null>(null);
+  const isSuperAdmin = (session?.user as any)?.isSuperAdmin === true || session?.user?.role === "SUPER_ADMIN";
   const isAdminOrSuperAdmin = ["SUPER_ADMIN", "ADMIN"].includes(session?.user?.role || "");
+
+  const isWorkdayMonthClosed = (date: string | Date) => {
+    const d = new Date(date);
+    return closedMonths.some((c) => c.year === d.getFullYear() && c.month === d.getMonth() + 1);
+  };
+  const canReopenEvent = () => {
+    if (!event?.isClosed) return true;
+    const workdaysInClosedMonths = event.workdays?.filter((wd) => isWorkdayMonthClosed(wd.date)) ?? [];
+    if (workdaysInClosedMonths.length === 0) return true;
+    // SUPER_ADMIN può sempre riaprire; ADMIN solo se tutte le giornate in mesi chiusi sono nel mese precedente
+    if (isSuperAdmin) return true;
+    if (session?.user?.role === "ADMIN") {
+      return workdaysInClosedMonths.every((wd) => isDateInPreviousMonth(wd.date));
+    }
+    return false;
+  };
+
+  const hasAnyWorkdayInClosedMonth = !isSuperAdmin && (event?.workdays?.some((wd) => isWorkdayMonthClosed(wd.date)) ?? false);
+  const isWorkdayBlockedByClosedMonth = (date: string | Date) => isWorkdayMonthClosed(date) && !isSuperAdmin;
+  // ADMIN può riaprire solo giornate del mese precedente; per chiudere non ci sono limiti
+  const isAdmin = session?.user?.role === "ADMIN";
+  const workdayToggleDisabled = (wd: { date: string; isOpen: boolean }) =>
+    isWorkdayMonthClosed(wd.date) && !isSuperAdmin && !wd.isOpen && isAdmin && !isDateInPreviousMonth(wd.date);
 
   useEffect(() => {
     const tab = searchParams.get("tab");
@@ -86,9 +114,10 @@ export default function EventDetailPage() {
     try {
       const res = await fetch(`/api/events/${eventId}/full`);
       if (res.ok) {
-        const { event: evt, areas: areasList, duties: dutiesList, eventClientsNames: clientNames } = await res.json();
+        const { event: evt, areas: areasList, duties: dutiesList, eventClientsNames: clientNames, closedMonths: cm } = await res.json();
         setEvent(evt);
         setEventClientsNames(clientNames || []);
+        setClosedMonths(Array.isArray(cm) ? cm : []);
         const areaMap: Record<string, string> = {};
         (Array.isArray(areasList) ? areasList : []).forEach((a: any) => {
           if (a?.id && a?.name) areaMap[a.id] = a.name;
@@ -402,27 +431,60 @@ export default function EventDetailPage() {
             <div className="min-w-0 flex-1">
               <h1 className="text-3xl font-bold line-clamp-2 break-words">{event.title}</h1>
               <div className="flex items-center justify-end gap-2 mt-3 flex-wrap">
-                <button
-                  onClick={() => setToggleEventTarget({ id: eventId, isClosed: !event.isClosed })}
-                  title={event.isClosed ? "Clicca per aprire l'evento" : "Clicca per chiudere l'evento"}
-                  className={`px-3 py-1 text-sm font-semibold rounded-full transition-colors cursor-pointer ${
-                    event.isClosed
-                      ? "bg-red-100 text-red-800 hover:bg-red-200"
-                      : "bg-green-100 text-green-800 hover:bg-green-200"
-                  }`}
+                <Tooltip
+                  content={
+                    hasAnyWorkdayInClosedMonth
+                      ? "Impossibile modificare: una giornata è in un mese chiuso"
+                      : event.isClosed
+                        ? canReopenEvent()
+                          ? "Clicca per aprire l'evento"
+                          : session?.user?.role === "ADMIN"
+                            ? "L'Admin può riaprire solo eventi del mese precedente"
+                            : "Impossibile riaprire: una giornata è in un mese chiuso"
+                        : "Clicca per chiudere l'evento"
+                  }
                 >
-                  {event.isClosed ? "Chiuso" : "Aperto"}
-                </button>
+                  <button
+                    onClick={() => {
+                      if (hasAnyWorkdayInClosedMonth) {
+                        setAlertMessage({ message: "Impossibile modificare: una giornata dell'evento è in un mese chiuso" });
+                        return;
+                      }
+                      if (event.isClosed && !canReopenEvent()) {
+                        setAlertMessage({ message: "Impossibile riaprire: una giornata dell'evento è in un mese chiuso" });
+                        return;
+                      }
+                      setToggleEventTarget({ id: eventId, isClosed: !event.isClosed });
+                    }}
+                    className={`px-3 py-1 text-sm font-semibold rounded-full transition-colors ${
+                      hasAnyWorkdayInClosedMonth || (event.isClosed && !canReopenEvent())
+                        ? "bg-red-100 text-red-800 opacity-60 cursor-not-allowed pointer-events-none"
+                        : `cursor-pointer ${
+                            event.isClosed
+                              ? "bg-red-100 text-red-800 hover:bg-red-200"
+                              : "bg-green-100 text-green-800 hover:bg-green-200"
+                          }`
+                    }`}
+                  >
+                    {event.isClosed ? "Chiuso" : "Aperto"}
+                  </button>
+                </Tooltip>
                 {canEditEvents && (
                   <>
                     <button
                       onClick={() => {
+                        if (hasAnyWorkdayInClosedMonth) {
+                          setAlertMessage({ message: "Impossibile modificare: una giornata dell'evento è in un mese chiuso" });
+                          return;
+                        }
                         if (event) {
                           const eventEndDate = new Date(event.endDate);
                           const now = new Date();
-                          const isPast = eventEndDate < now;
+                          const eventEndDay = new Date(eventEndDate.getFullYear(), eventEndDate.getMonth(), eventEndDate.getDate());
+                          const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+                          const isPast = eventEndDay < today;
                           if (isPast && !isSuperAdmin) {
-                            alert("Gli eventi passati possono essere modificati solo dal Super Admin");
+                            setAlertMessage({ message: "Gli eventi passati possono essere modificati solo dal Super Admin" });
                             return;
                           }
                           if (isPast && isSuperAdmin) {
@@ -433,17 +495,23 @@ export default function EventDetailPage() {
                         router.push(`/dashboard/events/${eventId}/edit?tab=${activeTab}`);
                       }}
                       aria-label="Modifica Evento"
-                      title="Modifica Evento"
-                      className="h-10 w-10 inline-flex items-center justify-center rounded-lg bg-gray-900 text-white hover:bg-gray-800 hover:shadow-lg transition-colors"
+                      title={hasAnyWorkdayInClosedMonth ? "Impossibile modificare: una giornata è in un mese chiuso" : "Modifica Evento"}
+                      className={`h-10 w-10 inline-flex items-center justify-center rounded-lg transition-colors ${hasAnyWorkdayInClosedMonth ? "bg-gray-400 text-gray-200 cursor-not-allowed" : "bg-gray-900 text-white hover:bg-gray-800 hover:shadow-lg"}`}
                     >
                       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.232 5.232l3.536 3.536M4 20h4l10.293-10.293a1 1 0 000-1.414l-2.586-2.586a1 1 0 00-1.414 0L4 16v4z" /></svg>
                     </button>
                     {canDeleteEvents && (
                       <button
-                        onClick={() => setDeleteTarget(eventId)}
+                        onClick={() => {
+                          if (hasAnyWorkdayInClosedMonth) {
+                            setAlertMessage({ message: "Impossibile eliminare: una giornata dell'evento è in un mese chiuso" });
+                            return;
+                          }
+                          setDeleteTarget(eventId);
+                        }}
                         aria-label="Elimina Evento"
-                        title="Elimina Evento"
-                        className="h-10 w-10 inline-flex items-center justify-center rounded-lg bg-red-600 text-white hover:bg-red-700 transition-colors"
+                        title={hasAnyWorkdayInClosedMonth ? "Impossibile eliminare: una giornata è in un mese chiuso" : "Elimina Evento"}
+                        className={`h-10 w-10 inline-flex items-center justify-center rounded-lg transition-colors ${hasAnyWorkdayInClosedMonth ? "bg-red-300 text-red-100 cursor-not-allowed" : "bg-red-600 text-white hover:bg-red-700"}`}
                       >
                         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6M9 7h6m-1-2H10l1-1h2l1 1z" /></svg>
                       </button>
@@ -535,12 +603,20 @@ export default function EventDetailPage() {
               </div>
               {canEditEvents && (
                 <div>
-                  {canAddWorkday() ? (
+                  {canAddWorkday() && !hasAnyWorkdayInClosedMonth ? (
                     <button
                       onClick={() => router.push(`/dashboard/events/${eventId}/workdays/new`)}
                       className="px-4 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800 hover:shadow-lg hover:scale-105 active:scale-100 transition-all duration-200 cursor-pointer"
                     >
                       Aggiungi Giornata
+                    </button>
+                  ) : hasAnyWorkdayInClosedMonth ? (
+                    <button
+                      disabled
+                      title="Impossibile aggiungere: una giornata è in un mese chiuso"
+                      className="px-4 py-2 bg-gray-300 text-gray-600 rounded-lg cursor-not-allowed opacity-50"
+                    >
+                      Mese chiuso
                     </button>
                   ) : (
                     <button
@@ -772,29 +848,58 @@ export default function EventDetailPage() {
                                   </div>
                                 );
                               })()}
-                              {/* Tasto Gestisci tra icone e durata (solo ruoli abilitati) */}
-                              <button
-                                onClick={() => router.push(`/dashboard/events/${eventId}/workdays/${workday.id}`)}
-                                className="ml-3 h-8 inline-flex items-center justify-center px-3 rounded-lg bg-gray-900 text-white hover:bg-gray-800 hover:shadow-lg transition-all duration-200 cursor-pointer"
-                              >
-                                <span className="text-xs font-semibold">Gestisci</span>
-                              </button>
+                              {/* Tasto Gestisci tra icone (Visualizza è già in colonna Azioni) */}
+                              {!isWorkdayBlockedByClosedMonth(workday.date) && (
+                                <button
+                                  onClick={() => router.push(`/dashboard/events/${eventId}/workdays/${workday.id}`)}
+                                  className="ml-3 h-8 inline-flex items-center justify-center px-3 rounded-lg bg-gray-900 text-white hover:bg-gray-800 hover:shadow-lg transition-all duration-200 cursor-pointer"
+                                >
+                                  <span className="text-xs font-semibold">Gestisci</span>
+                                </button>
+                              )}
                             </div>
                           </td>
                         )}
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div className="flex items-center gap-2">
                             {canEditEvents ? (
-                              <button
-                                onClick={() => setToggleTarget({ id: workday.id, isOpen: !workday.isOpen })}
-                                className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full cursor-pointer hover:opacity-80 transition-opacity ${
-                                  workday.isOpen
-                                    ? "bg-green-100 text-green-800"
-                                    : "bg-red-100 text-red-800"
-                                }`}
+                              <Tooltip
+                                content={
+                                  workdayToggleDisabled(workday)
+                                    ? "L'Admin può riaprire solo giornate del mese precedente"
+                                    : isWorkdayBlockedByClosedMonth(workday.date) && workday.isOpen
+                                      ? "Impossibile modificare: il mese è chiuso"
+                                      : workday.isOpen
+                                        ? "Clicca per chiudere la giornata"
+                                        : "Clicca per aprire la giornata"
+                                }
                               >
-                                {workday.isOpen ? "Aperta" : "Chiusa"}
-                              </button>
+                                <button
+                                  onClick={() => {
+                                    if (workdayToggleDisabled(workday)) {
+                                      setAlertMessage({ message: "L'Admin può riaprire solo giornate del mese precedente" });
+                                      return;
+                                    }
+                                    if (isWorkdayBlockedByClosedMonth(workday.date) && workday.isOpen) {
+                                      setAlertMessage({ message: "Impossibile modificare: il mese è chiuso" });
+                                      return;
+                                    }
+                                    setToggleTarget({ id: workday.id, isOpen: !workday.isOpen });
+                                  }}
+                                  disabled={workdayToggleDisabled(workday) || (isWorkdayBlockedByClosedMonth(workday.date) && workday.isOpen)}
+                                  className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full transition-opacity ${
+                                    workdayToggleDisabled(workday) || (isWorkdayBlockedByClosedMonth(workday.date) && workday.isOpen)
+                                      ? "bg-red-100 text-red-800 opacity-60 cursor-not-allowed pointer-events-none"
+                                      : `cursor-pointer hover:opacity-80 ${
+                                          workday.isOpen
+                                            ? "bg-green-100 text-green-800"
+                                            : "bg-red-100 text-red-800"
+                                        }`
+                                  }`}
+                                >
+                                  {workday.isOpen ? "Aperta" : "Chiusa"}
+                                </button>
+                              </Tooltip>
                             ) : (
                               <span
                                 className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
@@ -835,6 +940,10 @@ export default function EventDetailPage() {
                             {canEditEvents && (
                               <button
                                 onClick={() => {
+                                  if (isWorkdayBlockedByClosedMonth(workday.date)) {
+                                    setAlertMessage({ message: "Impossibile modificare: il mese è chiuso" });
+                                    return;
+                                  }
                                   // Verifica se la giornata è terminata
                                   const workdayDate = new Date(workday.date);
                                   const now = new Date();
@@ -843,7 +952,7 @@ export default function EventDetailPage() {
                                   const isPast = workdayDate < now;
                                   
                                   if (isPast && !isAdminOrSuperAdmin) {
-                                    alert("Le giornate terminate possono essere modificate solo da Admin o Super Admin");
+                                    setAlertMessage({ message: "Le giornate terminate possono essere modificate solo da Admin o Super Admin" });
                                     return;
                                   }
                                   
@@ -856,8 +965,8 @@ export default function EventDetailPage() {
                                   router.push(`/dashboard/events/${eventId}/workdays/${workday.id}/edit`);
                                 }}
                                 aria-label="Modifica"
-                                title="Modifica"
-                                className="h-8 w-8 inline-flex items-center justify-center rounded-lg bg-gray-900 text-white hover:bg-gray-800 hover:shadow-lg transition-colors"
+                                title={isWorkdayBlockedByClosedMonth(workday.date) ? "Impossibile modificare: il mese è chiuso" : "Modifica"}
+                                className={`h-8 w-8 inline-flex items-center justify-center rounded-lg transition-colors ${isWorkdayBlockedByClosedMonth(workday.date) ? "bg-gray-400 text-gray-200 cursor-not-allowed" : "bg-gray-900 text-white hover:bg-gray-800 hover:shadow-lg"}`}
                               >
                                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.232 5.232l3.536 3.536M4 20h4l10.293-10.293a1 1 0 000-1.414l-2.586-2.586a1 1 0 00-1.414 0L4 16v4z" />
@@ -867,10 +976,16 @@ export default function EventDetailPage() {
                             {/* Elimina */}
                             {canEditEvents && (
                               <button
-                                onClick={() => setDeleteWorkdayTarget(workday.id)}
+                                onClick={() => {
+                                  if (isWorkdayBlockedByClosedMonth(workday.date)) {
+                                    setAlertMessage({ message: "Impossibile eliminare: il mese è chiuso" });
+                                    return;
+                                  }
+                                  setDeleteWorkdayTarget(workday.id);
+                                }}
                                 aria-label="Elimina"
-                                title="Elimina"
-                                className="h-8 w-8 inline-flex items-center justify-center rounded-lg bg-red-600 text-white hover:bg-red-700 hover:shadow-lg transition-colors"
+                                title={isWorkdayBlockedByClosedMonth(workday.date) ? "Impossibile eliminare: il mese è chiuso" : "Elimina"}
+                                className={`h-8 w-8 inline-flex items-center justify-center rounded-lg transition-colors ${isWorkdayBlockedByClosedMonth(workday.date) ? "bg-red-300 text-red-100 cursor-not-allowed" : "bg-red-600 text-white hover:bg-red-700 hover:shadow-lg"}`}
                               >
                                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6M9 7h6m-1-2H10l1-1h2l1 1z" />
@@ -944,6 +1059,8 @@ export default function EventDetailPage() {
         message="Le giornate relative a questo evento sono state chiuse, vuoi procedere alla chiusura dell'intero evento? Gli utenti non potranno più interagire con l'evento."
         onConfirm={handleCloseEventFromPrompt}
         onCancel={() => setShowCloseEventPrompt(false)}
+        cancelLabel="No"
+        confirmLabel="Sì"
       />
 
       <ConfirmDialog
@@ -983,6 +1100,13 @@ export default function EventDetailPage() {
           setShowPastWorkdayEditDialog(false);
           setPendingWorkdayEditId(null);
         }}
+      />
+
+      <AlertDialog
+        isOpen={alertMessage !== null}
+        title="Attenzione"
+        message={alertMessage?.message ?? ""}
+        onClose={() => setAlertMessage(null)}
       />
     </DashboardShell>
   );

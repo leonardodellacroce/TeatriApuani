@@ -3,6 +3,7 @@ import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { isUserArchived, checkEventStatus } from "@/lib/validation";
 import { getWorkModeFromRequest } from "@/lib/workMode";
+import { isMonthClosed } from "@/lib/closedMonth";
 
 // GET /api/assignments/[id]
 export async function GET(
@@ -82,14 +83,25 @@ export async function PATCH(
       return NextResponse.json({ error: "Assignment not found" }, { status: 404 });
     }
     
-    // Recupera il workday per ottenere l'eventId
+    // Recupera il workday per ottenere eventId e date
     const workday = await prisma.workday.findUnique({
       where: { id: existingAssignment.workdayId },
-      select: { eventId: true },
+      select: { eventId: true, date: true },
     });
     
     if (!workday) {
       return NextResponse.json({ error: "Workday not found" }, { status: 404 });
+    }
+
+    // Blocca modifiche se il mese è chiuso (Super Admin può bypassare)
+    const isSuperAdmin = (session.user as any).isSuperAdmin === true || session.user.role === "SUPER_ADMIN";
+    const wdDate = new Date(workday.date);
+    const monthClosed = await isMonthClosed(wdDate.getFullYear(), wdDate.getMonth() + 1);
+    if (monthClosed && !isSuperAdmin) {
+      return NextResponse.json(
+        { error: "Impossibile modificare: il mese è chiuso" },
+        { status: 403 }
+      );
     }
     
     // Verifica che l'evento associato esista e non sia passato
@@ -430,16 +442,27 @@ export async function DELETE(
       return NextResponse.json({ error: "Assignment not found" }, { status: 404 });
     }
     
-    // Recupera il workday per ottenere l'eventId
+// Recupera il workday per ottenere eventId e date
     const workday = await prisma.workday.findUnique({
       where: { id: assignment.workdayId },
-      select: { eventId: true },
+      select: { eventId: true, date: true },
     });
-    
+
     if (!workday) {
       return NextResponse.json({ error: "Workday not found" }, { status: 404 });
     }
-    
+
+    // Blocca eliminazione se il mese è chiuso (Super Admin può bypassare)
+    const isSuperAdminDel = (session.user as any).isSuperAdmin === true || session.user.role === "SUPER_ADMIN";
+    const wdDateDel = new Date(workday.date);
+    const monthClosedDel = await isMonthClosed(wdDateDel.getFullYear(), wdDateDel.getMonth() + 1);
+    if (monthClosedDel && !isSuperAdminDel) {
+      return NextResponse.json(
+        { error: "Impossibile eliminare: il mese è chiuso" },
+        { status: 403 }
+      );
+    }
+
     // Verifica che l'evento associato esista e non sia passato
     const eventStatus = await checkEventStatus(workday.eventId);
     if (!eventStatus.exists) {

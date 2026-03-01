@@ -74,7 +74,7 @@ export default function ManagementUsersArchivePage() {
         const data = await res.json();
         // Mostra solo utenti di gestione archiviati
         const managementUsers = data.filter((u: User) =>
-          (u.isSuperAdmin || u.isAdmin || u.isResponsabile) && !u.isCoordinatore
+          u.isSuperAdmin || u.isAdmin || u.isResponsabile
         );
         setUsers(managementUsers);
       }

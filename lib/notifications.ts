@@ -15,6 +15,8 @@ export const WORKER_NOTIFICATION_TYPES = [
   "ORE_INSERITE_DA_ADMIN",
   "ORE_MODIFICATE_DA_ADMIN",
   "ORE_ELIMINATE_DA_ADMIN",
+  "FREE_HOURS_CONVERTED_BY_ADMIN",
+  "FREE_HOURS_DELETED_BY_ADMIN",
 ] as const;
 
 /** Tipi notifiche admin */
@@ -23,6 +25,9 @@ export const ADMIN_NOTIFICATION_TYPES = [
   "UNAVAILABILITY_PENDING_APPROVAL",
   "UNAVAILABILITY_MODIFIED_BY_WORKER",
   "UNAVAILABILITY_DELETED_BY_WORKER",
+  "FREE_HOURS_ADDED_BY_WORKER",
+  "FREE_HOURS_MODIFIED_BY_WORKER",
+  "FREE_HOURS_DELETED_BY_WORKER",
   "WORKDAY_ISSUES",
 ] as const;
 
@@ -44,10 +49,15 @@ export const NOTIFICATION_PRIORITY: Record<string, NotificationPriority> = {
   ORE_INSERITE_DA_ADMIN: "MEDIUM",
   ORE_MODIFICATE_DA_ADMIN: "MEDIUM",
   ORE_ELIMINATE_DA_ADMIN: "MEDIUM",
+  FREE_HOURS_CONVERTED_BY_ADMIN: "LOW",
+  FREE_HOURS_DELETED_BY_ADMIN: "MEDIUM",
   ADMIN_LOCKED_ACCOUNTS: "HIGH",
   UNAVAILABILITY_PENDING_APPROVAL: "HIGH",
   UNAVAILABILITY_MODIFIED_BY_WORKER: "MEDIUM",
   UNAVAILABILITY_DELETED_BY_WORKER: "MEDIUM",
+  FREE_HOURS_ADDED_BY_WORKER: "MEDIUM",
+  FREE_HOURS_MODIFIED_BY_WORKER: "MEDIUM",
+  FREE_HOURS_DELETED_BY_WORKER: "MEDIUM",
   WORKDAY_ISSUES: "HIGH",
 };
 
@@ -870,6 +880,328 @@ export async function notifyAdminsUnavailabilityChangedByWorker(
         },
       });
     }
+  }
+}
+
+/** Notifica admin: lavoratore ha inserito ore libere. Filtra per preferenze companyIds. Raggruppa per tipo entro 15 min. */
+export async function notifyAdminsFreeHoursAdded(
+  workerName: string,
+  detail: string,
+  freeHoursEntryId: string,
+  workerCompanyId?: string | null
+): Promise<void> {
+  const type = "FREE_HOURS_ADDED_BY_WORKER";
+  if (!(await isNotificationTypeActive(type))) return;
+  const priority = await getPriorityForType(type);
+  const responsabileFilter = workerCompanyId
+    ? { isResponsabile: true, companyId: workerCompanyId }
+    : { isResponsabile: true };
+  const admins = await prisma.user.findMany({
+    where: {
+      isActive: true,
+      isArchived: false,
+      OR: [{ isSuperAdmin: true }, { isAdmin: true }, responsabileFilter],
+    },
+    select: { id: true },
+  });
+
+  const prefs = await prisma.adminNotificationPreference.findMany({
+    where: { userId: { in: admins.map((a) => a.id) } },
+    select: { userId: true, companyIds: true },
+  });
+  const prefByUserId = new Map(prefs.map((p) => [p.userId, p]));
+
+  const baseMsg = `${workerName} ha inserito ore libere.`;
+  const itemBlock = detail || workerName;
+  const singleMessage = `${baseMsg}\n\n${detail}\n\nConverti in evento dalla sezione Turni e ore.`;
+
+  const fifteenMinutesAgo = new Date(Date.now() - 15 * 60 * 1000);
+
+  for (const admin of admins) {
+    if (!adminShouldReceiveUnavailabilityNotification(prefByUserId.get(admin.id) ?? null, workerCompanyId)) {
+      continue;
+    }
+    const existing = await prisma.notification.findFirst({
+      where: {
+        userId: admin.id,
+        type,
+        read: false,
+        createdAt: { gte: fifteenMinutesAgo },
+      },
+    });
+    if (existing) {
+      const meta = (existing.metadata as { count?: number; details?: string[]; freeHoursEntryIds?: string[] }) || {};
+      const prevCount = meta.count ?? 1;
+      const prevDetails =
+        meta.details ??
+        (existing.message.includes("\n\n")
+          ? [existing.message.split("\n\n").slice(1, -1).join("\n\n")].filter((s) => s.trim())
+          : []);
+      const prevIds = meta.freeHoursEntryIds ?? [];
+      const newCount = prevCount + 1;
+      const allDetails = [...prevDetails, itemBlock].filter(Boolean);
+      const allIds = [...prevIds, freeHoursEntryId];
+      const msg = newCount === 1
+        ? singleMessage
+        : `${newCount} ore libere inserite.\n\n${allDetails.join("\n\n---\n\n")}\n\nConverti in evento dalla sezione Turni e ore.`;
+      await prisma.notification.update({
+        where: { id: existing.id },
+        data: {
+          message: msg,
+          metadata: { count: newCount, details: allDetails, freeHoursEntryIds: allIds },
+          createdAt: new Date(),
+        },
+      });
+      await prisma.notification.deleteMany({
+        where: {
+          userId: admin.id,
+          type,
+          read: false,
+          id: { not: existing.id },
+          createdAt: { gte: fifteenMinutesAgo },
+        },
+      });
+    } else {
+      await prisma.notification.create({
+        data: {
+          userId: admin.id,
+          type,
+          title: "Ore libere inserite",
+          message: singleMessage,
+          metadata: { count: 1, details: [itemBlock], freeHoursEntryIds: [freeHoursEntryId] },
+          priority,
+          read: false,
+        },
+      });
+    }
+  }
+}
+
+/** Trova notifica ADDED ore libere non letta che contiene freeHoursEntryId (per merge/suppressione) */
+async function findAdminFreeHoursAddedNotification(
+  adminId: string,
+  freeHoursEntryId: string
+): Promise<{ id: string; message: string; metadata: { freeHoursEntryIds?: string[]; details?: string[]; count?: number } } | null> {
+  const fifteenMinutesAgo = new Date(Date.now() - 15 * 60 * 1000);
+  const list = await prisma.notification.findMany({
+    where: {
+      userId: adminId,
+      type: "FREE_HOURS_ADDED_BY_WORKER",
+      read: false,
+      createdAt: { gte: fifteenMinutesAgo },
+    },
+    orderBy: { createdAt: "desc" },
+  });
+  for (const n of list) {
+    const meta = (n.metadata as { freeHoursEntryIds?: string[] }) || {};
+    const ids = meta.freeHoursEntryIds ?? [];
+    if (ids.includes(freeHoursEntryId)) {
+      return { id: n.id, message: n.message, metadata: meta };
+    }
+  }
+  return null;
+}
+
+/** Notifica admin: dipendente ha modificato/eliminato ore libere. Filtra per preferenze companyIds.
+ * Se esiste notifica ADDED non letta per lo stesso freeHoursEntryId: MODIFIED → aggiorna quella; DELETED → rimuovila. */
+export async function notifyAdminsFreeHoursChangedByWorker(
+  workerName: string,
+  action: "MODIFIED" | "DELETED",
+  detail: string,
+  workerCompanyId?: string | null,
+  freeHoursEntryId?: string
+): Promise<void> {
+  const type = action === "MODIFIED" ? "FREE_HOURS_MODIFIED_BY_WORKER" : "FREE_HOURS_DELETED_BY_WORKER";
+  if (!(await isNotificationTypeActive(type))) return;
+  const priority = await getPriorityForType(type);
+  const responsabileFilter = workerCompanyId
+    ? { isResponsabile: true, companyId: workerCompanyId }
+    : { isResponsabile: true };
+  const admins = await prisma.user.findMany({
+    where: {
+      isActive: true,
+      isArchived: false,
+      OR: [{ isSuperAdmin: true }, { isAdmin: true }, responsabileFilter],
+    },
+    select: { id: true },
+  });
+
+  const prefs = await prisma.adminNotificationPreference.findMany({
+    where: { userId: { in: admins.map((a) => a.id) } },
+    select: { userId: true, companyIds: true },
+  });
+  const prefByUserId = new Map(prefs.map((p) => [p.userId, p]));
+
+  const title = action === "MODIFIED" ? "Ore libere modificate da dipendente" : "Ore libere eliminate da dipendente";
+  const baseMsg = action === "MODIFIED"
+    ? `${workerName} ha modificato le proprie ore libere.`
+    : `${workerName} ha eliminato le proprie ore libere.`;
+  const singleMessage = detail ? `${baseMsg}\n\n${detail}` : baseMsg;
+
+  const fifteenMinutesAgo = new Date(Date.now() - 15 * 60 * 1000);
+
+  for (const admin of admins) {
+    if (!adminShouldReceiveUnavailabilityNotification(prefByUserId.get(admin.id) ?? null, workerCompanyId)) {
+      continue;
+    }
+
+    // Merge/suppressione: se notifica ADDED non letta contiene questo entryId, aggiorna o rimuovi
+    if (freeHoursEntryId) {
+      const addedNotif = await findAdminFreeHoursAddedNotification(admin.id, freeHoursEntryId);
+      if (addedNotif) {
+        const meta = addedNotif.metadata;
+        const ids = meta.freeHoursEntryIds ?? [];
+        const details = meta.details ?? [];
+        const idx = ids.indexOf(freeHoursEntryId);
+        if (idx >= 0) {
+          if (action === "MODIFIED") {
+            const newDetails = [...details];
+            newDetails[idx] = detail || details[idx];
+            const newCount = newDetails.length;
+            const msg =
+              newCount === 1
+                ? `${workerName} ha inserito ore libere.\n\n${newDetails[0]}\n\nConverti in evento dalla sezione Turni e ore.`
+                : `${newCount} ore libere inserite.\n\n${newDetails.join("\n\n---\n\n")}\n\nConverti in evento dalla sezione Turni e ore.`;
+            await prisma.notification.update({
+              where: { id: addedNotif.id },
+              data: {
+                message: msg,
+                metadata: { count: newCount, details: newDetails, freeHoursEntryIds: ids },
+                createdAt: new Date(),
+              },
+            });
+          } else {
+            if (ids.length === 1) {
+              await prisma.notification.delete({ where: { id: addedNotif.id } });
+            } else {
+              const newIds = ids.filter((_, i) => i !== idx);
+              const newDetails = details.filter((_, i) => i !== idx);
+              const newCount = newDetails.length;
+              const msg =
+                newCount === 1
+                  ? `${workerName} ha inserito ore libere.\n\n${newDetails[0]}\n\nConverti in evento dalla sezione Turni e ore.`
+                  : `${newCount} ore libere inserite.\n\n${newDetails.join("\n\n---\n\n")}\n\nConverti in evento dalla sezione Turni e ore.`;
+              await prisma.notification.update({
+                where: { id: addedNotif.id },
+                data: {
+                  message: msg,
+                  metadata: { count: newCount, details: newDetails, freeHoursEntryIds: newIds },
+                  createdAt: new Date(),
+                },
+              });
+            }
+          }
+          continue;
+        }
+      }
+    }
+
+    // Nessuna notifica ADDED da aggiornare: crea/raggruppa come prima
+    const existing = await prisma.notification.findFirst({
+      where: {
+        userId: admin.id,
+        type,
+        read: false,
+        createdAt: { gte: fifteenMinutesAgo },
+      },
+    });
+    if (existing) {
+      const meta = (existing.metadata as { count?: number; details?: string[] }) || {};
+      const prevCount = meta.count ?? 1;
+      const prevDetails = meta.details ?? (existing.message.includes("\n\n") ? [existing.message.split("\n\n").slice(1).join("\n\n")] : []);
+      const newCount = prevCount + 1;
+      const allDetails = [...prevDetails, detail].filter(Boolean);
+      const actionLabel = action === "MODIFIED" ? "modifiche" : "eliminazioni";
+      const msg = `${baseMsg} (${newCount} ${actionLabel})\n\n${allDetails.join("\n\n---\n\n")}`;
+      await prisma.notification.update({
+        where: { id: existing.id },
+        data: {
+          message: msg,
+          metadata: { count: newCount, details: allDetails },
+          createdAt: new Date(),
+        },
+      });
+      await prisma.notification.deleteMany({
+        where: {
+          userId: admin.id,
+          type,
+          read: false,
+          id: { not: existing.id },
+          createdAt: { gte: fifteenMinutesAgo },
+        },
+      });
+    } else {
+      await prisma.notification.create({
+        data: {
+          userId: admin.id,
+          type,
+          title,
+          message: singleMessage,
+          metadata: detail ? { count: 1, details: [detail] } : undefined,
+          priority,
+          read: false,
+        },
+      });
+    }
+  }
+}
+
+/** Notifica lavoratore: admin ha convertito ore libere in evento o le ha eliminate. Raggruppa per tipo entro 15 min.
+ * metadataExtra: { dateFrom, dateTo } per il link "Visualizza" a I miei turni. */
+export async function notifyWorkerFreeHours(
+  userId: string,
+  action: "CONVERTED" | "DELETED",
+  detail: string,
+  metadataExtra?: { dateFrom?: string; dateTo?: string }
+): Promise<void> {
+  if (!(await shouldNotifyWorker(userId))) return;
+  const type = action === "CONVERTED" ? "FREE_HOURS_CONVERTED_BY_ADMIN" : "FREE_HOURS_DELETED_BY_ADMIN";
+  if (!(await isNotificationTypeActive(type))) return;
+  const priority = await getPriorityForType(type);
+
+  const title = action === "CONVERTED" ? "Ore libere convertite in evento" : "Ore libere eliminate";
+  const baseMsg = action === "CONVERTED"
+    ? "Un amministratore ha convertito le tue ore libere in un evento. Le ore sono ora visibili in I miei turni."
+    : "Un amministratore ha eliminato le tue ore libere.";
+
+  const meta: Record<string, unknown> = detail ? { count: 1, details: [detail] } : {};
+  if (metadataExtra?.dateFrom) meta.dateFrom = metadataExtra.dateFrom;
+  if (metadataExtra?.dateTo) meta.dateTo = metadataExtra.dateTo;
+
+  const existing = await findGroupableNotification(userId, type);
+  if (existing) {
+    const existingMeta = (existing.metadata as { count?: number; details?: string[]; dateFrom?: string; dateTo?: string }) || {};
+    const newCount = (existingMeta.count || 1) + 1;
+    const existingDetails =
+      existingMeta.details ||
+      (existing.message.includes("\n\n") ? existing.message.split("\n\n").slice(1) : []);
+    const allDetails = detail ? [...existingDetails, detail] : existingDetails;
+    const msg = allDetails.length > 0 ? `${baseMsg}\n\n${allDetails.join("\n\n")}` : baseMsg;
+    const updateMeta: Record<string, unknown> = { count: newCount, details: allDetails };
+    if (metadataExtra?.dateFrom) updateMeta.dateFrom = metadataExtra.dateFrom;
+    if (metadataExtra?.dateTo) updateMeta.dateTo = metadataExtra.dateTo;
+    await prisma.notification.update({
+      where: { id: existing.id },
+      data: {
+        message: msg,
+        metadata: updateMeta as Prisma.InputJsonValue,
+        priority,
+        createdAt: new Date(),
+      },
+    });
+  } else {
+    const msg = detail ? `${baseMsg}\n\n${detail}` : baseMsg;
+    await prisma.notification.create({
+      data: {
+        userId,
+        type,
+        title,
+        message: msg,
+        metadata: Object.keys(meta).length > 0 ? (meta as Prisma.InputJsonValue) : undefined,
+        priority,
+        read: false,
+      },
+    });
   }
 }
 

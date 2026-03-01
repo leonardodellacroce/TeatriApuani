@@ -17,8 +17,18 @@ type Notification = {
   createdAt: string;
 };
 
-const GROUPABLE_TYPES = ["UNAVAILABILITY_MODIFIED_BY_WORKER", "UNAVAILABILITY_DELETED_BY_WORKER"];
-const GROUP_WINDOW_MS = 15 * 60 * 1000;
+const GROUPABLE_TYPES = [
+  "UNAVAILABILITY_PENDING_APPROVAL",
+  "UNAVAILABILITY_MODIFIED_BY_WORKER",
+  "UNAVAILABILITY_DELETED_BY_WORKER",
+  "FREE_HOURS_ADDED_BY_WORKER",
+  "FREE_HOURS_MODIFIED_BY_WORKER",
+  "FREE_HOURS_DELETED_BY_WORKER",
+  "WORKDAY_ISSUES",
+  "ADMIN_LOCKED_ACCOUNTS",
+];
+const MAX_BLOCKS_DISPLAY = 12;
+const MAX_LINES_BEFORE_EXPAND = 15;
 
 function groupNotifications(list: Notification[]): Array<Notification | { group: Notification[] }> {
   const result: Array<Notification | { group: Notification[] }> = [];
@@ -39,26 +49,10 @@ function groupNotifications(list: Notification[]): Array<Notification | { group:
 
   for (const [, arr] of unreadByType) {
     arr.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
-    const clusters: Notification[][] = [];
-    let current: Notification[] = [arr[0]];
-    for (let i = 1; i < arr.length; i++) {
-      const prev = new Date(arr[i - 1].createdAt).getTime();
-      const curr = new Date(arr[i].createdAt).getTime();
-      if (curr - prev <= GROUP_WINDOW_MS) {
-        current.push(arr[i]);
-      } else {
-        clusters.push(current);
-        current = [arr[i]];
-      }
-    }
-    clusters.push(current);
-
-    for (const cluster of clusters) {
-      if (cluster.length === 1) {
-        result.push(cluster[0]);
-      } else {
-        result.push({ group: cluster });
-      }
+    if (arr.length === 1) {
+      result.push(arr[0]);
+    } else {
+      result.push({ group: arr });
     }
   }
 
@@ -72,11 +66,33 @@ function groupNotifications(list: Notification[]): Array<Notification | { group:
   return result;
 }
 
+/** Costruisce messaggio per gruppo: max 12 blocchi, poi "e altre X" */
+function buildGroupDisplayMessage(group: Notification[]): { message: string; totalCount: number } {
+  const toShow = group.slice(0, MAX_BLOCKS_DISPLAY);
+  const rest = group.length - MAX_BLOCKS_DISPLAY;
+  let message: string;
+  if (group[0]?.type === "WORKDAY_ISSUES") {
+    const parts = toShow.map((x) => x.message);
+    message = parts.join("\n\n");
+  } else {
+    const intro = group[0]?.message.split("\n\n")[0] ?? "";
+    const details = toShow.map((x) => x.message.split("\n\n").slice(1).join("\n\n")).filter(Boolean);
+    message = details.length > 0 ? `${intro} (${group.length} notifiche)\n\n${details.join("\n\n---\n\n")}` : `${intro} (${group.length} notifiche)`;
+  }
+  if (rest > 0) {
+    message += `\n\n… e altre ${rest}`;
+  }
+  return { message, totalCount: group.length };
+}
+
 const TITLE_BY_TYPE: Record<string, string> = {
   ADMIN_LOCKED_ACCOUNTS: "Account bloccati",
   UNAVAILABILITY_PENDING_APPROVAL: "Indisponibilità in attesa",
   UNAVAILABILITY_MODIFIED_BY_WORKER: "Indisponibilità modificata da dipendente",
   UNAVAILABILITY_DELETED_BY_WORKER: "Indisponibilità eliminata da dipendente",
+  FREE_HOURS_ADDED_BY_WORKER: "Ore libere inserite",
+  FREE_HOURS_MODIFIED_BY_WORKER: "Ore libere modificate da dipendente",
+  FREE_HOURS_DELETED_BY_WORKER: "Ore libere eliminate da dipendente",
   WORKDAY_ISSUES: "Problemi programmazione",
 };
 
@@ -123,6 +139,16 @@ export default function AdminNotificationsPage() {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [requireModalActionToMarkRead, setRequireModalActionToMarkRead] = useState(false);
   const [typesWithModalActivo, setTypesWithModalActivo] = useState<string[]>([]);
+  const [expandedCards, setExpandedCards] = useState<Set<string>>(new Set());
+
+  const toggleCardExpanded = (key: string) => {
+    setExpandedCards((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  };
 
   const isAdminRole =
     (session?.user as any)?.isSuperAdmin === true ||
@@ -274,12 +300,22 @@ export default function AdminNotificationsPage() {
               const isGroup = "group" in item;
               const n = isGroup ? item.group[0] : item;
               const ids = isGroup ? item.group.map((x) => x.id) : [n.id];
-              const displayMessage = isGroup && item.group.length > 1
-                ? `${n.message.split("\n\n")[0]} (${item.group.length} notifiche)\n\n${item.group.map((x) => x.message.split("\n\n").slice(1).join("\n\n")).filter(Boolean).join("\n\n---\n\n")}`
-                : n.message;
+              const cardKey = isGroup ? ids.join("-") : n.id;
+              const { message: rawGroupMessage, totalCount } =
+                isGroup && item.group.length > 1
+                  ? buildGroupDisplayMessage(item.group)
+                  : { message: n.message, totalCount: 1 };
+              const displayMessage = rawGroupMessage;
+              const lineCount = displayMessage.split("\n").length;
+              const needsExpand = lineCount > MAX_LINES_BEFORE_EXPAND;
+              const isExpanded = expandedCards.has(cardKey);
+              const shownMessage =
+                needsExpand && !isExpanded
+                  ? displayMessage.split("\n").slice(0, MAX_LINES_BEFORE_EXPAND).join("\n")
+                  : displayMessage;
               return (
                 <div
-                  key={isGroup ? ids.join("-") : n.id}
+                  key={cardKey}
                   className={`rounded-2xl border overflow-hidden shadow-sm transition-all ${
                     n.read
                       ? "border-gray-200 bg-gray-50/50 opacity-75"
@@ -300,15 +336,24 @@ export default function AdminNotificationsPage() {
                       {getPriorityIcon(getEffectivePriority(n.priority, n.type))}
                     </span>
                     <h2 className="text-white font-semibold text-sm">
-                      {getTitle(n)}{isGroup && item.group.length > 1 ? ` (${item.group.length})` : ""}
+                      {getTitle(n)}{isGroup && totalCount > 1 ? ` (${totalCount})` : ""}
                     </h2>
                   </div>
                   <div className="px-4 py-4 bg-white/95 shadow-[0_2px_8px_rgba(0,0,0,0.06)]">
                     <p className="text-gray-700 text-sm whitespace-pre-wrap mb-3">
-                      {displayMessage.includes("~~")
-                        ? renderMessageWithStrikethrough(displayMessage)
-                        : displayMessage}
+                      {shownMessage.includes("~~")
+                        ? renderMessageWithStrikethrough(shownMessage)
+                        : shownMessage}
                     </p>
+                    {needsExpand && (
+                      <button
+                        type="button"
+                        onClick={() => toggleCardExpanded(cardKey)}
+                        className="text-sm text-gray-600 hover:text-gray-900 underline mb-3"
+                      >
+                        {isExpanded ? "Riduci" : "Espandi"}
+                      </button>
+                    )}
                     <div className="flex items-center justify-between gap-4 flex-wrap">
                       <span className="text-xs text-gray-500">
                         {formatDate(n.createdAt)}
@@ -316,13 +361,21 @@ export default function AdminNotificationsPage() {
                       <div className="flex items-center gap-2">
                         {!n.read && n.type === "ADMIN_LOCKED_ACCOUNTS" && (
                           <button
-                            onClick={() => handleAction(n, "/settings/technical")}
+                            onClick={() => handleAction(isGroup ? item : n, "/settings/technical")}
                             className="px-4 py-2 bg-gray-900 text-white text-sm font-medium rounded-lg hover:bg-gray-800"
                           >
                             Vai a impostazioni tecniche
                           </button>
                         )}
-                        {!n.read && (n.type === "UNAVAILABILITY_PENDING_APPROVAL" || n.type === "UNAVAILABILITY_MODIFIED_BY_WORKER" || n.type === "UNAVAILABILITY_DELETED_BY_WORKER") && (
+                        {!n.read && (n.type === "UNAVAILABILITY_DELETED_BY_WORKER" || n.type === "FREE_HOURS_DELETED_BY_WORKER") && (
+                          <button
+                            onClick={() => handleMarkAsRead(isGroup ? item : n)}
+                            className="px-4 py-2 bg-gray-900 text-white text-sm font-medium rounded-lg hover:bg-gray-800"
+                          >
+                            OK
+                          </button>
+                        )}
+                        {!n.read && (n.type === "UNAVAILABILITY_PENDING_APPROVAL" || n.type === "UNAVAILABILITY_MODIFIED_BY_WORKER") && (
                           <button
                             onClick={() => handleAction(isGroup ? item : n, "/dashboard/unavailabilities")}
                             className="px-4 py-2 bg-gray-900 text-white text-sm font-medium rounded-lg hover:bg-gray-800"
@@ -330,23 +383,33 @@ export default function AdminNotificationsPage() {
                             Vai alle indisponibilità
                           </button>
                         )}
+                        {!n.read &&
+                          ["FREE_HOURS_ADDED_BY_WORKER", "FREE_HOURS_MODIFIED_BY_WORKER"].includes(n.type) && (
+                            <button
+                              onClick={() => handleAction(isGroup ? item : n, "/dashboard/admin/shifts-hours")}
+                              className="px-4 py-2 bg-gray-900 text-white text-sm font-medium rounded-lg hover:bg-gray-800"
+                            >
+                              Vai a Turni e ore
+                            </button>
+                          )}
                         {!n.read && n.type === "WORKDAY_ISSUES" && (
                           <button
-                            onClick={() => handleAction(n, "/dashboard/events")}
+                            onClick={() => handleAction(isGroup ? item : n, "/dashboard/events")}
                             className="px-4 py-2 bg-gray-900 text-white text-sm font-medium rounded-lg hover:bg-gray-800"
                           >
                             Vai agli eventi
                           </button>
                         )}
                         {!n.read &&
+                          !["UNAVAILABILITY_DELETED_BY_WORKER", "FREE_HOURS_DELETED_BY_WORKER"].includes(n.type) &&
                           !(requireModalActionToMarkRead && typesWithModalActivo.includes(n.type)) && (
-                          <button
-                            onClick={() => handleMarkAsRead(isGroup ? item : n)}
-                            className="px-4 py-2 border border-gray-300 text-gray-700 text-sm font-medium rounded-lg hover:bg-gray-50"
-                          >
-                            Letta
-                          </button>
-                        )}
+                            <button
+                              onClick={() => handleMarkAsRead(isGroup ? item : n)}
+                              className="px-4 py-2 border border-gray-300 text-gray-700 text-sm font-medium rounded-lg hover:bg-gray-50"
+                            >
+                              Letta
+                            </button>
+                          )}
                       </div>
                     </div>
                   </div>

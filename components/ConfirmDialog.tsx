@@ -11,6 +11,9 @@ interface ConfirmDialogProps {
   children?: React.ReactNode;
   onConfirm: () => void;
   onCancel: () => void;
+  /** Etichette personalizzate per i pulsanti (default: Annulla, Conferma) */
+  cancelLabel?: string;
+  confirmLabel?: string;
 }
 
 export default function ConfirmDialog({
@@ -20,6 +23,8 @@ export default function ConfirmDialog({
   children,
   onConfirm,
   onCancel,
+  cancelLabel = "Annulla",
+  confirmLabel = "Conferma",
 }: ConfirmDialogProps) {
   const [mounted, setMounted] = useState(false);
 
@@ -59,13 +64,13 @@ export default function ConfirmDialog({
             onClick={onCancel}
             className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 hover:border-gray-400 hover:shadow-md hover:scale-105 active:scale-100 transition-all duration-200 cursor-pointer"
           >
-            Annulla
+            {cancelLabel}
           </button>
           <button
             onClick={onConfirm}
             className="px-4 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800 hover:shadow-lg hover:scale-105 active:scale-100 transition-all duration-200 cursor-pointer"
           >
-            Conferma
+            {confirmLabel}
           </button>
         </div>
       </div>

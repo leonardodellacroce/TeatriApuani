@@ -56,6 +56,7 @@ export default function EditEventPage() {
   const [selectedClients, setSelectedClients] = useState<SelectedClient[]>([{ id: "", name: "" }]);
   const [calculatedDays, setCalculatedDays] = useState<number | null>(null);
   const [loading, setLoading] = useState(false);
+  const [cancelLoading, setCancelLoading] = useState(false);
   const [loadingData, setLoadingData] = useState(true);
   const [error, setError] = useState("");
   const [originalData, setOriginalData] = useState<any>(null);
@@ -69,6 +70,7 @@ export default function EditEventPage() {
   const isWorker = (session?.user as any)?.isWorker === true;
   const inWorkerMode = !isStandardUser && isWorker && getWorkModeCookie() === "worker";
   const canEditEvent = !inWorkerMode && ["SUPER_ADMIN", "ADMIN"].includes(session?.user?.role || "");
+  const isSuperAdmin = (session?.user as any)?.isSuperAdmin === true || session?.user?.role === "SUPER_ADMIN";
 
   useEffect(() => {
     if (status === "loading") return;
@@ -132,41 +134,54 @@ export default function EditEventPage() {
       const res = await fetch(`/api/events/${eventId}`);
       if (res.ok) {
         const data = await res.json();
+        const { closedMonths: cm, ...eventData } = data;
+        const closedMonths = Array.isArray(cm) ? cm : [];
+        const hasWorkdayInClosedMonth = (eventData.workdays || []).some((wd: { date: string }) => {
+          const d = new Date(wd.date);
+          return closedMonths.some((c: { year: number; month: number }) => c.year === d.getFullYear() && c.month === d.getMonth() + 1);
+        });
+        if (hasWorkdayInClosedMonth && !isSuperAdmin) {
+          router.replace(`/dashboard/events/${eventId}`);
+          return;
+        }
         
         // Converti la data per l'input (YYYY-MM-DD), usando UTC per evitare problemi di timezone
-        const startDateObj = new Date(data.startDate);
-        const endDateObj = new Date(data.endDate);
+        const startDateObj = new Date(eventData.startDate);
+        const endDateObj = new Date(eventData.endDate);
         
         // Usa la data locale senza conversione di timezone
         const startDate = `${startDateObj.getFullYear()}-${String(startDateObj.getMonth() + 1).padStart(2, '0')}-${String(startDateObj.getDate()).padStart(2, '0')}`;
         const endDate = `${endDateObj.getFullYear()}-${String(endDateObj.getMonth() + 1).padStart(2, '0')}-${String(endDateObj.getDate()).padStart(2, '0')}`;
         
         const initialFormData = {
-          title: data.title,
-          locationId: data.locationId || "",
+          title: eventData.title,
+          locationId: eventData.locationId || "",
           startDate,
           endDate,
-          notes: data.notes || "",
+          notes: eventData.notes || "",
         };
         
         setFormData(initialFormData);
         setOriginalData(initialFormData);
         
-        // Verifica se l'evento è passato
-        const eventEndDate = new Date(data.endDate);
+        // Verifica se l'evento è passato: confronta le date di calendario, non i datetime.
+        // Un evento che termina il 24/02 non è "passato" se siamo ancora il 24/02.
+        const eventEndDate = new Date(eventData.endDate);
         const now = new Date();
-        const isPast = eventEndDate < now;
+        const eventEndDay = new Date(eventEndDate.getFullYear(), eventEndDate.getMonth(), eventEndDate.getDate());
+        const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        const isPast = eventEndDay < today;
         setIsEventPast(isPast);
 
         // Usa i clienti passati come parametro o quelli nello stato
         const availableClients = loadedClients || clients;
-        console.log('[fetchEvent] data.clientIds:', data.clientIds);
+        console.log('[fetchEvent] data.clientIds:', eventData.clientIds);
         console.log('[fetchEvent] clients available:', availableClients.length);
         
         let clientsLoaded = false;
-        if (data.clientIds && data.clientIds !== 'null') {
+        if (eventData.clientIds && eventData.clientIds !== 'null') {
           try {
-            const clientIds = JSON.parse(data.clientIds);
+            const clientIds = JSON.parse(eventData.clientIds);
             console.log('[fetchEvent] Parsed clientIds:', clientIds);
             if (Array.isArray(clientIds) && clientIds.length > 0) {
               const matchedClients = clientIds.map((clientId: string) => {
@@ -189,9 +204,9 @@ export default function EditEventPage() {
           }
         }
         
-        if (!clientsLoaded && data.clientName && availableClients.length > 0) {
+        if (!clientsLoaded && eventData.clientName && availableClients.length > 0) {
           // Fallback al vecchio formato clientName per retrocompatibilità
-          const clientNames = data.clientName.split(", ");
+          const clientNames = eventData.clientName.split(", ");
           
           const matchedClients = clientNames.map((name: string) => {
             const client = availableClients.find((c: Client) => {
@@ -210,9 +225,9 @@ export default function EditEventPage() {
             setSelectedClients(matchedClients);
             setOriginalClients(matchedClients);
           }
-        } else if (data.clientName && availableClients.length === 0) {
+        } else if (eventData.clientName && availableClients.length === 0) {
           // Se i clienti non sono ancora caricati, usa i nomi dall'evento
-          const clientNames = data.clientName.split(", ");
+          const clientNames = eventData.clientName.split(", ");
           const tempClients = clientNames.map((name: string) => ({ id: "", name }));
           setSelectedClients(tempClients);
           setOriginalClients(tempClients);
@@ -337,8 +352,19 @@ export default function EditEventPage() {
       });
 
       if (res.ok) {
-        const tab = searchParams.get('tab') || 'details';
-        router.push(`/dashboard/events/${eventId}?tab=${tab}`);
+        const data = await res.json();
+        const fromConvert = searchParams.get("fromConvert") === "1";
+        if (fromConvert) {
+          const firstWorkdayId = data?.workdays?.[0]?.id;
+          if (firstWorkdayId) {
+            router.push(`/dashboard/events/${eventId}/workdays/${firstWorkdayId}`);
+          } else {
+            router.push(`/dashboard/events/${eventId}?tab=workdays`);
+          }
+        } else {
+          const tab = searchParams.get("tab") || "details";
+          router.push(`/dashboard/events/${eventId}?tab=${tab}`);
+        }
       } else {
         const data = await res.json();
         console.error('Error response from server:', data);
@@ -373,10 +399,20 @@ export default function EditEventPage() {
     return <PageSkeleton />;
   }
 
+  const fromConvert = searchParams.get("fromConvert") === "1";
+
   return (
     <DashboardShell>
       <div>
-        <h1 className="text-3xl font-bold mb-6">Modifica Evento</h1>
+        <h1 className="text-3xl font-bold mb-6">{fromConvert ? "Crea evento da ore libere" : "Modifica Evento"}</h1>
+
+        {fromConvert && (
+          <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg text-sm text-blue-800 max-w-xl">
+            Inserisci cliente per completare l&apos;evento creato dalle ore libere.
+            <br />
+            Dopo il salvataggio sarai reindirizzato alla giornata di lavoro per verificare la correttezza dei dati.
+          </div>
+        )}
 
         <div className="bg-white rounded-lg shadow p-6 border border-gray-200 mb-6 max-w-xl">
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -527,17 +563,43 @@ export default function EditEventPage() {
               disabled={loading}
               className="px-4 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800 hover:shadow-lg hover:scale-105 active:scale-100 transition-all duration-200 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-gray-900 disabled:hover:shadow-none"
             >
-              {loading ? "Salvataggio..." : "Salva Modifiche"}
+              {loading ? "Salvataggio..." : (fromConvert ? "Continua" : "Salva Modifiche")}
             </button>
             <button
               type="button"
-              onClick={() => {
-                const tab = searchParams.get('tab') || 'details';
-                router.push(`/dashboard/events/${eventId}?tab=${tab}`);
+              disabled={cancelLoading}
+              onClick={async () => {
+                if (fromConvert) {
+                  const freeHoursId = searchParams.get("freeHoursId");
+                  if (freeHoursId) {
+                    setCancelLoading(true);
+                    try {
+                      const res = await fetch(`/api/free-hours/${freeHoursId}/revert-conversion`, {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                      });
+                      if (res.ok) {
+                        router.push("/dashboard/admin/shifts-hours");
+                        return;
+                      }
+                      const data = await res.json();
+                      setError(data.error || "Errore nell'annullamento");
+                    } catch {
+                      setError("Errore nell'annullamento");
+                    } finally {
+                      setCancelLoading(false);
+                    }
+                  } else {
+                    router.push("/dashboard/admin/shifts-hours");
+                  }
+                } else {
+                  const tab = searchParams.get('tab') || 'details';
+                  router.push(`/dashboard/events/${eventId}?tab=${tab}`);
+                }
               }}
-              className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 hover:border-gray-400 hover:shadow-md hover:scale-105 active:scale-100 transition-all duration-200 cursor-pointer"
+              className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 hover:border-gray-400 hover:shadow-md hover:scale-105 active:scale-100 transition-all duration-200 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              Annulla
+              {cancelLoading ? "Annullamento..." : "Annulla"}
             </button>
           </div>
         </form>
