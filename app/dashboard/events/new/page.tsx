@@ -234,7 +234,7 @@ export default function NewEventPage() {
       <div>
         <h1 className="text-3xl font-bold mb-6">Nuovo Evento</h1>
 
-        <div className="bg-white rounded-lg shadow p-6 border border-gray-200 mb-6 max-w-xl min-w-0 overflow-hidden">
+        <div className="bg-white rounded-lg shadow p-4 md:p-6 border border-gray-200 mb-6 max-w-xl w-full min-w-0 overflow-x-hidden">
         <form onSubmit={handleSubmit} className="space-y-4 min-w-0">
           {error && (
             <div className="p-4 bg-red-50 border border-red-200 text-red-700 rounded-lg">
@@ -253,7 +253,7 @@ export default function NewEventPage() {
               value={formData.title}
               onChange={handleChange}
               required
-              className="w-full px-3 py-2 h-10 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-gray-900 focus:border-transparent"
+              className="w-full px-3 py-1.5 h-9 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-gray-900 focus:border-transparent"
             />
           </div>
 
@@ -262,8 +262,8 @@ export default function NewEventPage() {
               Clienti *
             </label>
             {selectedClients.map((selectedClient, index) => (
-              <div key={index} className="flex gap-2 mb-2">
-                <div className="flex-1">
+              <div key={index} className="flex gap-2 mb-2 min-w-0">
+                <div className="flex-1 min-w-0">
                   <SearchableSelect
                     value={selectedClient.id}
                     onChange={(val) => {
@@ -286,7 +286,7 @@ export default function NewEventPage() {
                   <button
                     type="button"
                     onClick={addClientField}
-                    className="px-3 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors"
+                    className="px-3 py-1.5 h-9 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors flex-shrink-0"
                   >
                     +
                   </button>
@@ -295,7 +295,7 @@ export default function NewEventPage() {
                   <button
                     type="button"
                     onClick={() => removeClientField(index)}
-                    className="px-3 py-2 bg-red-200 text-red-700 rounded-lg hover:bg-red-300 transition-colors"
+                    className="px-3 py-1.5 h-9 bg-red-200 text-red-700 rounded-lg hover:bg-red-300 transition-colors flex-shrink-0"
                   >
                     ×
                   </button>
@@ -311,6 +311,7 @@ export default function NewEventPage() {
             <SearchableSelect
               id="locationId"
               value={formData.locationId}
+              className="min-w-0"
               onChange={(v) => setFormData({ ...formData, locationId: v })}
               placeholder="Cerca location..."
               emptyOption={{ value: "", label: "Seleziona una location" }}
@@ -335,7 +336,7 @@ export default function NewEventPage() {
                 value={formData.startDate}
                 onChange={handleChange}
                 required
-                className="w-full min-w-0 px-3 py-2 h-10 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-gray-900 focus:border-transparent box-border"
+                className="w-full min-w-0 px-3 py-1.5 h-9 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-gray-900 focus:border-transparent box-border"
               />
             </div>
 
@@ -350,13 +351,13 @@ export default function NewEventPage() {
                 value={formData.endDate}
                 onChange={handleChange}
                 required
-                className="w-full min-w-0 px-3 py-2 h-10 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-gray-900 focus:border-transparent box-border"
+                className="w-full min-w-0 px-3 py-1.5 h-9 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-gray-900 focus:border-transparent box-border"
               />
             </div>
           </div>
 
           {calculatedDays !== null && (
-            <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+            <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
               <p className="text-sm text-blue-800">
                 Giornate di lavoro previste: <span className="font-semibold">{calculatedDays}</span>
               </p>
@@ -372,8 +373,8 @@ export default function NewEventPage() {
               name="notes"
               value={formData.notes}
               onChange={handleChange}
-              rows={4}
-              className="w-full px-3 py-2 h-10 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-gray-900 focus:border-transparent"
+              rows={3}
+              className="w-full px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-gray-900 focus:border-transparent min-h-0"
             />
           </div>
 
@@ -381,14 +382,14 @@ export default function NewEventPage() {
             <button
               type="submit"
               disabled={loading}
-              className="px-4 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800 hover:shadow-lg hover:scale-105 active:scale-100 transition-all duration-200 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 disabled:hover:shadow-none"
+              className="px-4 py-1.5 h-9 bg-gray-900 text-white rounded-lg hover:bg-gray-800 hover:shadow-lg hover:scale-105 active:scale-100 transition-all duration-200 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 disabled:hover:shadow-none"
             >
               {loading ? "Creazione..." : "Crea Evento"}
             </button>
             <button
               type="button"
               onClick={() => router.back()}
-              className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 hover:border-gray-400 hover:shadow-md hover:scale-105 active:scale-100 transition-all duration-200 cursor-pointer"
+              className="px-4 py-1.5 h-9 border border-gray-300 rounded-lg hover:bg-gray-50 hover:border-gray-400 hover:shadow-md hover:scale-105 active:scale-100 transition-all duration-200 cursor-pointer"
             >
               Annulla
             </button>
