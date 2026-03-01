@@ -1251,7 +1251,9 @@ export default function EventsPage() {
       <div>
         <div className="mb-6">
           <h1 className="text-2xl lg:text-3xl font-bold text-gray-900 mb-4">Eventi</h1>
-          <div className="flex flex-wrap gap-2 lg:gap-4 items-center mb-3 w-full">
+          {/* Mobile: layout impilato. Desktop: filtri + tab + pulsanti su una riga */}
+          <div className="flex flex-col md:flex-row md:flex-wrap md:items-center gap-3 w-full">
+            <div className="flex flex-wrap gap-2 lg:gap-4 items-center w-full md:w-auto md:order-1">
             {userCanSeeAllEvents && (
               <select
                 value={filterStatus}
@@ -1264,7 +1266,7 @@ export default function EventsPage() {
               </select>
             )}
             {canEditEvents && (
-              <div className="relative client-filter-container flex-1 min-w-0">
+              <div className="relative client-filter-container flex-1 min-w-0 md:flex-initial md:min-w-[180px]">
               <button
                 type="button"
                 onClick={() => setShowClientDropdown(!showClientDropdown)}
@@ -1335,9 +1337,9 @@ export default function EventsPage() {
               )}
               </div>
             )}
-          </div>
-          <div className="flex flex-wrap items-center gap-3 mb-3">
-            <div className="relative flex bg-gray-300 rounded-lg px-1.5 py-1 shadow-[inset_2px_2px_4px_rgba(0,0,0,0.1),inset_-2px_-2px_4px_rgba(255,255,255,0.8)] flex-1 min-w-0" style={{ height: '44px' }}>
+            </div>
+            <div className="flex flex-wrap items-center gap-3 w-full md:w-auto md:flex-1 md:min-w-0 md:order-2">
+            <div className="relative flex bg-gray-300 rounded-lg px-1.5 py-1 shadow-[inset_2px_2px_4px_rgba(0,0,0,0.1),inset_-2px_-2px_4px_rgba(255,255,255,0.8)] flex-1 min-w-0 md:flex-initial" style={{ height: '44px' }}>
               <button
                 onClick={() => setViewMode("list")}
                 className={`relative px-4 h-full text-sm font-medium rounded-md transition-all duration-300 cursor-pointer z-10 flex items-center justify-center ${
@@ -1377,18 +1379,20 @@ export default function EventsPage() {
                 className="px-4 py-2 h-11 border border-gray-300 rounded-lg text-sm hover:bg-gray-50 hover:border-gray-400 transition-all duration-200 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed flex-shrink-0 flex items-center justify-center"
                 title="Invia ai lavoratori le notifiche sui cambiamenti ai turni (inserimenti, modifiche, eliminazioni)"
               >
-                <span className="text-center leading-tight">Notifica<br />cambiamenti</span>
+                <span className="hidden md:inline">Notifica cambiamenti</span>
+                <span className="text-center leading-tight md:hidden">Notifica<br />cambiamenti</span>
+              </button>
+            )}
+            {canEditEvents && (
+              <button
+                onClick={() => router.push("/dashboard/events/new")}
+                className="w-full md:w-auto px-4 py-2 h-11 bg-gray-900 text-white rounded-lg text-sm hover:bg-gray-800 hover:shadow-lg hover:scale-[1.02] active:scale-100 transition-all duration-200 cursor-pointer md:order-last md:ml-auto"
+              >
+                Nuovo Evento
               </button>
             )}
           </div>
-          {canEditEvents && (
-            <button
-              onClick={() => router.push("/dashboard/events/new")}
-              className="w-full px-4 py-2 h-11 bg-gray-900 text-white rounded-lg text-sm hover:bg-gray-800 hover:shadow-lg hover:scale-[1.02] active:scale-100 transition-all duration-200 cursor-pointer"
-            >
-              Nuovo Evento
-            </button>
-          )}
+          </div>
         </div>
 
         {viewMode === "calendar" && (

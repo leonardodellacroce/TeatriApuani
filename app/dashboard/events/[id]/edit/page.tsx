@@ -560,7 +560,7 @@ export default function EditEventPage() {
                 value={formData.startDate}
                 onChange={handleChange}
                 required
-                className="w-full min-w-0 px-3 h-11 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-gray-900 focus:border-transparent box-border"
+                className="w-full min-w-0 h-11 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-gray-900 focus:border-transparent box-border"
               />
             </div>
 
@@ -575,7 +575,7 @@ export default function EditEventPage() {
                 value={formData.endDate}
                 onChange={handleChange}
                 required
-                className="w-full min-w-0 px-3 h-11 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-gray-900 focus:border-transparent box-border"
+                className="w-full min-w-0 h-11 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-gray-900 focus:border-transparent box-border"
               />
             </div>
           </div>

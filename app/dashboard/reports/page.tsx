@@ -1101,27 +1101,29 @@ export default function ReportsPage() {
 
             {/* Intervallo Date (sempre presente) */}
             <div className="flex flex-wrap items-end gap-4">
-              <div className="min-w-[240px]">
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Data Inizio *
-                </label>
-                <input
-                  type="date"
-                  value={startDate}
-                  onChange={(e) => setStartDate(e.target.value)}
-                  className="w-full px-3 py-2 h-11 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-gray-500 focus:border-transparent"
-                />
-              </div>
-              <div className="min-w-[240px]">
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Data Fine *
-                </label>
-                <input
-                  type="date"
-                  value={endDate}
-                  onChange={(e) => setEndDate(e.target.value)}
-                  className="w-full px-3 py-2 h-11 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-gray-500 focus:border-transparent"
-                />
+              <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)] md:grid-cols-2 gap-4 min-w-0 flex-1 min-w-[140px]">
+                <div className="min-w-0">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Data Inizio *
+                  </label>
+                  <input
+                    type="date"
+                    value={startDate}
+                    onChange={(e) => setStartDate(e.target.value)}
+                    className="w-full px-3 py-2 h-11 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-gray-500 focus:border-transparent"
+                  />
+                </div>
+                <div className="min-w-0">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Data Fine *
+                  </label>
+                  <input
+                    type="date"
+                    value={endDate}
+                    onChange={(e) => setEndDate(e.target.value)}
+                    className="w-full px-3 py-2 h-11 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-gray-500 focus:border-transparent"
+                  />
+                </div>
               </div>
               <div className="flex items-end gap-2">
                 <button

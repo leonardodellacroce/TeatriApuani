@@ -3278,8 +3278,8 @@ export default function WorkdayViewPage() {
                         <div className="mt-3 pt-3 border-t border-gray-200 space-y-3">
                           {(activityTimes[taskType.id] || [{ start: "", end: "" }]).map((interval, idx) => (
                             <div key={idx} className="space-y-2">
-                              <div className="flex gap-4 items-end">
-                                <div className="flex-1 min-w-0">
+                              <div className={`grid gap-4 items-end min-w-0 md:flex md:flex-row md:gap-4 md:items-end ${(activityTimes[taskType.id]?.length ?? 1) > 1 ? 'grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto]' : 'grid-cols-2'}`}>
+                                <div className="min-w-0 md:flex-1">
                                   <label className="block text-xs text-gray-500 mb-1">Ora Inizio</label>
                                   <input
                                     type="time"
@@ -3308,7 +3308,7 @@ export default function WorkdayViewPage() {
                                     }`}
                                   />
                                 </div>
-                                <div className="flex-1 min-w-0">
+                                <div className="min-w-0 md:flex-1">
                                   <label className="block text-xs text-gray-500 mb-1">Ora Fine</label>
                                   <input
                                     type="time"
@@ -3706,7 +3706,7 @@ export default function WorkdayViewPage() {
                               <div className="flex flex-col md:flex-row md:gap-2 md:items-end gap-3">
                                 {/* Pulsanti su/giù - solo se ci sono più intervalli */}
                                 {(shiftTimes[shiftType.id] || []).length > 1 && (
-                                  <div className="flex flex-col gap-1 order-first md:order-none">
+                                  <div className="flex flex-col gap-1 order-first md:order-none shrink-0">
                                     <button
                                       type="button"
                                       onClick={() => {
@@ -3755,11 +3755,12 @@ export default function WorkdayViewPage() {
                                     </button>
                                   </div>
                                 )}
-                                <div className="flex-1 min-w-0 w-full md:min-w-[120px]">
-                                  <label className="block text-xs text-gray-500 mb-1">Ora Inizio</label>
-                                  <input
-                                    type="time"
-                                    value={interval.start}
+                                <div className="grid grid-cols-2 gap-2 min-w-0 flex-1 w-full md:flex md:flex-row md:gap-2 md:flex-1 md:min-w-0">
+                                  <div className="min-w-0 md:flex-1">
+                                    <label className="block text-xs text-gray-500 mb-1">Ora Inizio</label>
+                                    <input
+                                      type="time"
+                                      value={interval.start}
                                     onChange={(e) => {
                                       const currentIntervals = [...(shiftTimes[shiftType.id] || [])];
                                       currentIntervals[intervalIdx].start = e.target.value;
@@ -3805,12 +3806,12 @@ export default function WorkdayViewPage() {
                                         : 'border-gray-300'
                                     }`}
                                   />
-                                </div>
-                                <div className="flex-1 min-w-0 w-full md:min-w-[120px]">
-                                  <label className="block text-xs text-gray-500 mb-1">Ora Fine</label>
-                                  <input
-                                    type="time"
-                                    value={interval.end}
+                                  </div>
+                                  <div className="min-w-0 md:flex-1">
+                                    <label className="block text-xs text-gray-500 mb-1">Ora Fine</label>
+                                    <input
+                                      type="time"
+                                      value={interval.end}
                                     onChange={(e) => {
                                       const currentIntervals = [...(shiftTimes[shiftType.id] || [])];
                                       currentIntervals[intervalIdx].end = e.target.value;
@@ -3855,6 +3856,7 @@ export default function WorkdayViewPage() {
                                         : 'border-gray-300'
                                     }`}
                                   />
+                                  </div>
                                 </div>
                                 {/* Selettore cliente - desktop: sulla stessa riga degli orari */}
                                 {eventClients.length > 0 && (
@@ -3991,39 +3993,41 @@ export default function WorkdayViewPage() {
                                 {((shiftBreaks[shiftType.id] || [])[intervalIdx] || []).map((brk, brkIdx) => (
                                   <div key={brkIdx} className="flex flex-col md:flex-row md:gap-2 md:items-end gap-3">
                                     {(shiftTimes[shiftType.id] || []).length > 1 && <div className="w-[33px] hidden md:block"></div>}
-                                    <div className="flex-1 min-w-0 w-full md:min-w-[120px]">
-                                      <label className="block text-xs text-gray-500 mb-1">Inizio</label>
-                                      <input
-                                        type="time"
-                                        value={brk.start}
-                                        onChange={(e) => {
-                                          const current = [...((shiftBreaks[shiftType.id] || [])[intervalIdx] || [])];
-                                          while (current.length <= brkIdx) current.push({ start: "", end: "" });
-                                          current[brkIdx] = { ...current[brkIdx], start: e.target.value };
-                                          const all = [...(shiftBreaks[shiftType.id] || [])];
-                                          while (all.length <= intervalIdx) all.push([]);
-                                          all[intervalIdx] = current;
-                                          setShiftBreaks({ ...shiftBreaks, [shiftType.id]: all });
-                                        }}
-                                        className="w-full px-3 py-2 h-11 border border-gray-300 rounded-lg text-sm"
-                                      />
-                                    </div>
-                                    <div className="flex-1 min-w-0 w-full md:min-w-[120px]">
-                                      <label className="block text-xs text-gray-500 mb-1">Fine</label>
-                                      <input
-                                        type="time"
-                                        value={brk.end}
-                                        onChange={(e) => {
-                                          const current = [...((shiftBreaks[shiftType.id] || [])[intervalIdx] || [])];
-                                          while (current.length <= brkIdx) current.push({ start: "", end: "" });
-                                          current[brkIdx] = { ...current[brkIdx], end: e.target.value };
-                                          const all = [...(shiftBreaks[shiftType.id] || [])];
-                                          while (all.length <= intervalIdx) all.push([]);
-                                          all[intervalIdx] = current;
-                                          setShiftBreaks({ ...shiftBreaks, [shiftType.id]: all });
-                                        }}
-                                        className="w-full px-3 py-2 h-11 border border-gray-300 rounded-lg text-sm"
-                                      />
+                                    <div className="grid grid-cols-2 gap-2 min-w-0 flex-1 w-full md:flex md:flex-row md:gap-2 md:flex-1 md:min-w-0">
+                                      <div className="min-w-0 md:flex-1">
+                                        <label className="block text-xs text-gray-500 mb-1">Inizio</label>
+                                        <input
+                                          type="time"
+                                          value={brk.start}
+                                          onChange={(e) => {
+                                            const current = [...((shiftBreaks[shiftType.id] || [])[intervalIdx] || [])];
+                                            while (current.length <= brkIdx) current.push({ start: "", end: "" });
+                                            current[brkIdx] = { ...current[brkIdx], start: e.target.value };
+                                            const all = [...(shiftBreaks[shiftType.id] || [])];
+                                            while (all.length <= intervalIdx) all.push([]);
+                                            all[intervalIdx] = current;
+                                            setShiftBreaks({ ...shiftBreaks, [shiftType.id]: all });
+                                          }}
+                                          className="w-full px-3 py-2 h-11 border border-gray-300 rounded-lg text-sm"
+                                        />
+                                      </div>
+                                      <div className="min-w-0 md:flex-1">
+                                        <label className="block text-xs text-gray-500 mb-1">Fine</label>
+                                        <input
+                                          type="time"
+                                          value={brk.end}
+                                          onChange={(e) => {
+                                            const current = [...((shiftBreaks[shiftType.id] || [])[intervalIdx] || [])];
+                                            while (current.length <= brkIdx) current.push({ start: "", end: "" });
+                                            current[brkIdx] = { ...current[brkIdx], end: e.target.value };
+                                            const all = [...(shiftBreaks[shiftType.id] || [])];
+                                            while (all.length <= intervalIdx) all.push([]);
+                                            all[intervalIdx] = current;
+                                            setShiftBreaks({ ...shiftBreaks, [shiftType.id]: all });
+                                          }}
+                                          className="w-full px-3 py-2 h-11 border border-gray-300 rounded-lg text-sm"
+                                        />
+                                      </div>
                                     </div>
                                     <button
                                       type="button"

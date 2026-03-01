@@ -645,7 +645,7 @@ export default function UnavailabilitiesPage() {
                     type="time"
                     value={formEndTime}
                     onChange={(e) => setFormEndTime(e.target.value)}
-                    className="w-full min-w-0 max-w-xs px-3 py-2 h-11 border border-gray-300 rounded-lg"
+                    className="w-full min-w-0 max-w-xs py-2 h-11 border border-gray-300 rounded-lg"
                     required
                   />
                 </div>
@@ -657,13 +657,13 @@ export default function UnavailabilitiesPage() {
                     type="time"
                     value={formStartTime}
                     onChange={(e) => setFormStartTime(e.target.value)}
-                    className="w-full min-w-0 max-w-xs px-3 py-2 h-11 border border-gray-300 rounded-lg"
+                    className="w-full min-w-0 max-w-xs py-2 h-11 border border-gray-300 rounded-lg"
                     required
                   />
                 </div>
               )}
               {formTimeMode === "interval" && (
-                <div className="grid grid-cols-2 gap-4 min-w-0">
+                <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)] md:grid-cols-2 gap-4 min-w-0">
                   <div className="min-w-0 overflow-hidden">
                     <label className="block text-sm font-medium text-gray-700 mb-1">Ora inizio *</label>
                     <input
@@ -687,7 +687,7 @@ export default function UnavailabilitiesPage() {
                 </div>
               )}
               {formTimeMode === "all_day" ? (
-                <div className="grid grid-cols-2 gap-4 min-w-0">
+                <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)] md:grid-cols-2 gap-4 min-w-0">
                   <div className="min-w-0 overflow-hidden">
                     <label className="block text-sm font-medium text-gray-700 mb-1">Data inizio *</label>
                     <input
@@ -727,7 +727,7 @@ export default function UnavailabilitiesPage() {
                       setFormDateStart(v);
                       setFormDateEnd(v);
                     }}
-                    className="w-full min-w-0 max-w-xs px-3 py-2 h-11 border border-gray-300 rounded-lg"
+                    className="w-full min-w-0 max-w-xs py-2 h-11 border border-gray-300 rounded-lg"
                     required
                   />
                 </div>

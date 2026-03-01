@@ -355,11 +355,12 @@ export default function EditWorkdayPage() {
                     </button>
                   </div>
                 )}
-                <div className="flex-1 min-w-0 w-full md:min-w-[120px]">
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Orario Inizio</label>
-                  <input
-                    type="time"
-                    value={ts.start}
+                <div className="grid grid-cols-2 gap-2 min-w-0 flex-1 w-full md:min-w-0">
+                  <div className="min-w-0">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Orario Inizio</label>
+                    <input
+                      type="time"
+                      value={ts.start}
                     onChange={(e) => {
                       const next = [...timeSpans];
                       next[idx].start = e.target.value;
@@ -392,16 +393,16 @@ export default function EditWorkdayPage() {
                         setTimeSpanErrors(newErrors);
                       }
                     }}
-                    className={`w-full px-3 py-2 h-11 border rounded-lg text-sm focus:ring-2 focus:ring-gray-900 focus:border-transparent ${
+                    className={`w-full py-2 h-11 border rounded-lg text-sm focus:ring-2 focus:ring-gray-900 focus:border-transparent ${
                       timeSpanErrors.get(idx) ? 'border-red-500' : 'border-gray-300'
                     }`}
                   />
-                </div>
-                <div className="flex-1 min-w-0 w-full md:min-w-[120px]">
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Ora Fine</label>
-                  <input
-                    type="time"
-                    value={ts.end}
+                  </div>
+                  <div className="min-w-0">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Ora Fine</label>
+                    <input
+                      type="time"
+                      value={ts.end}
                     onChange={(e) => {
                       const next = [...timeSpans];
                       next[idx].end = e.target.value;
@@ -434,10 +435,11 @@ export default function EditWorkdayPage() {
                         setTimeSpanErrors(newErrors);
                       }
                     }}
-                    className={`w-full px-3 py-2 h-11 border rounded-lg text-sm focus:ring-2 focus:ring-gray-900 focus:border-transparent ${
+                    className={`w-full py-2 h-11 border rounded-lg text-sm focus:ring-2 focus:ring-gray-900 focus:border-transparent ${
                       timeSpanErrors.get(idx) ? 'border-red-500' : 'border-gray-300'
                     }`}
                   />
+                  </div>
                 </div>
                 {/* Pulsante rimuovi intervallo - mostrato solo se ci sono più intervalli */}
                 {timeSpans.length > 1 && (

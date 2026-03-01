@@ -698,8 +698,8 @@ export default function MyShiftsPage() {
                 <div><span className="font-medium text-gray-600">Tipo:</span> {editingShift.taskType.name}{editingShift.dutyName ? ` - ${editingShift.dutyName}` : ""}</div>
               </div>
               <div className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="min-w-0 overflow-hidden">
+                <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)] md:grid md:grid-cols-2 gap-4 min-w-0">
+                  <div className="min-w-0 overflow-hidden md:flex-1">
                     <label className="block text-sm font-medium text-gray-700 mb-1">Orario Inizio *</label>
                     <input
                       type="time"
@@ -709,7 +709,7 @@ export default function MyShiftsPage() {
                       required
                     />
                   </div>
-                  <div className="min-w-0 overflow-hidden">
+                  <div className="min-w-0 overflow-hidden md:flex-1">
                     <label className="block text-sm font-medium text-gray-700 mb-1">Orario Fine *</label>
                     <input
                       type="time"
@@ -724,31 +724,33 @@ export default function MyShiftsPage() {
                   <div className="text-sm font-medium text-gray-700 mb-2">Pause effettive</div>
                   {formData.actualBreaks.map((brk, idx) => (
                     <div key={idx} className="flex flex-col md:flex-row md:gap-2 md:items-end gap-3 mb-2">
-                      <div className="flex-1 min-w-0 w-full md:min-w-[100px]">
-                        <label className="block text-xs text-gray-500 mb-1">Inizio</label>
-                        <input
-                          type="time"
-                          value={brk.start}
-                          onChange={(e) => {
-                            const next = [...formData.actualBreaks];
-                            next[idx] = { ...next[idx], start: e.target.value };
-                            setFormData({ ...formData, actualBreaks: next });
-                          }}
-                          className="w-full px-3 py-2 h-11 border border-gray-300 rounded-lg text-sm"
-                        />
-                      </div>
-                      <div className="flex-1 min-w-0 w-full md:min-w-[100px]">
-                        <label className="block text-xs text-gray-500 mb-1">Fine</label>
-                        <input
-                          type="time"
-                          value={brk.end}
-                          onChange={(e) => {
-                            const next = [...formData.actualBreaks];
-                            next[idx] = { ...next[idx], end: e.target.value };
-                            setFormData({ ...formData, actualBreaks: next });
-                          }}
-                          className="w-full px-3 py-2 h-11 border border-gray-300 rounded-lg text-sm"
-                        />
+                      <div className="grid grid-cols-2 gap-2 min-w-0 flex-1 w-full md:flex md:flex-row md:gap-2 md:min-w-0">
+                        <div className="min-w-0">
+                          <label className="block text-xs text-gray-500 mb-1">Inizio</label>
+                          <input
+                            type="time"
+                            value={brk.start}
+                            onChange={(e) => {
+                              const next = [...formData.actualBreaks];
+                              next[idx] = { ...next[idx], start: e.target.value };
+                              setFormData({ ...formData, actualBreaks: next });
+                            }}
+                            className="w-full py-2 h-11 border border-gray-300 rounded-lg text-sm"
+                          />
+                        </div>
+                        <div className="min-w-0">
+                          <label className="block text-xs text-gray-500 mb-1">Fine</label>
+                          <input
+                            type="time"
+                            value={brk.end}
+                            onChange={(e) => {
+                              const next = [...formData.actualBreaks];
+                              next[idx] = { ...next[idx], end: e.target.value };
+                              setFormData({ ...formData, actualBreaks: next });
+                            }}
+                            className="w-full px-3 py-2 h-11 border border-gray-300 rounded-lg text-sm"
+                          />
+                        </div>
                       </div>
                       <button
                         type="button"
