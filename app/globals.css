@@ -89,6 +89,18 @@ input[type="week"] {
   }
 }
 
+/* Desktop: padding adeguato per campi date/time (evita testo appiccicato ai bordi) */
+@media (min-width: 768px) {
+  input[type="date"],
+  input[type="time"],
+  input[type="datetime-local"],
+  input[type="month"],
+  input[type="week"] {
+    padding-left: 0.75rem !important;   /* px-3 */
+    padding-right: 0.75rem !important;
+  }
+}
+
 input[type="date"]::-webkit-datetime-edit,
 input[type="date"]::-webkit-datetime-edit-fields-wrapper,
 input[type="date"]::-webkit-datetime-edit-text,
