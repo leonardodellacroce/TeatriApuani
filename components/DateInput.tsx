@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef } from "react";
+import { useRef, useId } from "react";
 import { format, parse, isValid } from "date-fns";
 import { it } from "date-fns/locale";
 
@@ -19,14 +19,14 @@ type DateInputProps = {
 
 /**
  * DateInput: trigger stilizzato + input nativo nascosto.
- * Risolve problemi di larghezza, allineamento e font su Safari iOS.
- * Il tap apre il date picker nativo; il valore è mostrato con stile uniforme.
+ * Usa label per garantire tap su tutto il box su mobile.
+ * Il bordo usa outline per evitare glitch di rendering su PC.
  */
 export default function DateInput({
   value,
   onChange,
   name,
-  id,
+  id: idProp,
   required = false,
   placeholder = "gg/mm/aaaa",
   className = "",
@@ -35,6 +35,8 @@ export default function DateInput({
   max,
 }: DateInputProps) {
   const inputRef = useRef<HTMLInputElement>(null);
+  const generatedId = useId();
+  const id = idProp ?? generatedId;
 
   const displayValue = value
     ? (() => {
@@ -47,19 +49,17 @@ export default function DateInput({
       })()
     : "";
 
-  const handleClick = () => {
+  const handleFocus = () => {
     if (disabled) return;
     inputRef.current?.showPicker?.();
   };
 
   return (
-    <div className="relative w-full min-w-0">
-      <button
-        type="button"
-        onClick={handleClick}
-        disabled={disabled}
-        className={`w-full min-w-0 px-3 h-11 border border-gray-300 rounded-lg text-sm flex items-center justify-between cursor-pointer bg-white hover:border-gray-400 focus:ring-2 focus:ring-gray-900 focus:border-transparent focus:outline-none text-left ${className} ${
-          disabled ? "opacity-50 cursor-not-allowed bg-gray-50" : ""
+    <div className="relative w-full min-w-0 overflow-hidden rounded-lg focus-within:ring-2 focus-within:ring-inset focus-within:ring-gray-900">
+      <label
+        htmlFor={id}
+        className={`block w-full min-w-0 px-3 h-11 border border-gray-300 rounded-lg text-sm flex items-center justify-between cursor-pointer bg-white hover:border-gray-400 text-left ${className} ${
+          disabled ? "opacity-50 cursor-not-allowed bg-gray-50 pointer-events-none" : ""
         }`}
       >
         <span className={displayValue ? "text-gray-900" : "text-gray-500"}>
@@ -77,25 +77,21 @@ export default function DateInput({
           strokeLinejoin="round"
           className="text-gray-400 flex-shrink-0 ml-2"
           aria-hidden
-        >
-          <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
-          <line x1="16" y1="2" x2="16" y2="6" />
-          <line x1="8" y1="2" x2="8" y2="6" />
-          <line x1="3" y1="10" x2="21" y2="10" />
-        </svg>
-      </button>
+        />
+      </label>
       <input
         ref={inputRef}
         type="date"
         value={value}
         onChange={onChange}
+        onFocus={handleFocus}
         name={name}
         id={id}
         required={required}
         disabled={disabled}
         min={min}
         max={max}
-        className="absolute w-px h-px p-0 -m-px overflow-hidden whitespace-nowrap border-0 [clip:rect(0,0,0,0)] pointer-events-none"
+        className="absolute w-px h-px p-0 -m-px overflow-hidden whitespace-nowrap border-0 [clip:rect(0,0,0,0)] pointer-events-none opacity-0"
         aria-hidden
         tabIndex={-1}
       />

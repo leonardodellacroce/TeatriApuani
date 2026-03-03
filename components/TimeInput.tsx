@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef } from "react";
+import { useRef, useId } from "react";
 
 type TimeInputProps = {
   value: string;
@@ -16,13 +16,14 @@ type TimeInputProps = {
 
 /**
  * TimeInput: trigger stilizzato + input nativo nascosto.
- * Stesso pattern di DateInput per uniformità su Safari iOS.
+ * Usa label per garantire tap su tutto il box su mobile.
+ * Il bordo usa outline per evitare glitch di rendering su PC.
  */
 export default function TimeInput({
   value,
   onChange,
   name,
-  id,
+  id: idProp,
   required = false,
   placeholder = "hh:mm",
   className = "",
@@ -30,23 +31,23 @@ export default function TimeInput({
   onBlur,
 }: TimeInputProps) {
   const inputRef = useRef<HTMLInputElement>(null);
+  const generatedId = useId();
+  const id = idProp ?? generatedId;
 
   const displayValue = value || "";
   const showPlaceholder = !value;
 
-  const handleClick = () => {
+  const handleFocus = () => {
     if (disabled) return;
     inputRef.current?.showPicker?.();
   };
 
   return (
-    <div className="relative w-full min-w-0">
-      <button
-        type="button"
-        onClick={handleClick}
-        disabled={disabled}
-        className={`w-full min-w-0 px-3 h-11 border border-gray-300 rounded-lg text-sm flex items-center justify-between cursor-pointer bg-white hover:border-gray-400 focus:ring-2 focus:ring-gray-900 focus:border-transparent focus:outline-none text-left ${className} ${
-          disabled ? "opacity-50 cursor-not-allowed bg-gray-50" : ""
+    <div className="relative w-full min-w-0 overflow-hidden rounded-lg focus-within:ring-2 focus-within:ring-inset focus-within:ring-gray-900">
+      <label
+        htmlFor={id}
+        className={`block w-full min-w-0 px-3 h-11 border border-gray-300 rounded-lg text-sm flex items-center justify-between cursor-pointer bg-white hover:border-gray-400 text-left ${className} ${
+          disabled ? "opacity-50 cursor-not-allowed bg-gray-50 pointer-events-none" : ""
         }`}
       >
         <span className={showPlaceholder ? "text-gray-500" : "text-gray-900"}>
@@ -68,18 +69,19 @@ export default function TimeInput({
           <circle cx="12" cy="12" r="10" />
           <polyline points="12 6 12 12 16 14" />
         </svg>
-      </button>
+      </label>
       <input
         ref={inputRef}
         type="time"
         value={value}
         onChange={onChange}
+        onFocus={handleFocus}
         onBlur={onBlur}
         name={name}
         id={id}
         required={required}
         disabled={disabled}
-        className="absolute w-px h-px p-0 -m-px overflow-hidden whitespace-nowrap border-0 [clip:rect(0,0,0,0)] pointer-events-none"
+        className="absolute w-px h-px p-0 -m-px overflow-hidden whitespace-nowrap border-0 [clip:rect(0,0,0,0)] pointer-events-none opacity-0"
         aria-hidden
         tabIndex={-1}
       />
