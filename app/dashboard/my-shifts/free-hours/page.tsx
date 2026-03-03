@@ -6,6 +6,8 @@ import { useRouter } from "next/navigation";
 import { getWorkModeCookie } from "@/lib/workMode";
 import DashboardShell from "@/components/DashboardShell";
 import ConfirmDialog from "@/components/ConfirmDialog";
+import DateInput from "@/components/DateInput";
+import TimeInput from "@/components/TimeInput";
 
 interface FreeHoursEntry {
   id: string;
@@ -402,20 +404,18 @@ export default function FreeHoursPage() {
           <div className="flex flex-wrap items-end gap-4">
             <div className="min-w-[240px] overflow-hidden">
               <label className="block text-sm font-medium text-gray-700 mb-1">Data Inizio</label>
-              <input
-                type="date"
+              <DateInput
+                name="startDate"
                 value={startDate}
                 onChange={(e) => setStartDate(e.target.value)}
-                className="w-full min-w-0 px-3 h-11 border border-gray-300 rounded-lg text-sm"
               />
             </div>
             <div className="min-w-[240px] overflow-hidden">
               <label className="block text-sm font-medium text-gray-700 mb-1">Data Fine</label>
-              <input
-                type="date"
+              <DateInput
+                name="endDate"
                 value={endDate}
                 onChange={(e) => setEndDate(e.target.value)}
-                className="w-full min-w-0 px-3 h-11 border border-gray-300 rounded-lg text-sm"
               />
             </div>
             <div className="flex items-end gap-2">
@@ -572,13 +572,12 @@ export default function FreeHoursPage() {
               <h2 className="text-2xl font-bold mb-4">{entryToEdit ? "Modifica ore libere" : "Inserisci ore libere"}</h2>
               {error && <div className="mb-4 p-3 bg-red-50 text-red-700 rounded-lg text-sm">{error}</div>}
               <form onSubmit={handleSubmit} className="space-y-4">
-                <div>
+                <div className="min-w-0 w-full">
                   <label className="block text-sm font-medium text-gray-700 mb-1">Data *</label>
-                  <input
-                    type="date"
+                  <DateInput
+                    name="date"
                     value={formData.date}
                     onChange={(e) => setFormData({ ...formData, date: e.target.value })}
-                    className="w-full px-3 py-2 h-11 border border-gray-300 rounded-lg text-sm"
                     required
                   />
                 </div>
@@ -660,23 +659,19 @@ export default function FreeHoursPage() {
                   </select>
                 </div>
                 <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)] md:grid md:grid-cols-2 gap-4 min-w-0">
-                  <div className="min-w-0 overflow-hidden md:flex-1">
+                  <div className="min-w-0 overflow-hidden md:flex-1 w-full">
                     <label className="block text-sm font-medium text-gray-700 mb-1">Orario Inizio *</label>
-                    <input
-                      type="time"
+                    <TimeInput
                       value={formData.startTime}
                       onChange={(e) => setFormData({ ...formData, startTime: e.target.value })}
-                      className="w-full px-3 py-2 h-11 border border-gray-300 rounded-lg text-sm"
                       required
                     />
                   </div>
-                  <div className="min-w-0 overflow-hidden md:flex-1">
+                  <div className="min-w-0 overflow-hidden md:flex-1 w-full">
                     <label className="block text-sm font-medium text-gray-700 mb-1">Orario Fine *</label>
-                    <input
-                      type="time"
+                    <TimeInput
                       value={formData.endTime}
                       onChange={(e) => setFormData({ ...formData, endTime: e.target.value })}
-                      className="w-full px-3 py-2 h-11 border border-gray-300 rounded-lg text-sm"
                       required
                     />
                   </div>
@@ -686,30 +681,26 @@ export default function FreeHoursPage() {
                   {formData.actualBreaks.map((brk, idx) => (
                     <div key={idx} className="flex flex-col md:flex-row md:gap-2 md:items-end gap-3 mb-2">
                       <div className="grid grid-cols-2 gap-2 min-w-0 flex-1 w-full md:flex md:flex-row md:gap-2 md:min-w-0">
-                        <div className="min-w-0 md:flex-1">
+                        <div className="min-w-0 md:flex-1 w-full">
                           <label className="block text-xs text-gray-500 mb-1">Inizio</label>
-                          <input
-                            type="time"
+                          <TimeInput
                             value={brk.start}
                             onChange={(e) => {
                               const next = [...formData.actualBreaks];
                               next[idx] = { ...next[idx], start: e.target.value };
                               setFormData({ ...formData, actualBreaks: next });
                             }}
-                            className="w-full px-3 py-2 h-11 border border-gray-300 rounded-lg text-sm"
                           />
                         </div>
-                        <div className="min-w-0 md:flex-1">
+                        <div className="min-w-0 md:flex-1 w-full">
                           <label className="block text-xs text-gray-500 mb-1">Fine</label>
-                          <input
-                            type="time"
+                          <TimeInput
                             value={brk.end}
                             onChange={(e) => {
                               const next = [...formData.actualBreaks];
                               next[idx] = { ...next[idx], end: e.target.value };
                               setFormData({ ...formData, actualBreaks: next });
                             }}
-                            className="w-full px-3 py-2 h-11 border border-gray-300 rounded-lg text-sm"
                           />
                         </div>
                       </div>

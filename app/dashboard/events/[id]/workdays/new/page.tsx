@@ -5,6 +5,8 @@ import { useRouter, useParams } from "next/navigation";
 import { useSession } from "next-auth/react";
 import DashboardShell from "@/components/DashboardShell";
 import PageSkeleton from "@/components/PageSkeleton";
+import DateInput from "@/components/DateInput";
+import TimeInput from "@/components/TimeInput";
 import { getWorkModeCookie } from "@/lib/workMode";
 
 interface Event {
@@ -426,22 +428,18 @@ export default function NewWorkdayPage() {
                 </div>
 
                 {/* Data */}
-                <div className="min-w-0">
+                <div className="min-w-0 w-full">
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Data *
                   </label>
-                  <input
-                    type="date"
+                  <DateInput
+                    name={`workday-${index}-date`}
                     value={workdays[index].date}
                     onChange={(e) => handleWorkdayChange(index, "date", e.target.value)}
                     min={getMinDate()}
                     max={getMaxDate()}
                     required
-                    className={`w-full px-3 py-2 h-11 border rounded-lg text-sm focus:ring-2 focus:ring-gray-900 focus:border-transparent ${
-                      isDateDuplicate(workdays[index].date, index) && workdays[index].date
-                        ? "border-red-500"
-                        : "border-gray-300"
-                    }`}
+                    className={isDateDuplicate(workdays[index].date, index) && workdays[index].date ? "border-red-500" : ""}
                   />
                   {isDateDuplicate(workdays[index].date, index) && workdays[index].date && (
                     <p className="text-red-600 text-xs mt-1">
@@ -506,97 +504,69 @@ export default function NewWorkdayPage() {
                         </div>
                       )}
                       <div className="grid grid-cols-2 gap-2 min-w-0 flex-1 w-full md:min-w-0">
-                        <div className="min-w-0">
+                        <div className="min-w-0 w-full">
                           <label className="block text-sm font-medium text-gray-700 mb-1">Orario Inizio</label>
-                          <input
-                            type="time"
+                          <TimeInput
                             value={ts.start}
-                          onChange={(e) => {
-                            const updated = [...workdays];
-                            updated[index].timeSpans[tsIdx].start = e.target.value;
-                            setWorkdays(updated);
-                            
-                            // Verifica sovrapposizione
-                            const errorMsg = checkTimeOverlap(updated[index].timeSpans, tsIdx, e.target.value, ts.end);
-                            const key = `${index}-${tsIdx}`;
-                            const newErrors = new Map(timeSpanErrors);
-                            if (errorMsg) {
-                              newErrors.set(key, errorMsg);
-                            } else {
-                              newErrors.delete(key);
-                            }
-                            setTimeSpanErrors(newErrors);
-                          }}
-                          onBlur={(e) => {
-                            // Normalizza il formato HH:MM se è incompleto
-                            if (e.target.value && !e.target.value.includes(":")) {
-                              const normalized = `${e.target.value}:00`;
+                            onChange={(e) => {
                               const updated = [...workdays];
-                              updated[index].timeSpans[tsIdx].start = normalized;
+                              updated[index].timeSpans[tsIdx].start = e.target.value;
                               setWorkdays(updated);
-                              
-                              // Verifica sovrapposizione
-                              const errorMsg = checkTimeOverlap(updated[index].timeSpans, tsIdx, normalized, ts.end);
+                              const errorMsg = checkTimeOverlap(updated[index].timeSpans, tsIdx, e.target.value, ts.end);
                               const key = `${index}-${tsIdx}`;
                               const newErrors = new Map(timeSpanErrors);
-                              if (errorMsg) {
-                                newErrors.set(key, errorMsg);
-                              } else {
-                                newErrors.delete(key);
-                              }
+                              if (errorMsg) newErrors.set(key, errorMsg);
+                              else newErrors.delete(key);
                               setTimeSpanErrors(newErrors);
-                            }
-                          }}
-                          className={`w-full py-2 h-11 border rounded-lg text-sm focus:ring-2 focus:ring-gray-900 focus:border-transparent ${
-                            timeSpanErrors.get(`${index}-${tsIdx}`) ? 'border-red-500' : 'border-gray-300'
-                          }`}
-                        />
+                            }}
+                            onBlur={(e) => {
+                              if (e.target.value && !e.target.value.includes(":")) {
+                                const normalized = `${e.target.value}:00`;
+                                const updated = [...workdays];
+                                updated[index].timeSpans[tsIdx].start = normalized;
+                                setWorkdays(updated);
+                                const errorMsg = checkTimeOverlap(updated[index].timeSpans, tsIdx, normalized, ts.end);
+                                const key = `${index}-${tsIdx}`;
+                                const newErrors = new Map(timeSpanErrors);
+                                if (errorMsg) newErrors.set(key, errorMsg);
+                                else newErrors.delete(key);
+                                setTimeSpanErrors(newErrors);
+                              }
+                            }}
+                            className={timeSpanErrors.get(`${index}-${tsIdx}`) ? "border-red-500" : ""}
+                          />
                         </div>
-                        <div className="min-w-0">
+                        <div className="min-w-0 w-full">
                           <label className="block text-sm font-medium text-gray-700 mb-1">Ora Fine</label>
-                          <input
-                            type="time"
+                          <TimeInput
                             value={ts.end}
-                          onChange={(e) => {
-                            const updated = [...workdays];
-                            updated[index].timeSpans[tsIdx].end = e.target.value;
-                            setWorkdays(updated);
-                            
-                            // Verifica sovrapposizione
-                            const errorMsg = checkTimeOverlap(updated[index].timeSpans, tsIdx, ts.start, e.target.value);
-                            const key = `${index}-${tsIdx}`;
-                            const newErrors = new Map(timeSpanErrors);
-                            if (errorMsg) {
-                              newErrors.set(key, errorMsg);
-                            } else {
-                              newErrors.delete(key);
-                            }
-                            setTimeSpanErrors(newErrors);
-                          }}
-                          onBlur={(e) => {
-                            // Normalizza il formato HH:MM se è incompleto
-                            if (e.target.value && !e.target.value.includes(":")) {
-                              const normalized = `${e.target.value}:00`;
+                            onChange={(e) => {
                               const updated = [...workdays];
-                              updated[index].timeSpans[tsIdx].end = normalized;
+                              updated[index].timeSpans[tsIdx].end = e.target.value;
                               setWorkdays(updated);
-                              
-                              // Verifica sovrapposizione
-                              const errorMsg = checkTimeOverlap(updated[index].timeSpans, tsIdx, ts.start, normalized);
+                              const errorMsg = checkTimeOverlap(updated[index].timeSpans, tsIdx, ts.start, e.target.value);
                               const key = `${index}-${tsIdx}`;
                               const newErrors = new Map(timeSpanErrors);
-                              if (errorMsg) {
-                                newErrors.set(key, errorMsg);
-                              } else {
-                                newErrors.delete(key);
-                              }
+                              if (errorMsg) newErrors.set(key, errorMsg);
+                              else newErrors.delete(key);
                               setTimeSpanErrors(newErrors);
-                            }
-                          }}
-                          className={`w-full py-2 h-11 border rounded-lg text-sm focus:ring-2 focus:ring-gray-900 focus:border-transparent ${
-                            timeSpanErrors.get(`${index}-${tsIdx}`) ? 'border-red-500' : 'border-gray-300'
-                          }`}
-                        />
+                            }}
+                            onBlur={(e) => {
+                              if (e.target.value && !e.target.value.includes(":")) {
+                                const normalized = `${e.target.value}:00`;
+                                const updated = [...workdays];
+                                updated[index].timeSpans[tsIdx].end = normalized;
+                                setWorkdays(updated);
+                                const errorMsg = checkTimeOverlap(updated[index].timeSpans, tsIdx, ts.start, normalized);
+                                const key = `${index}-${tsIdx}`;
+                                const newErrors = new Map(timeSpanErrors);
+                                if (errorMsg) newErrors.set(key, errorMsg);
+                                else newErrors.delete(key);
+                                setTimeSpanErrors(newErrors);
+                              }
+                            }}
+                            className={timeSpanErrors.get(`${index}-${tsIdx}`) ? "border-red-500" : ""}
+                          />
                         </div>
                       </div>
                       {/* Pulsante rimuovi intervallo - mostrato solo se ci sono più intervalli */}

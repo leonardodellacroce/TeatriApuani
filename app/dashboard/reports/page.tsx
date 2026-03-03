@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { useSession } from "next-auth/react";
 import DashboardShell from "@/components/DashboardShell";
 import SearchableSelect from "@/components/SearchableSelect";
+import DateInput from "@/components/DateInput";
 import { useRouter } from "next/navigation";
 import { getWorkModeCookie } from "@/lib/workMode";
 import { exportReportToExcel } from "@/lib/exportReportToExcel";
@@ -1106,22 +1107,20 @@ export default function ReportsPage() {
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Data Inizio *
                   </label>
-                  <input
-                    type="date"
+                  <DateInput
+                    name="startDate"
                     value={startDate}
                     onChange={(e) => setStartDate(e.target.value)}
-                    className="w-full px-3 py-2 h-11 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-gray-500 focus:border-transparent"
                   />
                 </div>
                 <div className="min-w-0">
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Data Fine *
                   </label>
-                  <input
-                    type="date"
+                  <DateInput
+                    name="endDate"
                     value={endDate}
                     onChange={(e) => setEndDate(e.target.value)}
-                    className="w-full px-3 py-2 h-11 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-gray-500 focus:border-transparent"
                   />
                 </div>
               </div>

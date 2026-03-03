@@ -6,6 +6,7 @@ import { useSession } from "next-auth/react";
 import DashboardShell from "@/components/DashboardShell";
 import PageSkeleton from "@/components/PageSkeleton";
 import ConfirmDialog from "@/components/ConfirmDialog";
+import TimeInput from "@/components/TimeInput";
 import { getIncompleteScheduleInfo } from "@/app/dashboard/events/utils";
 import { getWorkModeCookie } from "@/lib/workMode";
 import { formatUserName, type UserLike } from "@/lib/formatUserName";
@@ -3279,10 +3280,9 @@ export default function WorkdayViewPage() {
                           {(activityTimes[taskType.id] || [{ start: "", end: "" }]).map((interval, idx) => (
                             <div key={idx} className="space-y-2">
                               <div className={`grid gap-4 items-end min-w-0 md:flex md:flex-row md:gap-4 md:items-end ${(activityTimes[taskType.id]?.length ?? 1) > 1 ? 'grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto]' : 'grid-cols-2'}`}>
-                                <div className="min-w-0 md:flex-1">
+                                <div className="min-w-0 md:flex-1 w-full">
                                   <label className="block text-xs text-gray-500 mb-1">Ora Inizio</label>
-                                  <input
-                                    type="time"
+                                  <TimeInput
                                     value={interval.start || ""}
                                     onChange={(e) => {
                                       const intervals = [...(activityTimes[taskType.id] || [{ start: "", end: "" }])];
@@ -3303,15 +3303,12 @@ export default function WorkdayViewPage() {
                                         setActivityTimeErrors(errors);
                                       }
                                     }}
-                                    className={`w-full px-3 py-2 h-11 border rounded-lg text-sm ${
-                                      activityTimeErrors[taskType.id]?.[idx]?.start ? 'border-red-500' : 'border-gray-300'
-                                    }`}
+                                    className={activityTimeErrors[taskType.id]?.[idx]?.start ? "border-red-500" : ""}
                                   />
                                 </div>
-                                <div className="min-w-0 md:flex-1">
+                                <div className="min-w-0 md:flex-1 w-full">
                                   <label className="block text-xs text-gray-500 mb-1">Ora Fine</label>
-                                  <input
-                                    type="time"
+                                  <TimeInput
                                     value={interval.end || ""}
                                     onChange={(e) => {
                                       const intervals = [...(activityTimes[taskType.id] || [{ start: "", end: "" }])];
@@ -3332,9 +3329,7 @@ export default function WorkdayViewPage() {
                                         setActivityTimeErrors(errors);
                                       }
                                     }}
-                                    className={`w-full px-3 py-2 h-11 border rounded-lg text-sm ${
-                                      activityTimeErrors[taskType.id]?.[idx]?.end ? 'border-red-500' : 'border-gray-300'
-                                    }`}
+                                    className={activityTimeErrors[taskType.id]?.[idx]?.end ? "border-red-500" : ""}
                                   />
                                 </div>
                                 {(activityTimes[taskType.id]?.length ?? 1) > 1 && (
@@ -3756,106 +3751,95 @@ export default function WorkdayViewPage() {
                                   </div>
                                 )}
                                 <div className="grid grid-cols-2 gap-2 min-w-0 flex-1 w-full md:flex md:flex-row md:gap-2 md:flex-1 md:min-w-0">
-                                  <div className="min-w-0 md:flex-1">
+                                  <div className="min-w-0 md:flex-1 w-full">
                                     <label className="block text-xs text-gray-500 mb-1">Ora Inizio</label>
-                                    <input
-                                      type="time"
+                                    <TimeInput
                                       value={interval.start}
-                                    onChange={(e) => {
-                                      const currentIntervals = [...(shiftTimes[shiftType.id] || [])];
-                                      currentIntervals[intervalIdx].start = e.target.value;
-                                      setShiftTimes({
-                                        ...shiftTimes,
-                                        [shiftType.id]: currentIntervals
-                                      });
-                                      // Validazione immediata del solo start
-                                      validateSingleTimeEdge(shiftType.id, intervalIdx, 'start', e.target.value);
-                                      // Esegui la validazione completa solo se entrambi i campi sono compilati
-                                      const hasBoth = Boolean(currentIntervals[intervalIdx].start && currentIntervals[intervalIdx].end);
-                                      if (hasBoth) {
-                                        setTimeout(() => {
-                                          const errors = validateShiftTimes(ignoreOverlaps);
-                                          setShiftTimeErrors(errors);
-                                        }, 0);
-                                      }
-                                    }}
-                                    onBlur={(e) => {
-                                      if (e.target.value && !e.target.value.includes(":")) {
-                                        const normalized = `${e.target.value}:00`;
+                                      onChange={(e) => {
                                         const currentIntervals = [...(shiftTimes[shiftType.id] || [])];
-                                        currentIntervals[intervalIdx].start = normalized;
+                                        currentIntervals[intervalIdx].start = e.target.value;
                                         setShiftTimes({
                                           ...shiftTimes,
                                           [shiftType.id]: currentIntervals
                                         });
-                                        validateSingleTimeEdge(shiftType.id, intervalIdx, 'start', normalized);
+                                        validateSingleTimeEdge(shiftType.id, intervalIdx, 'start', e.target.value);
                                         const hasBoth = Boolean(currentIntervals[intervalIdx].start && currentIntervals[intervalIdx].end);
                                         if (hasBoth) {
-                                          // Re-validate
                                           setTimeout(() => {
                                             const errors = validateShiftTimes(ignoreOverlaps);
                                             setShiftTimeErrors(errors);
                                           }, 0);
                                         }
-                                      }
-                                    }}
-                                    className={`w-full px-3 py-2 h-11 border rounded-lg text-sm ${
-                                      (shiftTimeErrors[shiftType.id]?.[intervalIdx]?.start && 
-                                       (!ignoreOverlaps || !shiftTimeErrors[shiftType.id]?.[intervalIdx]?.message?.includes("sovrapposto"))) 
-                                        ? 'border-red-500' 
-                                        : 'border-gray-300'
-                                    }`}
-                                  />
+                                      }}
+                                      onBlur={(e) => {
+                                        if (e.target.value && !e.target.value.includes(":")) {
+                                          const normalized = `${e.target.value}:00`;
+                                          const currentIntervals = [...(shiftTimes[shiftType.id] || [])];
+                                          currentIntervals[intervalIdx].start = normalized;
+                                          setShiftTimes({
+                                            ...shiftTimes,
+                                            [shiftType.id]: currentIntervals
+                                          });
+                                          validateSingleTimeEdge(shiftType.id, intervalIdx, 'start', normalized);
+                                          const hasBoth = Boolean(currentIntervals[intervalIdx].start && currentIntervals[intervalIdx].end);
+                                          if (hasBoth) {
+                                            setTimeout(() => {
+                                              const errors = validateShiftTimes(ignoreOverlaps);
+                                              setShiftTimeErrors(errors);
+                                            }, 0);
+                                          }
+                                        }
+                                      }}
+                                      className={(shiftTimeErrors[shiftType.id]?.[intervalIdx]?.start &&
+                                        (!ignoreOverlaps || !shiftTimeErrors[shiftType.id]?.[intervalIdx]?.message?.includes("sovrapposto")))
+                                        ? "border-red-500"
+                                        : ""}
+                                    />
                                   </div>
-                                  <div className="min-w-0 md:flex-1">
+                                  <div className="min-w-0 md:flex-1 w-full">
                                     <label className="block text-xs text-gray-500 mb-1">Ora Fine</label>
-                                    <input
-                                      type="time"
+                                    <TimeInput
                                       value={interval.end}
-                                    onChange={(e) => {
-                                      const currentIntervals = [...(shiftTimes[shiftType.id] || [])];
-                                      currentIntervals[intervalIdx].end = e.target.value;
-                                      setShiftTimes({
-                                        ...shiftTimes,
-                                        [shiftType.id]: currentIntervals
-                                      });
-                                      // Validazione immediata del solo end
-                                      validateSingleTimeEdge(shiftType.id, intervalIdx, 'end', e.target.value);
-                                      const hasBoth = Boolean(currentIntervals[intervalIdx].start && currentIntervals[intervalIdx].end);
-                                      if (hasBoth) {
-                                        setTimeout(() => {
-                                          const errors = validateShiftTimes(ignoreOverlaps);
-                                          setShiftTimeErrors(errors);
-                                        }, 0);
-                                      }
-                                    }}
-                                    onBlur={(e) => {
-                                      if (e.target.value && !e.target.value.includes(":")) {
-                                        const normalized = `${e.target.value}:00`;
+                                      onChange={(e) => {
                                         const currentIntervals = [...(shiftTimes[shiftType.id] || [])];
-                                        currentIntervals[intervalIdx].end = normalized;
+                                        currentIntervals[intervalIdx].end = e.target.value;
                                         setShiftTimes({
                                           ...shiftTimes,
                                           [shiftType.id]: currentIntervals
                                         });
-                                        validateSingleTimeEdge(shiftType.id, intervalIdx, 'end', normalized);
+                                        validateSingleTimeEdge(shiftType.id, intervalIdx, 'end', e.target.value);
                                         const hasBoth = Boolean(currentIntervals[intervalIdx].start && currentIntervals[intervalIdx].end);
                                         if (hasBoth) {
-                                          // Re-validate
                                           setTimeout(() => {
                                             const errors = validateShiftTimes(ignoreOverlaps);
                                             setShiftTimeErrors(errors);
                                           }, 0);
                                         }
-                                      }
-                                    }}
-                                    className={`w-full px-3 py-2 h-11 border rounded-lg text-sm ${
-                                      (shiftTimeErrors[shiftType.id]?.[intervalIdx]?.end && 
-                                       (!ignoreOverlaps || !shiftTimeErrors[shiftType.id]?.[intervalIdx]?.message?.includes("sovrapposto"))) 
-                                        ? 'border-red-500' 
-                                        : 'border-gray-300'
-                                    }`}
-                                  />
+                                      }}
+                                      onBlur={(e) => {
+                                        if (e.target.value && !e.target.value.includes(":")) {
+                                          const normalized = `${e.target.value}:00`;
+                                          const currentIntervals = [...(shiftTimes[shiftType.id] || [])];
+                                          currentIntervals[intervalIdx].end = normalized;
+                                          setShiftTimes({
+                                            ...shiftTimes,
+                                            [shiftType.id]: currentIntervals
+                                          });
+                                          validateSingleTimeEdge(shiftType.id, intervalIdx, 'end', normalized);
+                                          const hasBoth = Boolean(currentIntervals[intervalIdx].start && currentIntervals[intervalIdx].end);
+                                          if (hasBoth) {
+                                            setTimeout(() => {
+                                              const errors = validateShiftTimes(ignoreOverlaps);
+                                              setShiftTimeErrors(errors);
+                                            }, 0);
+                                          }
+                                        }
+                                      }}
+                                      className={(shiftTimeErrors[shiftType.id]?.[intervalIdx]?.end &&
+                                        (!ignoreOverlaps || !shiftTimeErrors[shiftType.id]?.[intervalIdx]?.message?.includes("sovrapposto")))
+                                        ? "border-red-500"
+                                        : ""}
+                                    />
                                   </div>
                                 </div>
                                 {/* Selettore cliente - desktop: sulla stessa riga degli orari */}
@@ -3994,10 +3978,9 @@ export default function WorkdayViewPage() {
                                   <div key={brkIdx} className="flex flex-col md:flex-row md:gap-2 md:items-end gap-3">
                                     {(shiftTimes[shiftType.id] || []).length > 1 && <div className="w-[33px] hidden md:block"></div>}
                                     <div className="grid grid-cols-2 gap-2 min-w-0 flex-1 w-full md:flex md:flex-row md:gap-2 md:flex-1 md:min-w-0">
-                                      <div className="min-w-0 md:flex-1">
+                                      <div className="min-w-0 md:flex-1 w-full">
                                         <label className="block text-xs text-gray-500 mb-1">Inizio</label>
-                                        <input
-                                          type="time"
+                                        <TimeInput
                                           value={brk.start}
                                           onChange={(e) => {
                                             const current = [...((shiftBreaks[shiftType.id] || [])[intervalIdx] || [])];
@@ -4008,13 +3991,11 @@ export default function WorkdayViewPage() {
                                             all[intervalIdx] = current;
                                             setShiftBreaks({ ...shiftBreaks, [shiftType.id]: all });
                                           }}
-                                          className="w-full px-3 py-2 h-11 border border-gray-300 rounded-lg text-sm"
                                         />
                                       </div>
-                                      <div className="min-w-0 md:flex-1">
+                                      <div className="min-w-0 md:flex-1 w-full">
                                         <label className="block text-xs text-gray-500 mb-1">Fine</label>
-                                        <input
-                                          type="time"
+                                        <TimeInput
                                           value={brk.end}
                                           onChange={(e) => {
                                             const current = [...((shiftBreaks[shiftType.id] || [])[intervalIdx] || [])];
@@ -4025,7 +4006,6 @@ export default function WorkdayViewPage() {
                                             all[intervalIdx] = current;
                                             setShiftBreaks({ ...shiftBreaks, [shiftType.id]: all });
                                           }}
-                                          className="w-full px-3 py-2 h-11 border border-gray-300 rounded-lg text-sm"
                                         />
                                       </div>
                                     </div>

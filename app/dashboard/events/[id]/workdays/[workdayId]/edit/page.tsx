@@ -6,6 +6,8 @@ import { useSession } from "next-auth/react";
 import DashboardShell from "@/components/DashboardShell";
 import PageSkeleton from "@/components/PageSkeleton";
 import ConfirmDialog from "@/components/ConfirmDialog";
+import DateInput from "@/components/DateInput";
+import TimeInput from "@/components/TimeInput";
 import { getWorkModeCookie } from "@/lib/workMode";
 
 interface Event {
@@ -292,17 +294,16 @@ export default function EditWorkdayPage() {
           </div>
 
           {/* Data */}
-          <div className="min-w-0 overflow-hidden">
+          <div className="min-w-0 w-full overflow-hidden">
             <label htmlFor="date" className="block text-sm font-medium text-gray-700 mb-1">
               Data *
             </label>
-            <input
-              type="date"
+            <DateInput
               id="date"
+              name="date"
               value={date}
               onChange={(e) => setDate(e.target.value)}
               required
-              className="w-full px-3 py-2 h-11 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-gray-900 focus:border-transparent"
             />
           </div>
 
@@ -356,89 +357,65 @@ export default function EditWorkdayPage() {
                   </div>
                 )}
                 <div className="grid grid-cols-2 gap-2 min-w-0 flex-1 w-full md:min-w-0">
-                  <div className="min-w-0">
+                  <div className="min-w-0 w-full">
                     <label className="block text-sm font-medium text-gray-700 mb-1">Orario Inizio</label>
-                    <input
-                      type="time"
+                    <TimeInput
                       value={ts.start}
-                    onChange={(e) => {
-                      const next = [...timeSpans];
-                      next[idx].start = e.target.value;
-                      setTimeSpans(next);
-                      
-                      const errorMsg = checkTimeOverlap(next, idx, e.target.value, ts.end);
-                      const newErrors = new Map(timeSpanErrors);
-                      if (errorMsg) {
-                        newErrors.set(idx, errorMsg);
-                      } else {
-                        newErrors.delete(idx);
-                      }
-                      setTimeSpanErrors(newErrors);
-                    }}
-                    onBlur={(e) => {
-                      // Normalizza il formato HH:MM se è incompleto
-                      if (e.target.value && !e.target.value.includes(":")) {
-                        const normalized = `${e.target.value}:00`;
+                      onChange={(e) => {
                         const next = [...timeSpans];
-                        next[idx].start = normalized;
+                        next[idx].start = e.target.value;
                         setTimeSpans(next);
-                        
-                        const errorMsg = checkTimeOverlap(next, idx, normalized, ts.end);
+                        const errorMsg = checkTimeOverlap(next, idx, e.target.value, ts.end);
                         const newErrors = new Map(timeSpanErrors);
-                        if (errorMsg) {
-                          newErrors.set(idx, errorMsg);
-                        } else {
-                          newErrors.delete(idx);
-                        }
+                        if (errorMsg) newErrors.set(idx, errorMsg);
+                        else newErrors.delete(idx);
                         setTimeSpanErrors(newErrors);
-                      }
-                    }}
-                    className={`w-full py-2 h-11 border rounded-lg text-sm focus:ring-2 focus:ring-gray-900 focus:border-transparent ${
-                      timeSpanErrors.get(idx) ? 'border-red-500' : 'border-gray-300'
-                    }`}
-                  />
+                      }}
+                      onBlur={(e) => {
+                        if (e.target.value && !e.target.value.includes(":")) {
+                          const normalized = `${e.target.value}:00`;
+                          const next = [...timeSpans];
+                          next[idx].start = normalized;
+                          setTimeSpans(next);
+                          const errorMsg = checkTimeOverlap(next, idx, normalized, ts.end);
+                          const newErrors = new Map(timeSpanErrors);
+                          if (errorMsg) newErrors.set(idx, errorMsg);
+                          else newErrors.delete(idx);
+                          setTimeSpanErrors(newErrors);
+                        }
+                      }}
+                      className={timeSpanErrors.get(idx) ? "border-red-500" : ""}
+                    />
                   </div>
-                  <div className="min-w-0">
+                  <div className="min-w-0 w-full">
                     <label className="block text-sm font-medium text-gray-700 mb-1">Ora Fine</label>
-                    <input
-                      type="time"
+                    <TimeInput
                       value={ts.end}
-                    onChange={(e) => {
-                      const next = [...timeSpans];
-                      next[idx].end = e.target.value;
-                      setTimeSpans(next);
-                      
-                      const errorMsg = checkTimeOverlap(next, idx, ts.start, e.target.value);
-                      const newErrors = new Map(timeSpanErrors);
-                      if (errorMsg) {
-                        newErrors.set(idx, errorMsg);
-                      } else {
-                        newErrors.delete(idx);
-                      }
-                      setTimeSpanErrors(newErrors);
-                    }}
-                    onBlur={(e) => {
-                      // Normalizza il formato HH:MM se è incompleto
-                      if (e.target.value && !e.target.value.includes(":")) {
-                        const normalized = `${e.target.value}:00`;
+                      onChange={(e) => {
                         const next = [...timeSpans];
-                        next[idx].end = normalized;
+                        next[idx].end = e.target.value;
                         setTimeSpans(next);
-                        
-                        const errorMsg = checkTimeOverlap(next, idx, ts.start, normalized);
+                        const errorMsg = checkTimeOverlap(next, idx, ts.start, e.target.value);
                         const newErrors = new Map(timeSpanErrors);
-                        if (errorMsg) {
-                          newErrors.set(idx, errorMsg);
-                        } else {
-                          newErrors.delete(idx);
-                        }
+                        if (errorMsg) newErrors.set(idx, errorMsg);
+                        else newErrors.delete(idx);
                         setTimeSpanErrors(newErrors);
-                      }
-                    }}
-                    className={`w-full py-2 h-11 border rounded-lg text-sm focus:ring-2 focus:ring-gray-900 focus:border-transparent ${
-                      timeSpanErrors.get(idx) ? 'border-red-500' : 'border-gray-300'
-                    }`}
-                  />
+                      }}
+                      onBlur={(e) => {
+                        if (e.target.value && !e.target.value.includes(":")) {
+                          const normalized = `${e.target.value}:00`;
+                          const next = [...timeSpans];
+                          next[idx].end = normalized;
+                          setTimeSpans(next);
+                          const errorMsg = checkTimeOverlap(next, idx, ts.start, normalized);
+                          const newErrors = new Map(timeSpanErrors);
+                          if (errorMsg) newErrors.set(idx, errorMsg);
+                          else newErrors.delete(idx);
+                          setTimeSpanErrors(newErrors);
+                        }
+                      }}
+                      className={timeSpanErrors.get(idx) ? "border-red-500" : ""}
+                    />
                   </div>
                 </div>
                 {/* Pulsante rimuovi intervallo - mostrato solo se ci sono più intervalli */}

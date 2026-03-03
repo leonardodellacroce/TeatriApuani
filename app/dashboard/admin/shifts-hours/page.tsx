@@ -7,6 +7,8 @@ import { useRouter } from "next/navigation";
 import DashboardShell from "@/components/DashboardShell";
 import ConfirmDialog from "@/components/ConfirmDialog";
 import SearchableSelect from "@/components/SearchableSelect";
+import DateInput from "@/components/DateInput";
+import TimeInput from "@/components/TimeInput";
 
 type Row = {
   assignmentId: string;
@@ -678,20 +680,18 @@ export default function AdminShiftsHoursPage() {
             </div>
             <div className="flex-1 min-w-[140px]">
               <label className="block text-sm font-medium text-gray-700 mb-1">Data Inizio</label>
-              <input
-                type="date"
+              <DateInput
+                name="startDate"
                 value={startDate}
                 onChange={(e) => setStartDate(e.target.value)}
-                className="w-full px-3 py-2 h-11 border border-gray-300 rounded-lg text-sm"
               />
             </div>
             <div className="flex-1 min-w-[140px]">
               <label className="block text-sm font-medium text-gray-700 mb-1">Data Fine</label>
-              <input
-                type="date"
+              <DateInput
+                name="endDate"
                 value={endDate}
                 onChange={(e) => setEndDate(e.target.value)}
-                className="w-full px-3 py-2 h-11 border border-gray-300 rounded-lg text-sm"
               />
             </div>
             <div className="flex items-end gap-2 flex-shrink-0">
@@ -1060,21 +1060,17 @@ export default function AdminShiftsHoursPage() {
                 <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)] md:grid-cols-2 gap-4 min-w-0">
                   <div className="min-w-0 overflow-hidden md:flex-1">
                     <label className="block text-sm font-medium text-gray-700 mb-1">Orario Inizio *</label>
-                    <input
-                      type="time"
+                    <TimeInput
                       value={formData.startTime}
                       onChange={(e) => setFormData({ ...formData, startTime: e.target.value })}
-                      className="w-full px-3 py-2 h-11 border border-gray-300 rounded-lg text-sm"
                       required
                     />
                   </div>
-                  <div className="min-w-0 overflow-hidden md:flex-1">
+                  <div className="min-w-0 overflow-hidden md:flex-1 w-full">
                     <label className="block text-sm font-medium text-gray-700 mb-1">Orario Fine *</label>
-                    <input
-                      type="time"
+                    <TimeInput
                       value={formData.endTime}
                       onChange={(e) => setFormData({ ...formData, endTime: e.target.value })}
-                      className="w-full px-3 py-2 h-11 border border-gray-300 rounded-lg text-sm"
                       required
                     />
                   </div>
@@ -1086,28 +1082,24 @@ export default function AdminShiftsHoursPage() {
                       <div className="grid grid-cols-2 gap-2 min-w-0 flex-1 w-full md:flex md:flex-row md:gap-2 md:min-w-0">
                         <div className="min-w-0 md:flex-1">
                           <label className="block text-xs text-gray-500 mb-1">Inizio</label>
-                          <input
-                            type="time"
+                          <TimeInput
                             value={brk.start}
                             onChange={(e) => {
                               const next = [...formData.actualBreaks];
                               next[idx] = { ...next[idx], start: e.target.value };
                               setFormData({ ...formData, actualBreaks: next });
                             }}
-                            className="w-full py-2 h-11 border border-gray-300 rounded-lg text-sm"
                           />
                         </div>
-                        <div className="min-w-0 md:flex-1">
+                        <div className="min-w-0 md:flex-1 w-full">
                           <label className="block text-xs text-gray-500 mb-1">Fine</label>
-                          <input
-                            type="time"
+                          <TimeInput
                             value={brk.end}
                             onChange={(e) => {
                               const next = [...formData.actualBreaks];
                               next[idx] = { ...next[idx], end: e.target.value };
                               setFormData({ ...formData, actualBreaks: next });
                             }}
-                            className="w-full py-2 h-11 border border-gray-300 rounded-lg text-sm"
                           />
                         </div>
                       </div>
@@ -1277,11 +1269,10 @@ export default function AdminShiftsHoursPage() {
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Data *</label>
-                    <input
-                      type="date"
+                    <DateInput
+                      name="convertDate"
                       value={convertModal.date}
                       onChange={(e) => setConvertModal({ ...convertModal, date: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
                     />
                   </div>
                   <div>
@@ -1395,20 +1386,16 @@ export default function AdminShiftsHoursPage() {
                   <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)] md:grid-cols-2 gap-4 min-w-0">
                     <div className="min-w-0 overflow-hidden md:flex-1">
                       <label className="block text-sm font-medium text-gray-700 mb-1">Orario Inizio *</label>
-                      <input
-                        type="time"
+                      <TimeInput
                         value={convertModal.startTime}
                         onChange={(e) => setConvertModal({ ...convertModal, startTime: e.target.value })}
-                        className="w-full px-3 py-2 h-11 border border-gray-300 rounded-lg text-sm"
                       />
                     </div>
-                    <div className="min-w-0 overflow-hidden md:flex-1">
+                    <div className="min-w-0 overflow-hidden md:flex-1 w-full">
                       <label className="block text-sm font-medium text-gray-700 mb-1">Orario Fine *</label>
-                      <input
-                        type="time"
+                      <TimeInput
                         value={convertModal.endTime}
                         onChange={(e) => setConvertModal({ ...convertModal, endTime: e.target.value })}
-                        className="w-full px-3 py-2 h-11 border border-gray-300 rounded-lg text-sm"
                       />
                     </div>
                   </div>
@@ -1419,28 +1406,24 @@ export default function AdminShiftsHoursPage() {
                         <div className="grid grid-cols-2 gap-2 min-w-0 flex-1 w-full md:flex md:flex-row md:gap-2 md:min-w-0">
                           <div className="min-w-0 md:flex-1">
                             <label className="block text-xs text-gray-500 mb-1">Inizio</label>
-                            <input
-                              type="time"
+                            <TimeInput
                               value={brk.start}
                               onChange={(e) => {
                                 const next = [...convertModal.actualBreaks];
                                 next[idx] = { ...next[idx], start: e.target.value };
                                 setConvertModal({ ...convertModal, actualBreaks: next });
                               }}
-                              className="w-full py-2 h-11 border border-gray-300 rounded-lg text-sm"
                             />
                           </div>
-                          <div className="min-w-0 md:flex-1">
+                          <div className="min-w-0 md:flex-1 w-full">
                             <label className="block text-xs text-gray-500 mb-1">Fine</label>
-                            <input
-                              type="time"
+                            <TimeInput
                               value={brk.end}
                               onChange={(e) => {
                                 const next = [...convertModal.actualBreaks];
                                 next[idx] = { ...next[idx], end: e.target.value };
                                 setConvertModal({ ...convertModal, actualBreaks: next });
                               }}
-                              className="w-full py-2 h-11 border border-gray-300 rounded-lg text-sm"
                             />
                           </div>
                         </div>

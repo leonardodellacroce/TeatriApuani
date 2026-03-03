@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import DashboardShell from "@/components/DashboardShell";
 import SearchableSelect from "@/components/SearchableSelect";
+import DateInput from "@/components/DateInput";
 import { getWorkModeCookie } from "@/lib/workMode";
 
 interface Client {
@@ -330,14 +331,12 @@ export default function NewEventPage() {
               <label htmlFor="startDate" className="block text-sm font-medium text-gray-700 mb-1">
                 Data Inizio *
               </label>
-              <input
-                type="date"
+              <DateInput
                 id="startDate"
                 name="startDate"
                 value={formData.startDate}
                 onChange={handleChange}
                 required
-                className="w-full min-w-0 h-11 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-gray-900 focus:border-transparent box-border"
               />
             </div>
 
@@ -345,14 +344,12 @@ export default function NewEventPage() {
               <label htmlFor="endDate" className="block text-sm font-medium text-gray-700 mb-1">
                 Data Fine *
               </label>
-              <input
-                type="date"
+              <DateInput
                 id="endDate"
                 name="endDate"
                 value={formData.endDate}
                 onChange={handleChange}
                 required
-                className="w-full min-w-0 h-11 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-gray-900 focus:border-transparent box-border"
               />
             </div>
           </div>

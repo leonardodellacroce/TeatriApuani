@@ -8,6 +8,8 @@ import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import DashboardShell from "@/components/DashboardShell";
 import ConfirmDialog from "@/components/ConfirmDialog";
+import DateInput from "@/components/DateInput";
+import TimeInput from "@/components/TimeInput";
 
 interface TimeEntryData {
   id: string;
@@ -607,20 +609,18 @@ export default function MyShiftsPage() {
           <div className="flex flex-wrap items-end gap-4">
             <div className="min-w-[240px]">
               <label className="block text-sm font-medium text-gray-700 mb-1">Data Inizio</label>
-              <input
-                type="date"
+              <DateInput
+                name="startDate"
                 value={startDate}
                 onChange={(e) => setStartDate(e.target.value)}
-                className="w-full px-3 py-2 h-11 border border-gray-300 rounded-lg text-sm"
               />
             </div>
             <div className="min-w-[240px]">
               <label className="block text-sm font-medium text-gray-700 mb-1">Data Fine</label>
-              <input
-                type="date"
+              <DateInput
+                name="endDate"
                 value={endDate}
                 onChange={(e) => setEndDate(e.target.value)}
-                className="w-full px-3 py-2 h-11 border border-gray-300 rounded-lg text-sm"
               />
             </div>
             <div className="flex items-end gap-2">
@@ -699,23 +699,19 @@ export default function MyShiftsPage() {
               </div>
               <div className="space-y-4">
                 <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)] md:grid md:grid-cols-2 gap-4 min-w-0">
-                  <div className="min-w-0 overflow-hidden md:flex-1">
+                  <div className="min-w-0 overflow-hidden md:flex-1 w-full">
                     <label className="block text-sm font-medium text-gray-700 mb-1">Orario Inizio *</label>
-                    <input
-                      type="time"
+                    <TimeInput
                       value={formData.startTime}
                       onChange={(e) => setFormData({ ...formData, startTime: e.target.value })}
-                      className="w-full px-3 py-2 h-11 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-gray-900"
                       required
                     />
                   </div>
-                  <div className="min-w-0 overflow-hidden md:flex-1">
+                  <div className="min-w-0 overflow-hidden md:flex-1 w-full">
                     <label className="block text-sm font-medium text-gray-700 mb-1">Orario Fine *</label>
-                    <input
-                      type="time"
+                    <TimeInput
                       value={formData.endTime}
                       onChange={(e) => setFormData({ ...formData, endTime: e.target.value })}
-                      className="w-full px-3 py-2 h-11 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-gray-900"
                       required
                     />
                   </div>
@@ -725,30 +721,26 @@ export default function MyShiftsPage() {
                   {formData.actualBreaks.map((brk, idx) => (
                     <div key={idx} className="flex flex-col md:flex-row md:gap-2 md:items-end gap-3 mb-2">
                       <div className="grid grid-cols-2 gap-2 min-w-0 flex-1 w-full md:flex md:flex-row md:gap-2 md:min-w-0">
-                        <div className="min-w-0">
+                        <div className="min-w-0 w-full">
                           <label className="block text-xs text-gray-500 mb-1">Inizio</label>
-                          <input
-                            type="time"
+                          <TimeInput
                             value={brk.start}
                             onChange={(e) => {
                               const next = [...formData.actualBreaks];
                               next[idx] = { ...next[idx], start: e.target.value };
                               setFormData({ ...formData, actualBreaks: next });
                             }}
-                            className="w-full py-2 h-11 border border-gray-300 rounded-lg text-sm"
                           />
                         </div>
-                        <div className="min-w-0">
+                        <div className="min-w-0 w-full">
                           <label className="block text-xs text-gray-500 mb-1">Fine</label>
-                          <input
-                            type="time"
+                          <TimeInput
                             value={brk.end}
                             onChange={(e) => {
                               const next = [...formData.actualBreaks];
                               next[idx] = { ...next[idx], end: e.target.value };
                               setFormData({ ...formData, actualBreaks: next });
                             }}
-                            className="w-full px-3 py-2 h-11 border border-gray-300 rounded-lg text-sm"
                           />
                         </div>
                       </div>

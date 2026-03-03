@@ -47,14 +47,28 @@ input[type="date"], input[type="time"], ... {
 - **Safari iOS:** `min-width: 100%` aiuta; in casi estremi serve `-webkit-appearance: none` (cambia aspetto)
 - **Firefox:** rispetta bene `width: 100%` e `box-sizing`
 
-## Implementazione effettuata
+## Implementazione effettuata (soluzione solida)
 
-### 1. `app/globals.css` (solo mobile, max-width: 767.98px)
-- `min-width: 100% !important` – forza larghezza minima uguale al parent
-- `width: 100% !important` e `max-width: 100% !important`
-- `box-sizing: border-box !important`
+### Soluzione: componenti DateInput e TimeInput
+Invece di forzare CSS sugli input nativi (Shadow DOM), si usano componenti custom:
+- **DateInput** e **TimeInput**: bottone stilizzato + input nativo nascosto
+- Il tap sul bottone apre il date/time picker nativo tramite `showPicker()`
+- Layout e larghezza completamente controllati dal bottone (come Note)
+- Nessun problema Shadow DOM su Safari iOS
 
-### 2. `app/dashboard/events/new/page.tsx` e `edit/page.tsx`
-- **Mobile:** `flex flex-col gap-4 w-full` – layout come Note
-- **Desktop:** `sm:grid sm:grid-cols-2` – date affiancate
-- Wrapper: `min-w-0 w-full` per ogni campo
+### 1. `components/DateInput.tsx` e `components/TimeInput.tsx`
+- Bottone con `w-full min-w-0` che occupa tutta la larghezza del parent
+- Input nativo nascosto (visually hidden) per form submit e picker
+- DateInput: supporta `min`, `max`, `disabled`, formato dd/MM/yyyy in display
+- TimeInput: supporta `onBlur` per normalizzazione HH:mm
+
+### 2. Pagine aggiornate (tutti gli input date/time sostituiti)
+- `app/dashboard/events/new/page.tsx` e `[id]/edit/page.tsx` – DateInput
+- `app/dashboard/events/[id]/workdays/new/page.tsx` – DateInput, TimeInput
+- `app/dashboard/events/[id]/workdays/[id]/edit/page.tsx` – DateInput, TimeInput
+- `app/dashboard/events/[id]/workdays/[workdayId]/page.tsx` – TimeInput (activityTimes, shiftTimes, shiftBreaks)
+- `app/dashboard/unavailabilities/page.tsx` – DateInput, TimeInput
+- `app/dashboard/my-shifts/page.tsx` e `free-hours/page.tsx` – DateInput, TimeInput
+- `app/dashboard/admin/shifts-hours/page.tsx` – DateInput, TimeInput
+- `app/dashboard/reports/page.tsx` – DateInput
+- `app/dashboard/events/[id]/page.tsx` – DateInput (move event)
