@@ -9,6 +9,7 @@ import Link from "next/link";
 import DashboardShell from "@/components/DashboardShell";
 import ConfirmDialog from "@/components/ConfirmDialog";
 import DateInput from "@/components/DateInput";
+import DateNavButtons from "@/components/DateNavButtons";
 import TimeInput from "@/components/TimeInput";
 
 interface TimeEntryData {
@@ -623,29 +624,12 @@ export default function MyShiftsPage() {
                 onChange={(e) => setEndDate(e.target.value)}
               />
             </div>
-            <div className="flex items-end gap-2">
-              <button
-                type="button"
-                onClick={handlePrevMonth}
-                className="px-4 py-2 h-11 border border-gray-300 rounded-lg text-sm hover:bg-gray-50 hover:border-gray-400 hover:shadow-md hover:scale-105 active:scale-100 transition-all duration-200 cursor-pointer"
-              >
-                ← Precedente
-              </button>
-              <button
-                type="button"
-                onClick={handleCurrentMonth}
-                className="px-4 py-2 h-11 border border-gray-300 rounded-lg text-sm hover:bg-gray-50 hover:border-gray-400 hover:shadow-md hover:scale-105 active:scale-100 transition-all duration-200 cursor-pointer"
-              >
-                Oggi
-              </button>
-              <button
-                type="button"
-                onClick={handleNextMonth}
-                className="px-4 py-2 h-11 border border-gray-300 rounded-lg text-sm hover:bg-gray-50 hover:border-gray-400 hover:shadow-md hover:scale-105 active:scale-100 transition-all duration-200 cursor-pointer"
-              >
-                Successivo →
-              </button>
-            </div>
+            <DateNavButtons
+              onPrev={handlePrevMonth}
+              onToday={handleCurrentMonth}
+              onNext={handleNextMonth}
+              className="items-end"
+            />
             <div className="ml-auto">
               <Link
                 href="/dashboard/my-shifts/free-hours"

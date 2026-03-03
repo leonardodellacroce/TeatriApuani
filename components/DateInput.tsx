@@ -55,7 +55,7 @@ export default function DateInput({
   };
 
   return (
-    <div className="relative w-full min-w-0 overflow-hidden rounded-lg focus-within:ring-2 focus-within:ring-inset focus-within:ring-gray-900">
+    <div className="relative w-full min-w-0 overflow-hidden rounded-lg">
       {/* Display sempre visibile (sotto l'input) */}
       <div
         className={`flex items-center justify-between w-full min-w-0 px-3 h-11 border border-gray-300 rounded-lg text-sm cursor-pointer bg-white hover:border-gray-400 text-left ${className} ${

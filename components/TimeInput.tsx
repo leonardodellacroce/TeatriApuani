@@ -39,11 +39,22 @@ export default function TimeInput({
 
   const handleFocus = () => {
     if (disabled) return;
-    inputRef.current?.showPicker?.();
+    // Se vuoto, imposta HH:00 come suggerimento (evita ora attuale tipo 18:18)
+    if (!value && onChange) {
+      const now = new Date();
+      const h = String(now.getHours()).padStart(2, "0");
+      const suggested = `${h}:00`;
+      const syntheticEvent = { target: { value: suggested } } as React.ChangeEvent<HTMLInputElement>;
+      onChange(syntheticEvent);
+      // Ritarda showPicker per permettere al parent di aggiornare il valore
+      setTimeout(() => inputRef.current?.showPicker?.(), 0);
+    } else {
+      inputRef.current?.showPicker?.();
+    }
   };
 
   return (
-    <div className="relative w-full min-w-0 overflow-hidden rounded-lg focus-within:ring-2 focus-within:ring-inset focus-within:ring-gray-900">
+    <div className="relative w-full min-w-0 overflow-hidden rounded-lg">
       {/* Display sempre visibile (sotto l'input) */}
       <div
         className={`flex items-center justify-between w-full min-w-0 px-3 h-11 border border-gray-300 rounded-lg text-sm cursor-pointer bg-white hover:border-gray-400 text-left ${className} ${

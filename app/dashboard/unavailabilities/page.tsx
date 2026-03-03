@@ -251,10 +251,9 @@ export default function UnavailabilitiesPage() {
   };
 
   const openCreate = () => {
-    const today = new Date().toISOString().split("T")[0];
     setFormUserId(isAdmin ? "" : (session?.user?.id as string || ""));
-    setFormDateStart(today);
-    setFormDateEnd(today);
+    setFormDateStart("");
+    setFormDateEnd("");
     setFormTimeMode("all_day");
     setFormStartTime("");
     setFormEndTime("");
@@ -502,9 +501,11 @@ export default function UnavailabilitiesPage() {
         </p>
 
         <div className="bg-white rounded-lg border border-gray-200 p-4 mb-6">
-          <div className="flex flex-wrap items-end gap-4 w-full">
+          <div className="flex flex-col gap-4 w-full md:flex-row md:flex-wrap md:items-end md:gap-4">
+            {/* Mobile: dipendente tutta larghezza, date affiancate, bottoni tutta larghezza */}
+            {/* PC: layout originale in riga */}
             {isAdmin && (
-              <div className="flex-1 min-w-[140px]">
+              <div className="w-full min-w-0 md:w-[220px] md:flex-none">
                 <label className="block text-sm font-medium text-gray-700 mb-1">Dipendente</label>
                 <SearchableSelect
                   value={filterUserId}
@@ -523,44 +524,52 @@ export default function UnavailabilitiesPage() {
                 />
               </div>
             )}
-            <div className="flex-1 min-w-[140px]">
-              <label className="block text-sm font-medium text-gray-700 mb-1">Data Inizio</label>
-              <DateInput
-                name="filterStartDate"
-                value={filterStartDate}
-                onChange={(e) => setFilterStartDate(e.target.value)}
-              />
+            <div className="grid grid-cols-2 gap-4 min-w-0 w-full md:contents">
+              <div className="min-w-0 w-full md:w-[150px] md:flex-none">
+                <label className="block text-sm font-medium text-gray-700 mb-1">Data Inizio</label>
+                <DateInput
+                  name="filterStartDate"
+                  value={filterStartDate}
+                  onChange={(e) => setFilterStartDate(e.target.value)}
+                />
+              </div>
+              <div className="min-w-0 w-full md:w-[150px] md:flex-none">
+                <label className="block text-sm font-medium text-gray-700 mb-1">Data Fine</label>
+                <DateInput
+                  name="filterEndDate"
+                  value={filterEndDate}
+                  onChange={(e) => setFilterEndDate(e.target.value)}
+                  min={filterStartDate || undefined}
+                />
+              </div>
             </div>
-            <div className="flex-1 min-w-[140px]">
-              <label className="block text-sm font-medium text-gray-700 mb-1">Data Fine</label>
-              <DateInput
-                name="filterEndDate"
-                value={filterEndDate}
-                onChange={(e) => setFilterEndDate(e.target.value)}
-                min={filterStartDate || undefined}
-              />
-            </div>
-            <div className="flex items-end gap-2 flex-shrink-0">
+            <div className="grid grid-cols-3 gap-2 w-full min-w-0 md:flex md:gap-2 md:flex-shrink-0 md:w-auto md:ml-auto">
               <button
                 type="button"
                 onClick={handleFilterPrevPeriod}
-                className="px-4 py-2 h-11 border border-gray-300 rounded-lg text-sm hover:bg-gray-50"
+                className="w-full h-11 md:w-11 inline-flex items-center justify-center border border-gray-300 rounded-lg hover:bg-gray-50 hover:border-gray-400 active:scale-100 transition-all duration-200 cursor-pointer"
+                aria-label="Precedente"
               >
-                ← Precedente
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7" />
+                </svg>
               </button>
               <button
                 type="button"
                 onClick={handleFilterToday}
-                className="px-4 py-2 h-11 border border-gray-300 rounded-lg text-sm hover:bg-gray-50"
+                className="w-full md:w-auto h-11 px-3 border border-gray-300 rounded-lg text-sm hover:bg-gray-50 hover:border-gray-400 active:scale-100 transition-all duration-200 cursor-pointer"
               >
                 Oggi
               </button>
               <button
                 type="button"
                 onClick={handleFilterNextPeriod}
-                className="px-4 py-2 h-11 border border-gray-300 rounded-lg text-sm hover:bg-gray-50"
+                className="w-full h-11 md:w-11 inline-flex items-center justify-center border border-gray-300 rounded-lg hover:bg-gray-50 hover:border-gray-400 active:scale-100 transition-all duration-200 cursor-pointer"
+                aria-label="Successivo"
               >
-                Successivo →
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" />
+                </svg>
               </button>
             </div>
           </div>
@@ -639,25 +648,53 @@ export default function UnavailabilitiesPage() {
                 </div>
               </div>
               {formTimeMode === "until" && (
-                <div className="min-w-0 overflow-hidden">
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Ora fine *</label>
-                  <TimeInput
-                    value={formEndTime}
-                    onChange={(e) => setFormEndTime(e.target.value)}
-                    required
-                    className="max-w-xs"
-                  />
+                <div className="grid grid-cols-2 gap-4 min-w-0 w-full">
+                  <div className="min-w-0 w-full">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Ora fine *</label>
+                    <TimeInput
+                      value={formEndTime}
+                      onChange={(e) => setFormEndTime(e.target.value)}
+                      required
+                    />
+                  </div>
+                  <div className="min-w-0 w-full">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Data *</label>
+                    <DateInput
+                      name="formDate"
+                      value={formDateStart}
+                      onChange={(e) => {
+                        const v = e.target.value;
+                        setFormDateStart(v);
+                        setFormDateEnd(v);
+                      }}
+                      required
+                    />
+                  </div>
                 </div>
               )}
               {formTimeMode === "from" && (
-                <div className="min-w-0 overflow-hidden">
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Ora inizio *</label>
-                  <TimeInput
-                    value={formStartTime}
-                    onChange={(e) => setFormStartTime(e.target.value)}
-                    required
-                    className="max-w-xs"
-                  />
+                <div className="grid grid-cols-2 gap-4 min-w-0 w-full">
+                  <div className="min-w-0 w-full">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Ora inizio *</label>
+                    <TimeInput
+                      value={formStartTime}
+                      onChange={(e) => setFormStartTime(e.target.value)}
+                      required
+                    />
+                  </div>
+                  <div className="min-w-0 w-full">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Data *</label>
+                    <DateInput
+                      name="formDate"
+                      value={formDateStart}
+                      onChange={(e) => {
+                        const v = e.target.value;
+                        setFormDateStart(v);
+                        setFormDateEnd(v);
+                      }}
+                      required
+                    />
+                  </div>
                 </div>
               )}
               {formTimeMode === "interval" && (
@@ -708,8 +745,8 @@ export default function UnavailabilitiesPage() {
                     />
                   </div>
                 </div>
-              ) : (
-                <div className="min-w-0 overflow-hidden">
+              ) : formTimeMode === "interval" ? (
+                <div className="min-w-0 w-full overflow-hidden">
                   <label className="block text-sm font-medium text-gray-700 mb-1">Data *</label>
                   <DateInput
                     name="formDate"
@@ -720,10 +757,9 @@ export default function UnavailabilitiesPage() {
                       setFormDateEnd(v);
                     }}
                     required
-                    className="max-w-xs"
                   />
                 </div>
-              )}
+              ) : null}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Note</label>
                 <textarea

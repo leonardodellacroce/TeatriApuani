@@ -7,6 +7,7 @@ import { getWorkModeCookie } from "@/lib/workMode";
 import DashboardShell from "@/components/DashboardShell";
 import ConfirmDialog from "@/components/ConfirmDialog";
 import DateInput from "@/components/DateInput";
+import DateNavButtons from "@/components/DateNavButtons";
 import TimeInput from "@/components/TimeInput";
 
 interface FreeHoursEntry {
@@ -418,29 +419,12 @@ export default function FreeHoursPage() {
                 onChange={(e) => setEndDate(e.target.value)}
               />
             </div>
-            <div className="flex items-end gap-2">
-              <button
-                type="button"
-                onClick={handlePrevMonth}
-                className="px-4 py-2 h-11 border border-gray-300 rounded-lg text-sm hover:bg-gray-50"
-              >
-                ← Precedente
-              </button>
-              <button
-                type="button"
-                onClick={handleCurrentMonth}
-                className="px-4 py-2 h-11 border border-gray-300 rounded-lg text-sm hover:bg-gray-50"
-              >
-                Oggi
-              </button>
-              <button
-                type="button"
-                onClick={handleNextMonth}
-                className="px-4 py-2 h-11 border border-gray-300 rounded-lg text-sm hover:bg-gray-50"
-              >
-                Successivo →
-              </button>
-            </div>
+            <DateNavButtons
+              onPrev={handlePrevMonth}
+              onToday={handleCurrentMonth}
+              onNext={handleNextMonth}
+              className="items-end"
+            />
             <div className="ml-auto">
               <button
                 type="button"

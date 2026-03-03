@@ -62,7 +62,7 @@ export default function SearchableSelect({
     <div ref={containerRef} className={`relative ${className}`}>
       <div
         onClick={() => !disabled && setIsOpen((o) => !o)}
-        className={`flex items-center justify-between w-full max-w-full min-w-0 pl-3 pr-4 h-11 border border-gray-300 rounded-lg text-sm cursor-pointer bg-white hover:border-gray-400 focus-within:ring-2 focus-within:ring-gray-500 focus-within:border-transparent ${
+        className={`flex items-center justify-between w-full max-w-full min-w-0 pl-3 pr-4 h-11 border border-gray-300 rounded-lg text-sm cursor-pointer bg-white hover:border-gray-400 ${
           disabled ? "opacity-50 cursor-not-allowed bg-gray-50" : ""
         }`}
       >
