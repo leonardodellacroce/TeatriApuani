@@ -1,6 +1,6 @@
 import { auth } from "@/auth";
 import { redirect } from "next/navigation";
-import { hasRole } from "@/lib/authz";
+import Link from "next/link";
 import Navbar from "@/components/Navbar";
 import { getWorkModeFromServer } from "@/lib/workMode";
 import { prisma } from "@/lib/prisma";
@@ -45,13 +45,25 @@ export default async function Settings() {
   const fullName = cognome ? `${session.user.name || ""} ${cognome}`.trim() : userName;
 
   return (
-    <div className="min-h-screen bg-white text-gray-900">
+    <div className="min-h-screen bg-gray-50 text-gray-900">
       <Navbar />
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <h1 className="text-4xl font-bold mb-8">Impostazioni</h1>
+        <div className="flex items-center gap-3 mb-8">
+          <Link
+            href="/dashboard"
+            aria-label="Indietro"
+            title="Indietro"
+            className="h-11 w-11 inline-flex items-center justify-center rounded-lg bg-gray-900 text-white hover:bg-gray-800 hover:shadow-lg transition-colors"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7" />
+            </svg>
+          </Link>
+          <h1 className="text-4xl font-bold">Impostazioni</h1>
+        </div>
         
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div className="border border-gray-200 rounded-lg p-6 hover:shadow-lg transition-shadow">
+          <div className="bg-white max-md:shadow-sm border border-gray-200 rounded-lg p-6 hover:shadow-lg transition-shadow">
             <div className="flex items-center mb-4">
               <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center mr-3">
                 <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -61,7 +73,7 @@ export default async function Settings() {
               <h2 className="text-2xl font-semibold">Aziende in RTI</h2>
             </div>
             <p className="text-gray-600 mb-4">
-              Gestisci le aziende facenti parte del RTI e le loro informazioni fiscali
+              Gestisci le aziende facenti parte del RTI
             </p>
             <a
               href="/settings/companies"
@@ -71,7 +83,7 @@ export default async function Settings() {
             </a>
           </div>
 
-          <div className="border border-gray-200 rounded-lg p-6 hover:shadow-lg transition-shadow">
+          <div className="bg-white max-md:shadow-sm border border-gray-200 rounded-lg p-6 hover:shadow-lg transition-shadow">
             <div className="flex items-center mb-4">
               <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center mr-3">
                 <svg className="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -92,7 +104,7 @@ export default async function Settings() {
             </a>
           </div>
 
-          <div className="border border-gray-200 rounded-lg p-6 hover:shadow-lg transition-shadow">
+          <div className="bg-white max-md:shadow-sm border border-gray-200 rounded-lg p-6 hover:shadow-lg transition-shadow">
             <div className="flex items-center mb-4">
               <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center mr-3">
                 <svg className="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -113,7 +125,7 @@ export default async function Settings() {
           </div>
 
           {canSeeManagementUsers && (
-            <div className="border border-gray-200 rounded-lg p-6 hover:shadow-lg transition-shadow">
+            <div className="bg-white max-md:shadow-sm border border-gray-200 rounded-lg p-6 hover:shadow-lg transition-shadow">
               <div className="flex items-center mb-4">
                 <div className="w-10 h-10 bg-orange-100 rounded-lg flex items-center justify-center mr-3">
                   <svg className="w-6 h-6 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -135,7 +147,7 @@ export default async function Settings() {
           )}
 
           {canSeeUsers && (
-            <div className="border border-gray-200 rounded-lg p-6 hover:shadow-lg transition-shadow">
+            <div className="bg-white max-md:shadow-sm border border-gray-200 rounded-lg p-6 hover:shadow-lg transition-shadow">
               <div className="flex items-center mb-4">
                 <div className="w-10 h-10 bg-teal-100 rounded-lg flex items-center justify-center mr-3">
                   <svg className="w-6 h-6 text-teal-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -157,20 +169,20 @@ export default async function Settings() {
           )}
 
           {canSeeManagementUsers && (
-            <div className="border border-gray-200 rounded-lg p-6 hover:shadow-lg transition-shadow">
+            <div className="bg-white max-md:shadow-sm border border-gray-200 rounded-lg p-6 hover:shadow-lg transition-shadow">
               <div className="flex items-center mb-4">
                 <div className="w-10 h-10 bg-indigo-100 rounded-lg flex items-center justify-center mr-3">
                   <svg className="w-6 h-6 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
                   </svg>
                 </div>
-                <h2 className="text-2xl font-semibold">Aree e Mansioni</h2>
-              </div>
-              <p className="text-gray-600 mb-4">
-                Gestisci le aree di appartenenza e le mansioni
-              </p>
-              <a
-                href="/settings/areas-duties"
+              <h2 className="text-2xl font-semibold">Aree e Mansioni</h2>
+            </div>
+            <p className="text-gray-600 mb-4">
+              Gestisci le aree di appartenenza e le mansioni
+            </p>
+            <a
+              href="/settings/areas-duties"
                 className="inline-block px-4 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800 hover:shadow-lg hover:scale-105 active:scale-100 transition-all duration-200 cursor-pointer"
               >
                 Vai ad Aree e Mansioni
@@ -179,20 +191,20 @@ export default async function Settings() {
           )}
 
           {canSeeManagementUsers && (
-            <div className="border border-gray-200 rounded-lg p-6 hover:shadow-lg transition-shadow">
+            <div className="bg-white max-md:shadow-sm border border-gray-200 rounded-lg p-6 hover:shadow-lg transition-shadow">
               <div className="flex items-center mb-4">
                 <div className="w-10 h-10 bg-pink-100 rounded-lg flex items-center justify-center mr-3">
                   <svg className="w-6 h-6 text-pink-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
                   </svg>
                 </div>
-                <h2 className="text-2xl font-semibold">Attività e Turni</h2>
-              </div>
-              <p className="text-gray-600 mb-4">
-                Gestisci le tipologie di attività e di turni
-              </p>
-              <a
-                href="/settings/task-shift-types"
+              <h2 className="text-2xl font-semibold">Attività e Turni</h2>
+            </div>
+            <p className="text-gray-600 mb-4">
+              Gestisci le tipologie di attività e di turni
+            </p>
+            <a
+              href="/settings/task-shift-types"
                 className="inline-block px-4 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800 hover:shadow-lg hover:scale-105 active:scale-100 transition-all duration-200 cursor-pointer"
               >
                 Vai ad Attività e Turni
@@ -201,7 +213,7 @@ export default async function Settings() {
           )}
 
           {canSeeUsers && (
-            <div className="border border-gray-200 rounded-lg p-6 hover:shadow-lg transition-shadow">
+            <div className="bg-white max-md:shadow-sm border border-gray-200 rounded-lg p-6 hover:shadow-lg transition-shadow">
               <div className="flex items-center mb-4">
                 <div className="w-10 h-10 bg-amber-100 rounded-lg flex items-center justify-center mr-3">
                   <svg className="w-6 h-6 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -211,9 +223,9 @@ export default async function Settings() {
                 <h2 className="text-2xl font-semibold">Impostazioni notifiche</h2>
               </div>
               <p className="text-gray-600 mb-4">
-                Configura parametri di notifica e filtra per aree e aziende
+                Configura parametri di notifica
               </p>
-              <a
+            <a
                 href="/settings/notifications"
                 className="inline-block px-4 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800 hover:shadow-lg hover:scale-105 active:scale-100 transition-all duration-200 cursor-pointer"
               >
@@ -223,7 +235,7 @@ export default async function Settings() {
           )}
 
           {isSuperAdmin && (
-            <div className="border border-gray-200 rounded-lg p-6 hover:shadow-lg transition-shadow relative">
+            <div className="bg-white max-md:shadow-sm border border-gray-200 rounded-lg p-6 hover:shadow-lg transition-shadow relative">
               {lockedAccountsCount > 0 && (
                 <span className="absolute top-4 right-4 min-w-[22px] h-[22px] px-1.5 flex items-center justify-center text-xs font-bold text-white bg-red-500 rounded-full">
                   {lockedAccountsCount > 99 ? "99+" : lockedAccountsCount}
@@ -239,9 +251,9 @@ export default async function Settings() {
                 <h2 className="text-2xl font-semibold">Impostazioni tecniche</h2>
               </div>
               <p className="text-gray-600 mb-4">
-                Intervallo cambio password, durata sessione, blocco account, complessità password
+                Parametri sicurezza autenticazione
               </p>
-              <a
+            <a
                 href="/settings/technical"
                 className="inline-block px-4 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800 hover:shadow-lg hover:scale-105 active:scale-100 transition-all duration-200 cursor-pointer"
               >

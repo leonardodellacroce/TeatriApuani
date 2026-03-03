@@ -329,7 +329,7 @@ export default function NewUserPage() {
   return (
     <DashboardShell>
       <div>
-        <div className="flex items-center gap-3 mb-6">
+        <div className="flex items-center gap-3 mb-4">
           <button
             onClick={() => router.push("/settings/users")}
             aria-label="Indietro"

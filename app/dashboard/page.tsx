@@ -353,9 +353,8 @@ export default function Dashboard() {
   const canSeeMyShiftsAndHours =
     isStandardUser ||
     (isWorker && (!isNonStandardWorker || workMode === "worker"));
-  // In modalità lavoratore, gli admin vedono le stesse descrizioni degli utenti standard
   const useStandardUserDescriptions = isStandardUser || (isNonStandardWorker && workMode === "worker");
-
+  // In modalità lavoratore, gli admin vedono le stesse descrizioni degli utenti standard
   return (
     <DashboardShell>
       <div>
@@ -372,8 +371,8 @@ export default function Dashboard() {
         </div>
 
         <div className="mt-8 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-6xl">
-          {/* Eventi */}
-          <div className="border border-gray-200 rounded-lg p-6 hover:shadow-lg transition-shadow relative">
+          {/* Eventi - per lavoratore: ordine 3 (dopo I Miei Turni e Indisponibilità) */}
+          <div className={`bg-white max-md:shadow-sm border border-gray-200 rounded-lg p-6 hover:shadow-lg transition-shadow relative ${canSeeMyShiftsAndHours ? "order-3" : ""}`}>
             {canAccessAdminFeatures && highPriorityCounts.workdayIssues.badge && (
               <span
                 className={`absolute top-4 right-4 min-w-[22px] h-[22px] px-1.5 flex items-center justify-center text-xs font-bold text-white rounded-full ${
@@ -393,8 +392,8 @@ export default function Dashboard() {
             </div>
             <p className="text-gray-600 mb-4">
               {useStandardUserDescriptions
-                ? "Visualizza eventi, giornate e pianificazioni"
-                : "Gestisci eventi, giornate e pianificazioni"
+                ? "Visualizza eventi, giornate e pianificazioni orarie del personale"
+                : "Gestisci eventi, giornate e pianificazioni orarie del personale"
               }
             </p>
             <button
@@ -405,9 +404,9 @@ export default function Dashboard() {
             </button>
           </div>
 
-          {/* Indisponibilità - Utenti standard, lavoratori, o admin per gestione */}
+          {/* Indisponibilità - Utenti standard, lavoratori, o admin per gestione. Per lavoratore: ordine 2 */}
           {(canSeeMyShiftsAndHours || canAccessAdminFeatures) && (
-            <div className="border border-gray-200 rounded-lg p-6 hover:shadow-lg transition-shadow relative">
+            <div className={`bg-white max-md:shadow-sm border border-gray-200 rounded-lg p-6 hover:shadow-lg transition-shadow relative ${canSeeMyShiftsAndHours ? "order-2" : ""}`}>
               {canAccessAdminFeatures && highPriorityCounts.indisponibilita > 0 && (
                 <span className="absolute top-4 right-4 min-w-[22px] h-[22px] px-1.5 flex items-center justify-center text-xs font-bold text-white bg-red-500 rounded-full">
                   {highPriorityCounts.indisponibilita > 99 ? "99+" : highPriorityCounts.indisponibilita}
@@ -441,9 +440,9 @@ export default function Dashboard() {
             </div>
           )}
 
-          {/* I Miei Turni - Solo per utenti standard o abilitati come lavoratori */}
+          {/* I Miei Turni - Solo per utenti standard o abilitati come lavoratori. In modalità lavoratore viene prima di Eventi */}
           {canSeeMyShiftsAndHours && (
-            <div className="border border-gray-200 rounded-lg p-6 hover:shadow-lg transition-shadow relative">
+            <div className="bg-white max-md:shadow-sm border border-gray-200 rounded-lg p-6 hover:shadow-lg transition-shadow relative order-first">
               {workerMissingHoursCount > 0 && (
                 <span className="absolute top-4 right-4 min-w-[22px] h-[22px] px-1.5 flex items-center justify-center text-xs font-bold text-white bg-red-500 rounded-full">
                   {workerMissingHoursCount > 99 ? "99+" : workerMissingHoursCount}
@@ -471,7 +470,7 @@ export default function Dashboard() {
 
           {/* Turni e Ore - Solo per Admin, Super Admin e Responsabile */}
           {canAccessReports && (
-            <div className="border border-gray-200 rounded-lg p-6 hover:shadow-lg transition-shadow relative">
+            <div className="bg-white max-md:shadow-sm border border-gray-200 rounded-lg p-6 hover:shadow-lg transition-shadow relative">
               {highPriorityCounts.turniOreMissingHours > 0 && (
                 <span className="absolute top-4 right-4 min-w-[22px] h-[22px] px-1.5 flex items-center justify-center text-xs font-bold text-white bg-red-500 rounded-full">
                   {highPriorityCounts.turniOreMissingHours > 99 ? "99+" : highPriorityCounts.turniOreMissingHours}
@@ -499,7 +498,7 @@ export default function Dashboard() {
 
           {/* Reportistica - Solo per Admin, Super Admin e Responsabile */}
           {canAccessReports && (
-            <div className="border border-gray-200 rounded-lg p-6 hover:shadow-lg transition-shadow">
+            <div className="bg-white max-md:shadow-sm border border-gray-200 rounded-lg p-6 hover:shadow-lg transition-shadow">
               <div className="flex items-center mb-4">
                 <div className="w-10 h-10 bg-indigo-100 rounded-lg flex items-center justify-center mr-3">
                   <svg className="w-6 h-6 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -524,7 +523,7 @@ export default function Dashboard() {
 
           {/* Impostazioni - Solo per Admin (nascosto in modalità lavoratore) */}
           {canAccessAdminFeatures && (
-            <div className="border border-gray-200 rounded-lg p-6 hover:shadow-lg transition-shadow relative">
+            <div className="bg-white max-md:shadow-sm border border-gray-200 rounded-lg p-6 hover:shadow-lg transition-shadow relative">
               {userRole === "SUPER_ADMIN" && highPriorityCounts.impostazioniTecniche > 0 && (
                 <span className="absolute top-4 right-4 min-w-[22px] h-[22px] px-1.5 flex items-center justify-center text-xs font-bold text-white bg-red-500 rounded-full">
                   {highPriorityCounts.impostazioniTecniche > 99 ? "99+" : highPriorityCounts.impostazioniTecniche}

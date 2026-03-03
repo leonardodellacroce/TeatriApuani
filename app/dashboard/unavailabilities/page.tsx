@@ -191,8 +191,14 @@ export default function UnavailabilitiesPage() {
         const data = await res.json();
         setList(Array.isArray(data) ? data : []);
       } else {
-        const err = await res.json().catch(() => ({}));
-        console.error("GET unavailabilities failed:", err);
+        const text = await res.text();
+        let err: Record<string, unknown> = {};
+        try {
+          err = text ? JSON.parse(text) : {};
+        } catch {
+          err = { raw: text?.slice(0, 200) || "(empty)" };
+        }
+        console.error("GET unavailabilities failed:", res.status, err);
         setList([]);
       }
     } catch {
@@ -493,12 +499,19 @@ export default function UnavailabilitiesPage() {
   return (
     <DashboardShell>
       <div>
-        <h1 className="text-3xl font-bold mb-6">Indisponibilità</h1>
-        <p className="text-gray-600 mb-6">
-          {isAdmin
-            ? "Visualizza e gestisci le indisponibilità comunicate dal personale. Puoi approvare quelle in attesa e creare indisponibilità per conto di altri."
-            : "Comunica i giorni e gli orari in cui non sei disponibile per lavorare."}
-        </p>
+        <div className="flex items-center gap-3 mb-4">
+          <button
+            onClick={() => router.push("/dashboard")}
+            aria-label="Indietro"
+            title="Indietro"
+            className="h-11 w-11 inline-flex items-center justify-center rounded-lg bg-gray-900 text-white hover:bg-gray-800 hover:shadow-lg transition-colors"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7" />
+            </svg>
+          </button>
+          <h1 className="text-3xl font-bold">Indisponibilità</h1>
+        </div>
 
         <div className="bg-white rounded-lg border border-gray-200 p-4 mb-6">
           <div className="flex flex-col gap-4 w-full md:flex-row md:flex-wrap md:items-end md:gap-4">
@@ -543,55 +556,55 @@ export default function UnavailabilitiesPage() {
                 />
               </div>
             </div>
-            <div className="grid grid-cols-3 gap-2 w-full min-w-0 md:flex md:gap-2 md:flex-shrink-0 md:w-auto md:ml-auto">
-              <button
-                type="button"
-                onClick={handleFilterPrevPeriod}
-                className="w-full h-11 md:w-11 inline-flex items-center justify-center border border-gray-300 rounded-lg hover:bg-gray-50 hover:border-gray-400 active:scale-100 transition-all duration-200 cursor-pointer"
-                aria-label="Precedente"
-              >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7" />
-                </svg>
-              </button>
-              <button
-                type="button"
-                onClick={handleFilterToday}
-                className="w-full md:w-auto h-11 px-3 border border-gray-300 rounded-lg text-sm hover:bg-gray-50 hover:border-gray-400 active:scale-100 transition-all duration-200 cursor-pointer"
-              >
-                Oggi
-              </button>
-              <button
-                type="button"
-                onClick={handleFilterNextPeriod}
-                className="w-full h-11 md:w-11 inline-flex items-center justify-center border border-gray-300 rounded-lg hover:bg-gray-50 hover:border-gray-400 active:scale-100 transition-all duration-200 cursor-pointer"
-                aria-label="Successivo"
-              >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" />
-                </svg>
-              </button>
+            <div className="flex flex-col gap-3 w-full md:contents">
+              <div className="grid grid-cols-3 gap-2 w-full min-w-0 md:flex md:gap-2 md:flex-shrink-0 md:w-auto">
+                <button
+                  type="button"
+                  onClick={handleFilterPrevPeriod}
+                  className="w-full h-11 md:w-11 inline-flex items-center justify-center border border-gray-300 rounded-lg hover:bg-gray-50 hover:border-gray-400 active:scale-100 transition-all duration-200 cursor-pointer"
+                  aria-label="Precedente"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7" />
+                  </svg>
+                </button>
+                <button
+                  type="button"
+                  onClick={handleFilterToday}
+                  className="w-full md:w-auto h-11 px-3 border border-gray-300 rounded-lg text-sm hover:bg-gray-50 hover:border-gray-400 active:scale-100 transition-all duration-200 cursor-pointer"
+                >
+                  Oggi
+                </button>
+                <button
+                  type="button"
+                  onClick={handleFilterNextPeriod}
+                  className="w-full h-11 md:w-11 inline-flex items-center justify-center border border-gray-300 rounded-lg hover:bg-gray-50 hover:border-gray-400 active:scale-100 transition-all duration-200 cursor-pointer"
+                  aria-label="Successivo"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" />
+                  </svg>
+                </button>
+              </div>
+              {isAdmin && (
+                <button
+                  onClick={openCreate}
+                  className="w-full md:w-auto md:ml-auto h-11 px-4 bg-gray-900 text-white rounded-lg hover:bg-gray-800 text-sm font-medium"
+                >
+                  Nuova indisponibilità
+                </button>
+              )}
+              {!isAdmin && (
+                <button
+                  onClick={openCreate}
+                  className="w-full md:w-auto md:ml-auto h-11 px-4 bg-gray-900 text-white rounded-lg hover:bg-gray-800 text-sm font-medium"
+                >
+                  Comunica indisponibilità
+                </button>
+              )}
             </div>
           </div>
         </div>
-
-        {isAdmin && (
-          <button
-            onClick={openCreate}
-            className="mb-6 px-4 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800"
-          >
-            + Nuova indisponibilità
-          </button>
-        )}
-
-        {!isAdmin && (
-          <button
-            onClick={openCreate}
-            className="mb-6 px-4 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800"
-          >
-            + Comunica indisponibilità
-          </button>
-        )}
 
         {showForm && (
           <div className="mb-8 p-6 border border-gray-200 rounded-lg bg-white shadow max-w-xl">
@@ -790,7 +803,83 @@ export default function UnavailabilitiesPage() {
         ) : list.length === 0 ? (
           <p className="text-gray-500">Nessuna indisponibilità registrata.</p>
         ) : (
-          <div className="overflow-x-auto">
+          <>
+          {/* Mobile: card per indisponibilità */}
+          <div className="md:hidden space-y-3">
+            {list.map((u) => (
+              <div key={u.id} className="bg-white rounded-lg border border-gray-200 p-4 shadow-sm">
+                <div className="space-y-3">
+                  {isAdmin && (
+                    <div className="text-sm font-semibold text-gray-900">{getUserName(u)}</div>
+                  )}
+                  <div className="text-sm text-gray-700">
+                    <span className="text-gray-500">Periodo:</span>{" "}
+                    {formatDateFromPart(u.dateStart)}
+                    {u.dateStart.split("T")[0] !== u.dateEnd.split("T")[0] && ` → ${formatDateFromPart(u.dateEnd)}`}
+                  </div>
+                  <div className="text-sm text-gray-700">
+                    <span className="text-gray-500">Orario:</span> {formatUnavailabilityTimeRange(u.startTime, u.endTime)}
+                  </div>
+                  {u.note && (
+                    <div className="text-sm text-gray-600">
+                      <span className="text-gray-500">Note:</span> {u.note}
+                    </div>
+                  )}
+                  <div className="flex items-center justify-between flex-wrap gap-2">
+                    <span className={`px-2 py-1 rounded text-xs ${
+                      u.status === "PENDING_APPROVAL" ? "bg-amber-100 text-amber-800" :
+                      u.status === "REJECTED" ? "bg-red-100 text-red-800" :
+                      "bg-green-100 text-green-800"
+                    }`}>
+                      {u.status === "PENDING_APPROVAL" ? "In attesa approvazione" : u.status === "REJECTED" ? "Rifiutata" : "Approvata"}
+                    </span>
+                    <div className="inline-flex items-center gap-2 ml-auto">
+                      <button
+                        onClick={() => openEdit(u)}
+                        aria-label="Modifica"
+                        className="h-8 w-8 inline-flex items-center justify-center rounded-lg bg-gray-900 text-white hover:bg-gray-800"
+                      >
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.232 5.232l3.536 3.536M4 20h4l10.293-10.293a1 1 0 000-1.414l-2.586-2.586a1 1 0 00-1.414 0L4 16v4z" />
+                        </svg>
+                      </button>
+                      <button
+                        onClick={() => setDeleteTarget(u.id)}
+                        aria-label="Elimina"
+                        className="h-8 w-8 inline-flex items-center justify-center rounded-lg bg-red-600 text-white hover:bg-red-700"
+                      >
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6M9 7h6m-1-2H10l1-1h2l1 1z" />
+                        </svg>
+                      </button>
+                      {isAdmin && u.status === "PENDING_APPROVAL" && (
+                        <>
+                          <div className="h-6 w-px bg-gray-300" aria-hidden />
+                          <button
+                            onClick={() => handleApprove(u.id)}
+                            aria-label="Approva"
+                            className="h-8 px-3 inline-flex items-center justify-center rounded-lg bg-gray-900 text-white hover:bg-gray-800 text-sm font-medium"
+                          >
+                            Approva
+                          </button>
+                          <button
+                            onClick={() => handleReject(u.id)}
+                            aria-label="Rifiuta"
+                            className="h-8 px-3 inline-flex items-center justify-center rounded-lg bg-red-600 text-white hover:bg-red-700 text-sm font-medium"
+                          >
+                            Rifiuta
+                          </button>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Desktop: tabella */}
+          <div className="hidden md:block overflow-x-auto mb-6">
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
                 <tr>
@@ -823,13 +912,36 @@ export default function UnavailabilitiesPage() {
                     </td>
                     <td className="px-6 py-4 text-sm">
                       <div className="inline-flex items-center gap-2">
+                        <div className="inline-flex items-center gap-2">
+                          <button
+                            onClick={() => openEdit(u)}
+                            aria-label="Modifica"
+                            title="Modifica"
+                            className="h-8 w-8 inline-flex items-center justify-center rounded-lg bg-gray-900 text-white hover:bg-gray-800 hover:shadow-lg transition-colors"
+                          >
+                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.232 5.232l3.536 3.536M4 20h4l10.293-10.293a1 1 0 000-1.414l-2.586-2.586a1 1 0 00-1.414 0L4 16v4z" />
+                            </svg>
+                          </button>
+                          <button
+                            onClick={() => setDeleteTarget(u.id)}
+                            aria-label="Elimina"
+                            title="Elimina"
+                            className="h-8 w-8 inline-flex items-center justify-center rounded-lg bg-red-600 text-white hover:bg-red-700 hover:shadow-lg transition-colors"
+                          >
+                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6M9 7h6m-1-2H10l1-1h2l1 1z" />
+                            </svg>
+                          </button>
+                        </div>
                         {isAdmin && u.status === "PENDING_APPROVAL" && (
                           <>
+                            <div className="h-6 w-px bg-gray-300" aria-hidden />
                             <button
                               onClick={() => handleApprove(u.id)}
                               aria-label="Approva"
                               title="Approva"
-                              className="h-8 px-3 inline-flex items-center justify-center rounded-lg bg-green-600 text-white hover:bg-green-700 hover:shadow-lg transition-colors text-sm font-medium"
+                              className="h-8 px-3 inline-flex items-center justify-center rounded-lg bg-gray-900 text-white hover:bg-gray-800 hover:shadow-lg transition-colors text-sm font-medium"
                             >
                               Approva
                             </button>
@@ -843,26 +955,6 @@ export default function UnavailabilitiesPage() {
                             </button>
                           </>
                         )}
-                        <button
-                          onClick={() => openEdit(u)}
-                          aria-label="Modifica"
-                          title="Modifica"
-                          className="h-8 w-8 inline-flex items-center justify-center rounded-lg bg-gray-900 text-white hover:bg-gray-800 hover:shadow-lg transition-colors"
-                        >
-                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.232 5.232l3.536 3.536M4 20h4l10.293-10.293a1 1 0 000-1.414l-2.586-2.586a1 1 0 00-1.414 0L4 16v4z" />
-                          </svg>
-                        </button>
-                        <button
-                          onClick={() => setDeleteTarget(u.id)}
-                          aria-label="Elimina"
-                          title="Elimina"
-                          className="h-8 w-8 inline-flex items-center justify-center rounded-lg bg-red-600 text-white hover:bg-red-700 hover:shadow-lg transition-colors"
-                        >
-                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6M9 7h6m-1-2H10l1-1h2l1 1z" />
-                          </svg>
-                        </button>
                       </div>
                     </td>
                   </tr>
@@ -870,6 +962,7 @@ export default function UnavailabilitiesPage() {
               </tbody>
             </table>
           </div>
+          </>
         )}
       </div>
 

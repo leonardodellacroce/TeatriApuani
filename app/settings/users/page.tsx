@@ -285,7 +285,7 @@ export default function UsersPage() {
   return (
     <DashboardShell>
       <div>
-        <div className="flex justify-between items-center mb-6">
+        <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-4 mb-4">
           <div className="flex items-center gap-3">
             <button
               onClick={() => router.push("/settings")}
@@ -299,16 +299,16 @@ export default function UsersPage() {
             </button>
             <h1 className="text-3xl font-bold">Utenti</h1>
           </div>
-          <div className="flex gap-2">
+          <div className="flex flex-row gap-2 w-full md:w-auto">
             <button
               onClick={() => router.push("/settings/users/archive")}
-              className="px-4 py-2 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50 hover:border-gray-400 hover:shadow-md hover:scale-105 active:scale-100 transition-all duration-200 cursor-pointer"
+              className="flex-1 md:flex-initial px-4 py-2 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50 hover:border-gray-400 hover:shadow-md hover:scale-105 active:scale-100 transition-all duration-200 cursor-pointer"
             >
               Archivio
             </button>
             <button
               onClick={() => router.push("/settings/users/new")}
-              className="px-4 py-2 rounded-lg bg-gray-900 text-white hover:bg-gray-800 hover:shadow-lg hover:scale-105 active:scale-100 transition-all duration-200 cursor-pointer"
+              className="flex-1 md:flex-initial px-4 py-2 rounded-lg bg-gray-900 text-white hover:bg-gray-800 hover:shadow-lg hover:scale-105 active:scale-100 transition-all duration-200 cursor-pointer"
             >
               Nuovo Utente
             </button>
@@ -316,7 +316,8 @@ export default function UsersPage() {
         </div>
 
         {/* Filtri */}
-        <div className="mb-6 flex gap-4 items-start">
+        <div className="bg-white border border-gray-200 rounded-lg p-4 mb-6">
+        <div className="flex gap-4 items-start">
           {/* Filtro per stato */}
           <div>
             <label htmlFor="status-filter" className="block text-sm font-medium text-gray-700 mb-2">
@@ -357,11 +358,63 @@ export default function UsersPage() {
             </div>
           )}
         </div>
+        </div>
 
         {users.length === 0 ? (
           <p className="text-gray-600">Nessun utente trovato.</p>
         ) : (
-          <div className="overflow-x-auto">
+          <>
+            {/* Mobile: card stile indisponibilità */}
+            <div className="md:hidden space-y-3">
+              {users.map((user) => {
+                const locked = isAccountLocked(user);
+                return (
+                  <div key={user.id} className={`bg-white rounded-lg border border-gray-200 p-4 shadow-sm ${locked ? "opacity-60" : ""}`}>
+                    <div className="space-y-3">
+                      <div className="text-sm font-semibold text-gray-900">{user.name && user.cognome ? `${user.name} ${user.cognome}` : user.name || user.email}</div>
+                      <div className="text-sm text-gray-700"><span className="text-gray-500">Codice:</span> {user.code}</div>
+                      <div className="text-sm text-gray-700"><span className="text-gray-500">Email:</span> {user.email}</div>
+                      <div className="text-sm text-gray-700"><span className="text-gray-500">Azienda:</span> {user.company?.ragioneSociale || "-"}</div>
+                      <div className="flex items-center justify-between flex-wrap gap-2">
+                      <span><span className="text-gray-500">Stato:</span> {locked ? (
+                        <button onClick={() => router.push("/settings/technical")} className="px-2 py-1 text-xs font-semibold rounded-full bg-yellow-100 text-yellow-800">Bloccato</button>
+                      ) : session?.user?.id === user.id ? (
+                        <span className={`px-2 py-1 text-xs font-semibold rounded-full ${user.isActive ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"}`}>{user.isActive ? "Attivo" : "Inattivo"}</span>
+                      ) : (
+                        <button onClick={() => handleToggle(user.id, user.isActive)} className={`px-2 py-1 text-xs font-semibold rounded-full ${user.isActive ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"}`}>{user.isActive ? "Attivo" : "Inattivo"}</button>
+                      )}</span>
+                        <div className="inline-flex gap-2 ml-auto">
+                      {locked ? (
+                        <span className="text-gray-400 text-xs">Azioni non disponibili</span>
+                      ) : (
+                        <>
+                          <button onClick={() => router.push(`/settings/users/${user.id}/view`)} aria-label="Visualizza" title="Visualizza" className="h-8 w-8 inline-flex items-center justify-center rounded-lg bg-gray-900 text-white hover:bg-gray-800 transition-colors">
+                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.477 0 8.268 2.943 9.542 7-1.274 4.057-5.065 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
+                          </button>
+                          <button onClick={() => router.push(`/settings/users/${user.id}`)} aria-label="Modifica" title="Modifica" className="h-8 w-8 inline-flex items-center justify-center rounded-lg bg-gray-900 text-white hover:bg-gray-800 transition-colors">
+                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.232 5.232l3.536 3.536M4 20h4l10.293-10.293a1 1 0 000-1.414l-2.586-2.586a1 1 0 00-1.414 0L4 16v4z" /></svg>
+                          </button>
+                          {(session?.user?.role === "SUPER_ADMIN" || session?.user?.role === "ADMIN") && (
+                            <>
+                              <button onClick={isArchiveDisabled(user.id) ? undefined : () => handleArchive(user.id)} disabled={isArchiveDisabled(user.id)} aria-label="Archivia" title={isArchiveDisabled(user.id) ? "Non puoi archiviare il tuo stesso utente" : "Archivia"} className={`h-8 w-8 inline-flex items-center justify-center rounded-lg ${isArchiveDisabled(user.id) ? "bg-gray-400 text-white opacity-50 cursor-not-allowed" : "bg-gray-900 text-white hover:bg-gray-800"} transition-colors`}>
+                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M20 7H4l2-2h12l2 2zM4 7v10a2 2 0 002 2h12a2 2 0 002-2V7M9 12h6" /></svg>
+                              </button>
+                              <button onClick={user.hasAssignments ? undefined : () => handleDelete(user.id)} disabled={user.hasAssignments} aria-label="Elimina" title={user.hasAssignments ? `Impossibile eliminare: associato a ${user.assignmentsCount || 0} turno/i` : "Elimina"} className={`h-8 w-8 inline-flex items-center justify-center rounded-lg transition-colors ${user.hasAssignments ? "bg-gray-400 text-white opacity-50 cursor-not-allowed" : "bg-red-600 text-white hover:bg-red-700"}`}>
+                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6M9 7h6m-1-2H10l1-1h2l1 1z" /></svg>
+                              </button>
+                            </>
+                          )}
+                        </>
+                      )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+            {/* Desktop: tabella */}
+            <div className="hidden md:block overflow-x-auto mb-6">
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
                 <tr>
@@ -509,6 +562,7 @@ export default function UsersPage() {
               </tbody>
             </table>
           </div>
+          </>
         )}
 
         <ConfirmDialog

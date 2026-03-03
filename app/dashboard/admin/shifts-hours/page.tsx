@@ -651,16 +651,109 @@ export default function AdminShiftsHoursPage() {
     ? sortedRows.filter((r) => !r.timeEntry && !isShiftFuture(r.assignment.workday?.date))
     : sortedRows;
 
+  const groupedRowsForMobile = React.useMemo(() => {
+    const map = new Map<string, Row[]>();
+    for (const row of filteredRows) {
+      const wd = row.assignment.workday;
+      const key = `${wd?.date || ""}-${wd?.event?.id || ""}-${wd?.location?.id || "no-loc"}`;
+      const arr = map.get(key) || [];
+      arr.push(row);
+      map.set(key, arr);
+    }
+    return Array.from(map.entries()).map(([key, items]) => {
+      const first = items[0];
+      const wd = first.assignment.workday;
+      return { key, date: wd?.date || "", event: wd?.event, location: wd?.location, items };
+    });
+  }, [filteredRows]);
+
   return (
     <DashboardShell>
       <div>
-        <h1 className="text-3xl font-bold mb-2">Turni e Ore</h1>
-        <p className="text-gray-600 mb-6">
-          Visualizza i turni e le ore inserite dai lavoratori. Puoi correggere eventuali errori.
-        </p>
+        <div className="flex items-center gap-3 mb-4">
+          <button
+            onClick={() => router.push("/dashboard")}
+            aria-label="Indietro"
+            title="Indietro"
+            className="h-11 w-11 inline-flex items-center justify-center rounded-lg bg-gray-900 text-white hover:bg-gray-800 hover:shadow-lg transition-colors"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7" />
+            </svg>
+          </button>
+          <h1 className="text-3xl font-bold">Turni e Ore</h1>
+        </div>
 
         <div className="bg-white rounded-lg border border-gray-200 p-4 mb-6">
-          <div className="flex flex-wrap items-end gap-4 w-full">
+          {/* Mobile: layout verticale */}
+          <div className="md:hidden flex flex-col gap-4">
+            <div className="w-full">
+              <label className="block text-sm font-medium text-gray-700 mb-1">Dipendente</label>
+              <SearchableSelect
+                value={selectedUserId}
+                onChange={setSelectedUserId}
+                placeholder="Cerca dipendente..."
+                emptyOption={{ value: "all", label: "Tutti i dipendenti" }}
+                options={[...users]
+                  .sort((a, b) =>
+                    (a.name || "").localeCompare(b.name || "") ||
+                    (a.cognome || "").localeCompare(b.cognome || "")
+                  )
+                  .map((u) => ({
+                    value: u.id,
+                    label: `${u.name || ""} ${u.cognome || ""}`.trim() || u.id,
+                  }))}
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Data Inizio</label>
+                <DateInput
+                  name="startDate"
+                  value={startDate}
+                  onChange={(e) => setStartDate(e.target.value)}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Data Fine</label>
+                <DateInput
+                  name="endDate"
+                  value={endDate}
+                  onChange={(e) => setEndDate(e.target.value)}
+                />
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <DateNavButtons
+                onPrev={handlePrevMonth}
+                onToday={handleCurrentMonth}
+                onNext={handleNextMonth}
+                className="items-center"
+              />
+              <label className="flex items-center gap-2 cursor-pointer ml-2">
+                <input
+                  type="checkbox"
+                  checked={onlyMissingHours}
+                  onChange={(e) => setOnlyMissingHours(e.target.checked)}
+                  className="w-4 h-4 text-gray-900 border-gray-300 rounded"
+                />
+                <span className="text-sm font-medium text-gray-700">Solo ore non inserite</span>
+              </label>
+            </div>
+            {missingHoursReminderActive && (
+              <button
+                type="button"
+                onClick={() => setShowNotifyMissingHoursConfirm(true)}
+                disabled={notifyLoading}
+                className="w-full px-4 py-2 h-11 bg-gray-900 text-white rounded-lg text-sm hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {notifyLoading ? "Invio..." : "Notifica inserimento ore"}
+              </button>
+            )}
+          </div>
+
+          {/* Desktop: layout originale */}
+          <div className="hidden md:flex flex-wrap items-end gap-4 w-full">
             <div className="flex-1 min-w-[140px]">
               <label className="block text-sm font-medium text-gray-700 mb-1">Dipendente</label>
               <SearchableSelect
@@ -714,7 +807,7 @@ export default function AdminShiftsHoursPage() {
               )}
             </div>
           </div>
-          <label className="flex items-center gap-2 cursor-pointer h-11 mt-4">
+          <label className="hidden md:flex items-center gap-2 cursor-pointer h-11 mt-4">
             <input
               type="checkbox"
               checked={onlyMissingHours}
@@ -734,7 +827,90 @@ export default function AdminShiftsHoursPage() {
           ) : freeHoursEntries.length === 0 ? (
             <div className="p-8 text-center text-gray-500">Nessuna ora libera in attesa di conversione.</div>
           ) : (
-            <div className="overflow-x-auto">
+            <>
+            {/* Mobile: card per ore libere */}
+            <div className="md:hidden space-y-2 p-4">
+              {freeHoursEntries.map((e) => (
+                <div key={e.id} className="bg-white rounded-lg border border-gray-200 p-3 shadow-sm">
+                  <div className="space-y-1.5 text-sm text-gray-700">
+                    <div className="font-medium text-gray-900">{[e.user.name, e.user.cognome].filter(Boolean).join(" ") || e.user.code}</div>
+                    <div className="flex items-center justify-between gap-2">
+                      <span><span className="text-gray-500">Data:</span> {new Date(e.date).toLocaleDateString("it-IT")}</span>
+                      <span className="text-right shrink-0"><span className="text-gray-500">Orario:</span> {e.startTime} - {e.endTime}</span>
+                    </div>
+                    <div>
+                      <span className="text-gray-500">Location:</span> {e.location?.name || "-"}
+                    </div>
+                    <div>
+                      <span className="text-gray-500">Tipo / Mansione:</span> {e.taskType?.name || "-"}
+                      {e.duty?.name && <span className="block text-xs text-gray-400">{e.duty.name}</span>}
+                    </div>
+                    <div className="flex items-center justify-between gap-2">
+                      <span><span className="text-gray-500">Ore lavorate:</span> <span className="font-medium text-gray-900">{Math.floor(e.hoursWorked)}h {Math.round((e.hoursWorked % 1) * 60)}m</span></span>
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        {e.notes ? (
+                          <button
+                            onClick={() => { setSelectedNote(e.notes || null); setShowNotesModal(true); }}
+                            aria-label="Visualizza Note"
+                            className="h-8 w-8 inline-flex items-center justify-center rounded-lg bg-gray-900 text-white hover:bg-gray-800"
+                          >
+                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.477 0 8.268 2.943 9.542 7-1.274 4.057-5.065 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                            </svg>
+                          </button>
+                        ) : null}
+                        <button
+                          onClick={() => {
+                            let breaks: Array<{ start: string; end: string }> = [];
+                            if (e.actualBreaks) {
+                              try {
+                                const parsed = JSON.parse(e.actualBreaks);
+                                if (Array.isArray(parsed)) breaks = parsed.filter((b: any) => b?.start && b?.end);
+                              } catch {}
+                            }
+                            const dateStr = new Date(e.date).toISOString().slice(0, 10);
+                            setConvertModalEvents([]);
+                            setConvertModalSelectedEventId(null);
+                            setConvertModal({
+                              id: e.id,
+                              eventTitle: `Ore libere - ${[e.user.name, e.user.cognome].filter(Boolean).join(" ")} - ${new Date(e.date).toLocaleDateString("it-IT")}`,
+                              locationId: e.location?.id || "",
+                              clientIds: [],
+                              notes: e.notes || "",
+                              date: dateStr,
+                              startTime: e.startTime || "",
+                              endTime: e.endTime || "",
+                              areaId: "",
+                              taskTypeId: e.taskType?.id || "",
+                              dutyId: e.duty?.id || "",
+                              actualBreaks: breaks,
+                            });
+                          }}
+                          className="h-8 px-3 inline-flex items-center justify-center rounded-lg bg-gray-900 text-white hover:bg-gray-800 text-sm font-medium"
+                          title="Converti in evento"
+                        >
+                          Converti
+                        </button>
+                        <button
+                          onClick={() => setFreeHoursDeleteTarget(e.id)}
+                          aria-label="Elimina"
+                          title="Elimina"
+                          className="h-8 w-8 inline-flex items-center justify-center rounded-lg bg-red-600 text-white hover:bg-red-700"
+                        >
+                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6M9 7h6m-1-2H10l1-1h2l1 1z" />
+                          </svg>
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Desktop: tabella ore libere */}
+            <div className="hidden md:block overflow-x-auto mb-6">
               <table className="min-w-full divide-y divide-gray-200">
                 <thead className="bg-gray-50">
                   <tr>
@@ -845,10 +1021,11 @@ export default function AdminShiftsHoursPage() {
                 </tbody>
               </table>
             </div>
+            </>
           )}
         </div>
 
-        <div className="bg-white rounded-lg border border-gray-200">
+        <div className="bg-white rounded-lg border border-gray-200 mb-6">
           <div className="p-4 border-b border-gray-200">
             <h2 className="text-lg font-semibold">
               Turni e ore{selectedUserName ? ` - ${selectedUserName}` : " - Tutti i dipendenti"}
@@ -861,7 +1038,110 @@ export default function AdminShiftsHoursPage() {
               {onlyMissingHours ? "Nessun turno con ore non inserite nel periodo selezionato" : "Nessun turno nel periodo selezionato"}
             </div>
           ) : (
-            <div className="overflow-x-auto overflow-y-auto max-h-[calc(100vh-320px)] px-4 sm:px-6">
+            <>
+            {/* Mobile: card per turni e ore */}
+            <div className="md:hidden space-y-3 p-4 max-h-[calc(100vh-320px)] overflow-y-auto">
+              {groupedRowsForMobile.map((group) => {
+                const dateStr = group.date ? new Date(group.date).toLocaleDateString("it-IT", { weekday: "long", day: "numeric", month: "short", year: "numeric" }) : "-";
+                return (
+                  <div
+                    key={group.key}
+                    className="bg-white rounded-lg border border-gray-200 p-4 shadow-sm"
+                  >
+                    <div className="space-y-3">
+                      <div>
+                        <div className="font-medium text-gray-900 capitalize">{dateStr}</div>
+                        <div className="text-sm font-semibold text-gray-800 mt-0.5">{group.event?.title || "-"}</div>
+                        <div className="text-sm text-gray-500">{group.location?.name || "-"}</div>
+                      </div>
+                      {group.items.map((row) => {
+                        const a = row.assignment;
+                        const breaks = (() => {
+                          const actual = parseBreaks((row.timeEntry as any)?.actualBreaks, row.timeEntry?.actualBreakStartTime, row.timeEntry?.actualBreakEndTime);
+                          const scheduled = parseBreaks((a as any).scheduledBreaks, a.scheduledBreakStartTime, a.scheduledBreakEndTime);
+                          return actual.length > 0 ? actual : scheduled;
+                        })();
+                        return (
+                          <div key={`${row.assignmentId}-${row.userId}`} className="border-t border-gray-100 pt-3 first:border-t-0 first:pt-0">
+                            <div className="text-sm text-gray-600">
+                              <span className="font-medium text-gray-700">{formatAbbreviatedName(row.userName)}</span>
+                              {(a.taskType?.name || row.dutyName) && (
+                                <span className="block text-xs text-gray-500 mt-0.5">
+                                  {a.taskType?.name || ""}{row.dutyName ? ` - ${row.dutyName}` : ""}
+                                </span>
+                              )}
+                            </div>
+                            <div className="text-sm text-gray-600 mt-1">
+                              <span className="text-gray-500">Orari:</span> {a.startTime && a.endTime ? `${a.startTime} - ${a.endTime}` : "-"}
+                              {breaks.length > 0 && (
+                                <div className="text-xs text-gray-400 mt-0.5">
+                                  {breaks.map((b, i) => (
+                                    <span key={i}>Pausa {b.start}-{b.end} </span>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                            <div className="flex items-center justify-between mt-2 flex-wrap gap-2">
+                              <div className="text-sm">
+                                {row.timeEntry ? (
+                                  <span className="font-medium text-gray-900">{formatHours(row.timeEntry.hoursWorked)}</span>
+                                ) : isShiftFuture(row.assignment.workday?.date) ? (
+                                  <span className="text-gray-500">Non inseribili</span>
+                                ) : (
+                                  <span className="text-red-600 font-medium">Non inserite</span>
+                                )}
+                              </div>
+                              <div className="flex items-center gap-2">
+                                {row.timeEntry?.notes && (
+                                  <button
+                                    onClick={() => { setSelectedNote(row.timeEntry!.notes); setShowNotesModal(true); }}
+                                    aria-label="Note"
+                                    className="h-8 w-8 inline-flex items-center justify-center rounded-lg bg-gray-900 text-white hover:bg-gray-800"
+                                  >
+                                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.477 0 8.268 2.943 9.542 7-1.274 4.057-5.065 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                                    </svg>
+                                  </button>
+                                )}
+                                <button
+                                  onClick={() => !isShiftFuture(row.assignment.workday?.date) && handleOpenHoursModal(row)}
+                                  disabled={isShiftFuture(row.assignment.workday?.date)}
+                                  aria-label={row.timeEntry ? "Modifica" : "Inserisci"}
+                                  className="h-8 w-8 inline-flex items-center justify-center rounded-lg bg-gray-900 text-white hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
+                                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    {row.timeEntry ? (
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.232 5.232l3.536 3.536M4 20h4l10.293-10.293a1 1 0 000-1.414l-2.586-2.586a1 1 0 00-1.414 0L4 16v4z" />
+                                    ) : (
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4" />
+                                    )}
+                                  </svg>
+                                </button>
+                                {row.timeEntry && !isShiftFuture(row.assignment.workday?.date) && (
+                                  <button
+                                    onClick={() => handleDeleteClick(row.timeEntry!.id)}
+                                    aria-label="Elimina"
+                                    className="h-8 w-8 inline-flex items-center justify-center rounded-lg bg-red-600 text-white hover:bg-red-700"
+                                  >
+                                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6M9 7h6m-1-2H10l1-1h2l1 1z" />
+                                    </svg>
+                                  </button>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Desktop: tabella turni e ore */}
+            <div className="hidden md:block overflow-x-auto overflow-y-auto max-h-[calc(100vh-320px)] px-4 sm:px-6">
               <table className="w-full divide-y divide-gray-200 text-sm min-w-[900px]">
                 <thead className="bg-gray-50">
                   <tr>
@@ -1006,6 +1286,7 @@ export default function AdminShiftsHoursPage() {
                 </tbody>
               </table>
             </div>
+            </>
           )}
         </div>
 

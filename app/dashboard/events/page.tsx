@@ -64,6 +64,7 @@ const CalendarView = ({
   isMonthEnded,
   isAdmin,
   isSuperAdmin,
+  selectedAreaFilter,
 }: {
   events: Event[];
   onEventClick: (eventId: string) => void;
@@ -79,6 +80,7 @@ const CalendarView = ({
   isMonthEnded: (year: number, month: number) => boolean;
   isAdmin: boolean;
   isSuperAdmin: boolean;
+  selectedAreaFilter: string;
 }) => {
   const [mobileDayDetail, setMobileDayDetail] = useState<{ date: Date; dayEvents: any[] } | null>(null);
 
@@ -106,16 +108,22 @@ const CalendarView = ({
     const formattedDate = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
     
     // Logica: l'evento appare solo nei giorni che hanno una giornata di lavoro.
-    // "Inizio il giorno x, orario oltre la mezzanotte vale sempre per il giorno x" → workday.date è il giorno di riferimento.
+    // Con filtro area attivo: mostra solo giornate di lavoro che hanno assegnazioni nell'area selezionata.
     return events.filter(event => {
       if (event.workdays && event.workdays.length > 0) {
         return event.workdays.some(workday => {
           const wdDate = new Date(workday.date);
           const wdStr = `${wdDate.getFullYear()}-${String(wdDate.getMonth() + 1).padStart(2, '0')}-${String(wdDate.getDate()).padStart(2, '0')}`;
-          return wdStr === formattedDate;
+          if (wdStr !== formattedDate) return false;
+          if (selectedAreaFilter === "__all__") return true;
+          const areaAssignments = (workday.assignments || []).filter(
+            (a: AssignmentWithUsers) => (a as any).area === selectedAreaFilter
+          );
+          return areaAssignments.length > 0;
         });
       }
-      // Eventi senza workdays: fallback su startDate/endDate
+      // Eventi senza workdays: con filtro area attivo non mostrare; altrimenti fallback su startDate/endDate
+      if (selectedAreaFilter !== "__all__") return false;
       const start = new Date(event.startDate);
       const end = new Date(event.endDate);
       const checkDate = new Date(date);
@@ -500,7 +508,7 @@ const CalendarView = ({
                         onEventClick(event.id);
                       }
                     }}
-                    className={`rounded-lg p-4 border-l-4 ${canOpen ? "cursor-pointer active:bg-gray-50" : "opacity-60 cursor-not-allowed"}`}
+                    className={`bg-white rounded-lg p-4 border border-gray-200 border-l-4 shadow-sm ${canOpen ? "cursor-pointer active:bg-gray-50" : "opacity-60 cursor-not-allowed"}`}
                     style={{ borderLeftColor: locationColor }}
                   >
                     <div className="font-medium text-gray-900 truncate">{event.title}</div>
@@ -687,7 +695,7 @@ const ProgrammaView = ({
 
   return (
     <div>
-      <div className="flex flex-nowrap items-center justify-between gap-2 mb-4 lg:mb-6">
+      <div className="flex flex-nowrap items-center justify-between gap-2 mb-4">
         <div className="flex items-center gap-2 flex-wrap">
           <h2 className="text-xl lg:text-2xl font-bold whitespace-nowrap text-gray-900">
             {monthNames[programmaMonth.getMonth()]} {programmaMonth.getFullYear()}
@@ -752,22 +760,6 @@ const ProgrammaView = ({
           </button>
         </div>
       </div>
-      {areasToShow.length > 1 && (
-        <div className="mb-4 lg:mb-6">
-          <select
-            value={selectedAreaFilter}
-            onChange={(e) => setSelectedAreaFilter(e.target.value)}
-            className="px-3 py-2 h-11 border border-gray-300 rounded-lg text-sm bg-white focus:ring-2 focus:ring-gray-500 focus:border-transparent"
-          >
-            <option value="__all__">Tutte le aree</option>
-            {areasToShow.map((a) => (
-              <option key={a.id} value={a.name}>
-                {a.name}
-              </option>
-            ))}
-          </select>
-        </div>
-      )}
       {areasToShow.length === 0 ? (
         <div className="text-center py-12">
           <p className="text-gray-500">Nessuna area disponibile per la visualizzazione</p>
@@ -1242,6 +1234,23 @@ export default function EventsPage() {
     return true;
   });
 
+  // Vista lista: con filtro area attivo, mostra solo eventi che hanno giornate di lavoro nel mese con quell'area
+  const listMonthStart = new Date(selectedMonth.getFullYear(), selectedMonth.getMonth(), 1);
+  const listMonthEnd = new Date(selectedMonth.getFullYear(), selectedMonth.getMonth() + 1, 0, 23, 59, 59);
+  const listDisplayEvents =
+    selectedAreaFilter === "__all__"
+      ? filteredEvents
+      : filteredEvents.filter((event) =>
+          event.workdays?.some((wd) => {
+            const wdDate = new Date(wd.date);
+            if (wdDate < listMonthStart || wdDate > listMonthEnd) return false;
+            const areaAssignments = (wd.assignments || []).filter(
+              (a: AssignmentWithUsers) => (a as any).area === selectedAreaFilter
+            );
+            return areaAssignments.length > 0;
+          })
+        );
+
   if (loading) {
     return <PageSkeleton />;
   }
@@ -1250,24 +1259,49 @@ export default function EventsPage() {
     <DashboardShell>
       <div>
         <div className="mb-6">
-          <h1 className="text-2xl lg:text-3xl font-bold text-gray-900 mb-4">Eventi</h1>
-          {/* Mobile: layout impilato. Desktop: filtri + tab + pulsanti su una riga */}
-          <div className="flex flex-col md:flex-row md:flex-wrap md:items-center gap-3 w-full">
-            <div className="flex flex-wrap gap-2 lg:gap-4 items-center w-full md:w-auto md:order-1">
+          <div className="flex items-center gap-3 mb-4">
+            <button
+              onClick={() => router.push("/dashboard")}
+              aria-label="Indietro"
+              title="Indietro"
+              className="h-11 w-11 inline-flex items-center justify-center rounded-lg bg-gray-900 text-white hover:bg-gray-800 hover:shadow-lg transition-colors"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7" />
+              </svg>
+            </button>
+            <h1 className="text-2xl lg:text-3xl font-bold text-gray-900">Eventi</h1>
+          </div>
+          {/* Box bianco per sezione filtri */}
+          <div className="bg-white border border-gray-200 rounded-lg p-4 mb-6 overflow-hidden">
+          {/* Mobile: 4 righe. PC: una riga, sx Stato/Cliente/Area/tab, dx Notifica/Nuovo */}
+          <div className="flex flex-col md:flex-row md:flex-wrap md:items-end gap-3 w-full min-w-0">
+            {/* Mobile riga 1: Stato e Cliente */}
+            <div className="flex gap-2 w-full md:contents">
             {userCanSeeAllEvents && (
-              <select
-                value={filterStatus}
-                onChange={(e) => setFilterStatus(e.target.value as "open" | "closed" | "all")}
-                className="w-32 shrink-0 pl-4 py-2 h-11 border border-gray-300 rounded-lg text-sm hover:border-gray-400 hover:shadow-md hover:bg-gray-50 focus:ring-2 focus:ring-gray-900 focus:border-transparent transition-all duration-200 cursor-pointer"
-              >
+              <div className="flex-1 min-w-0 flex flex-col md:order-1 md:w-28 md:min-w-0 md:max-w-32">
+                <label htmlFor="filter-status" className="block text-sm font-medium text-gray-700 mb-2">
+                  Stato
+                </label>
+                <select
+                  id="filter-status"
+                  value={filterStatus}
+                  onChange={(e) => setFilterStatus(e.target.value as "open" | "closed" | "all")}
+                  className="w-full pl-4 py-2 h-11 border border-gray-300 rounded-lg text-sm hover:border-gray-400 hover:shadow-md hover:bg-gray-50 focus:ring-2 focus:ring-gray-900 focus:border-transparent transition-all duration-200 cursor-pointer"
+                >
                 <option value="open">Solo Aperti</option>
                 <option value="closed">Solo Chiusi</option>
                 <option value="all">Tutti</option>
               </select>
+              </div>
             )}
             {canEditEvents && (
-              <div className="relative client-filter-container flex-1 min-w-0 md:flex-initial md:min-w-[180px]">
+              <div className="relative client-filter-container flex-1 min-w-0 flex flex-col md:order-2 md:flex-initial md:min-w-[140px] md:max-w-[200px]">
+                <label htmlFor="client-filter" className="block text-sm font-medium text-gray-700 mb-2">
+                  Cliente
+                </label>
               <button
+                id="client-filter"
                 type="button"
                 onClick={() => setShowClientDropdown(!showClientDropdown)}
                 className="w-full min-w-0 pl-4 pr-3 py-2 h-11 border border-gray-300 rounded-lg text-sm hover:bg-gray-50 hover:border-gray-400 hover:shadow-md hover:scale-[1.02] active:scale-100 transition-all duration-200 cursor-pointer text-left flex justify-between items-center"
@@ -1338,11 +1372,49 @@ export default function EventsPage() {
               </div>
             )}
             </div>
-            <div className="flex flex-wrap items-center gap-3 w-full md:w-auto md:flex-1 md:min-w-0 md:order-2">
-            <div className="relative flex bg-gray-300 rounded-lg px-1.5 py-1 shadow-[inset_2px_2px_4px_rgba(0,0,0,0.1),inset_-2px_-2px_4px_rgba(255,255,255,0.8)] flex-1 min-w-0 md:flex-initial" style={{ height: '44px' }}>
+            {/* Mobile riga 2: Area e Notifica cambiamenti */}
+            {(programmaAreasToShow.length > 0 || canOpenClosedEvents) && (
+            <div className="flex gap-2 w-full md:contents max-md:items-end">
+            {programmaAreasToShow.length > 0 && (
+              <div className="flex-1 min-w-0 flex flex-col md:order-3 md:flex-initial md:min-w-[120px] md:max-w-[160px]">
+                <label htmlFor="programma-area-filter" className="block text-sm font-medium text-gray-700 mb-2">
+                  Area
+                </label>
+                <select
+                  id="programma-area-filter"
+                  value={selectedAreaFilter}
+                  onChange={(e) => setSelectedAreaFilter(e.target.value)}
+                  className="w-full px-3 py-2 h-11 border border-gray-300 rounded-lg text-sm hover:border-gray-400 hover:shadow-md hover:bg-gray-50 focus:ring-2 focus:ring-gray-900 focus:border-transparent transition-all duration-200 cursor-pointer"
+                >
+                  <option value="__all__">Tutte le aree</option>
+                  {programmaAreasToShow.map((a) => (
+                    <option key={a.id} value={a.name}>
+                      {a.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+            {canOpenClosedEvents && (
+              <button
+                type="button"
+                onClick={() => setShowNotifyShiftChangesConfirm(true)}
+                disabled={notifyShiftChangesLoading}
+                className="flex-1 min-w-0 md:flex-initial md:ml-auto px-4 py-2 h-11 border border-gray-300 rounded-lg text-sm hover:bg-gray-50 hover:border-gray-400 transition-all duration-200 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center md:order-5"
+                title="Invia ai lavoratori le notifiche sui cambiamenti ai turni (inserimenti, modifiche, eliminazioni)"
+              >
+                <span className="hidden md:inline">Notifica cambiamenti</span>
+                <span className="text-center leading-tight md:hidden">Notifica<br />cambiamenti</span>
+              </button>
+            )}
+            </div>
+            )}
+            {/* Mobile riga 3: Lista Calendario Programma */}
+            <div className="w-full md:w-auto md:order-4 md:flex-initial">
+            <div className="relative flex bg-gray-300 rounded-lg px-1.5 py-1 shadow-[inset_2px_2px_4px_rgba(0,0,0,0.1),inset_-2px_-2px_4px_rgba(255,255,255,0.8)] w-full md:flex-initial" style={{ height: '44px' }}>
               <button
                 onClick={() => setViewMode("list")}
-                className={`relative px-4 h-full text-sm font-medium rounded-md transition-all duration-300 cursor-pointer z-10 flex items-center justify-center ${
+                className={`relative flex-1 md:flex-initial px-4 h-full text-sm font-medium rounded-md transition-all duration-300 cursor-pointer z-10 flex items-center justify-center ${
                   viewMode === "list" 
                     ? "bg-gray-900 text-white shadow-[2px_2px_4px_rgba(0,0,0,0.3),-1px_-1px_2px_rgba(255,255,255,0.1)]" 
                     : "text-gray-600 hover:text-gray-900"
@@ -1352,7 +1424,7 @@ export default function EventsPage() {
               </button>
               <button
                 onClick={() => setViewMode("calendar")}
-                className={`relative px-4 h-full text-sm font-medium rounded-md transition-all duration-300 cursor-pointer z-10 flex items-center justify-center ${
+                className={`relative flex-1 md:flex-initial px-4 h-full text-sm font-medium rounded-md transition-all duration-300 cursor-pointer z-10 flex items-center justify-center ${
                   viewMode === "calendar" 
                     ? "bg-gray-900 text-white shadow-[2px_2px_4px_rgba(0,0,0,0.3),-1px_-1px_2px_rgba(255,255,255,0.1)]" 
                     : "text-gray-600 hover:text-gray-900"
@@ -1362,7 +1434,7 @@ export default function EventsPage() {
               </button>
               <button
                 onClick={() => setViewMode("programma")}
-                className={`relative px-4 h-full text-sm font-medium rounded-md transition-all duration-300 cursor-pointer z-10 flex items-center justify-center ${
+                className={`relative flex-1 md:flex-initial px-4 h-full text-sm font-medium rounded-md transition-all duration-300 cursor-pointer z-10 flex items-center justify-center ${
                   viewMode === "programma" 
                     ? "bg-gray-900 text-white shadow-[2px_2px_4px_rgba(0,0,0,0.3),-1px_-1px_2px_rgba(255,255,255,0.1)]" 
                     : "text-gray-600 hover:text-gray-900"
@@ -1371,22 +1443,12 @@ export default function EventsPage() {
                 Programma
               </button>
             </div>
-            {canOpenClosedEvents && (
-              <button
-                type="button"
-                onClick={() => setShowNotifyShiftChangesConfirm(true)}
-                disabled={notifyShiftChangesLoading}
-                className="px-4 py-2 h-11 border border-gray-300 rounded-lg text-sm hover:bg-gray-50 hover:border-gray-400 transition-all duration-200 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed flex-shrink-0 flex items-center justify-center"
-                title="Invia ai lavoratori le notifiche sui cambiamenti ai turni (inserimenti, modifiche, eliminazioni)"
-              >
-                <span className="hidden md:inline">Notifica cambiamenti</span>
-                <span className="text-center leading-tight md:hidden">Notifica<br />cambiamenti</span>
-              </button>
-            )}
+            </div>
+            {/* Mobile riga 4: Nuovo Evento */}
             {canEditEvents && (
               <button
                 onClick={() => router.push("/dashboard/events/new")}
-                className="w-full md:w-auto px-4 py-2 h-11 bg-gray-900 text-white rounded-lg text-sm hover:bg-gray-800 hover:shadow-lg hover:scale-[1.02] active:scale-100 transition-all duration-200 cursor-pointer md:order-last md:ml-auto"
+                className={`w-full md:w-auto px-4 py-2 h-11 bg-gray-900 text-white rounded-lg text-sm hover:bg-gray-800 hover:shadow-lg hover:scale-[1.02] active:scale-100 transition-all duration-200 cursor-pointer md:order-last ${!canOpenClosedEvents ? "md:ml-auto" : ""}`}
               >
                 Nuovo Evento
               </button>
@@ -1412,6 +1474,7 @@ export default function EventsPage() {
               isMonthEnded={isMonthEnded}
               isAdmin={session?.user?.role === "ADMIN"}
               isSuperAdmin={(session?.user as any)?.isSuperAdmin === true || session?.user?.role === "SUPER_ADMIN"}
+              selectedAreaFilter={selectedAreaFilter}
             />
           </div>
         )}
@@ -1508,7 +1571,7 @@ export default function EventsPage() {
                 </button>
               </div>
             </div>
-            {filteredEvents.length === 0 ? (
+            {listDisplayEvents.length === 0 ? (
               <div className="text-center py-12">
                 <p className="text-gray-500">Nessun evento trovato per questo mese</p>
               </div>
@@ -1516,7 +1579,7 @@ export default function EventsPage() {
               <>
               {/* Mobile e tablet: card con tutte le info */}
               <div className="lg:hidden space-y-3">
-                {filteredEvents.map((event) => {
+                {listDisplayEvents.map((event) => {
                   const canOpen = !(event.isClosed && !canOpenClosedEvents);
                   return (
                   <div
@@ -1609,7 +1672,7 @@ export default function EventsPage() {
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {filteredEvents.map((event) => (
+                {listDisplayEvents.map((event) => (
                   <tr key={event.id} className={`hover:bg-gray-50 ${event.isClosed ? 'opacity-70' : ''}`}>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                       <div className="flex items-center gap-2 max-w-md overflow-hidden">

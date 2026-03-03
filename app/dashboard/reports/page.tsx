@@ -355,20 +355,36 @@ export default function ReportsPage() {
         {/* Riepilogo per tipologia turno */}
         <div className="bg-white rounded-lg shadow p-6">
           <h3 className="text-xl font-bold mb-4">Riepilogo per Tipologia Turno</h3>
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Codice</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tipologia Turno</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Ore</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Turni Totali</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Straordinari</th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {data.summaryByDuty && data.summaryByDuty.length > 0 ? (
-                  data.summaryByDuty.map((duty: any, index: number) => {
+          {data.summaryByDuty && data.summaryByDuty.length > 0 ? (
+            <>
+            <div className="md:hidden space-y-3">
+              {data.summaryByDuty.map((duty: any, index: number) => {
+                const totalShifts = duty.shifts ?? 0;
+                const hasShiftData = totalShifts > 0 || (duty.overtimeHours ?? 0) > 0;
+                return (
+                  <div key={index} className="bg-white border border-gray-200 rounded-lg p-4 space-y-2 text-sm shadow-sm">
+                    <div className="font-semibold text-gray-900">{duty.dutyName}</div>
+                    <div><span className="text-gray-500">Codice:</span> {duty.dutyCode || "-"}</div>
+                    <div><span className="text-gray-500">Ore:</span> {hasShiftData ? formatHours(0) : formatHours(duty.hours ?? 0)}</div>
+                    <div><span className="text-gray-500">Turni Totali:</span> {totalShifts} {totalShifts === 1 ? "turno" : "turni"}</div>
+                    <div><span className="text-gray-500">Straordinari:</span> {formatHours(duty.overtimeHours ?? 0)}</div>
+                  </div>
+                );
+              })}
+            </div>
+            <div className="hidden md:block overflow-x-auto mb-6">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Codice</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tipologia Turno</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Ore</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Turni Totali</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Straordinari</th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {data.summaryByDuty.map((duty: any, index: number) => {
                     const totalShifts = duty.shifts ?? 0;
                     const hasShiftData = totalShifts > 0 || (duty.overtimeHours ?? 0) > 0;
                     return (
@@ -378,18 +394,17 @@ export default function ReportsPage() {
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                         {hasShiftData ? formatHours(0) : formatHours(duty.hours ?? 0)}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{totalShifts} {totalShifts === 1 ? 'turno' : 'turni'}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{totalShifts} {totalShifts === 1 ? "turno" : "turni"}</td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{formatHours(duty.overtimeHours ?? 0)}</td>
                     </tr>
-                  );})
-                ) : (
-                  <tr>
-                    <td colSpan={5} className="px-6 py-4 text-center text-sm text-gray-500">Nessun dato disponibile</td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
+                  );})}
+                </tbody>
+              </table>
+            </div>
+            </>
+          ) : (
+            <p className="text-gray-500 text-center py-4">Nessun dato disponibile</p>
+          )}
         </div>
 
         {/* Dettaglio giornaliero */}
@@ -398,7 +413,7 @@ export default function ReportsPage() {
           {data.dailyDetails && data.dailyDetails.length > 0 ? (
             <div className="space-y-6">
               {data.dailyDetails.map((day: any, dayIndex: number) => (
-                <div key={dayIndex} className="border border-gray-200 rounded-lg p-4">
+                <div key={dayIndex} className="bg-white border border-gray-200 rounded-lg p-4 shadow-sm">
                   <div className="mb-3">
                     <h4 className="text-lg font-semibold text-gray-900">
                       {new Date(day.date).toLocaleDateString('it-IT', { 
@@ -523,20 +538,36 @@ export default function ReportsPage() {
         {/* Riepilogo per tipologia turno */}
         <div className="bg-white rounded-lg shadow p-6">
           <h3 className="text-xl font-bold mb-4">Riepilogo per Tipologia Turno</h3>
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Codice</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tipologia Turno</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Ore</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Turni Totali</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Straordinari</th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {data.summaryByDuty && data.summaryByDuty.length > 0 ? (
-                  data.summaryByDuty.map((duty: any, index: number) => {
+          {data.summaryByDuty && data.summaryByDuty.length > 0 ? (
+            <>
+            <div className="md:hidden space-y-3">
+              {data.summaryByDuty.map((duty: any, index: number) => {
+                const totalShifts = duty.shifts ?? 0;
+                const hasShiftData = totalShifts > 0 || (duty.overtimeHours ?? 0) > 0;
+                return (
+                  <div key={index} className="bg-white border border-gray-200 rounded-lg p-4 space-y-2 text-sm shadow-sm">
+                    <div className="font-semibold text-gray-900">{duty.dutyName}</div>
+                    <div><span className="text-gray-500">Codice:</span> {duty.dutyCode || "-"}</div>
+                    <div><span className="text-gray-500">Ore:</span> {hasShiftData ? formatHours(0) : formatHours(duty.hours ?? 0)}</div>
+                    <div><span className="text-gray-500">Turni Totali:</span> {totalShifts} {totalShifts === 1 ? "turno" : "turni"}</div>
+                    <div><span className="text-gray-500">Straordinari:</span> {formatHours(duty.overtimeHours ?? 0)}</div>
+                  </div>
+                );
+              })}
+            </div>
+            <div className="hidden md:block overflow-x-auto mb-6">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Codice</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tipologia Turno</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Ore</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Turni Totali</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Straordinari</th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {data.summaryByDuty.map((duty: any, index: number) => {
                     const totalShifts = duty.shifts ?? 0;
                     const hasShiftData = totalShifts > 0 || (duty.overtimeHours ?? 0) > 0;
                     return (
@@ -546,18 +577,17 @@ export default function ReportsPage() {
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                         {hasShiftData ? formatHours(0) : formatHours(duty.hours ?? 0)}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{totalShifts} {totalShifts === 1 ? 'turno' : 'turni'}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{totalShifts} {totalShifts === 1 ? "turno" : "turni"}</td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{formatHours(duty.overtimeHours ?? 0)}</td>
                     </tr>
-                  );})
-                ) : (
-                  <tr>
-                    <td colSpan={5} className="px-6 py-4 text-center text-sm text-gray-500">Nessun dato disponibile</td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
+                  );})}
+                </tbody>
+              </table>
+            </div>
+            </>
+          ) : (
+            <p className="text-gray-500 text-center py-4">Nessun dato disponibile</p>
+          )}
         </div>
 
         {/* Dettaglio giornaliero */}
@@ -566,7 +596,7 @@ export default function ReportsPage() {
           {data.dailyDetails && data.dailyDetails.length > 0 ? (
             <div className="space-y-6">
               {data.dailyDetails.map((day: any, dayIndex: number) => (
-                <div key={dayIndex} className="border border-gray-200 rounded-lg p-4">
+                <div key={dayIndex} className="bg-white border border-gray-200 rounded-lg p-4 shadow-sm">
                   <h4 className="text-lg font-semibold mb-3 text-gray-900">
                     {new Date(day.date).toLocaleDateString('it-IT', { 
                       weekday: 'long', 
@@ -685,7 +715,7 @@ export default function ReportsPage() {
           {data.dailyDetails && data.dailyDetails.length > 0 ? (
             <div className="space-y-6">
               {data.dailyDetails.map((day: any, dayIndex: number) => (
-                <div key={dayIndex} className="border border-gray-200 rounded-lg p-4">
+                <div key={dayIndex} className="bg-white border border-gray-200 rounded-lg p-4 shadow-sm">
                   <h4 className="text-lg font-semibold mb-3 text-gray-900">
                     {new Date(day.date).toLocaleDateString('it-IT', { 
                       weekday: 'long', 
@@ -747,20 +777,36 @@ export default function ReportsPage() {
               {/* Riepilogo per categoria */}
               <div className="mb-6">
                 <h4 className="text-lg font-semibold mb-3">Riepilogo per Categoria</h4>
-                <div className="overflow-x-auto">
-                  <table className="min-w-full divide-y divide-gray-200">
-                    <thead className="bg-gray-50">
-                      <tr>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Codice</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Categoria (Mansione)</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Ore</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Turni</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Straordinari</th>
-                      </tr>
-                    </thead>
-                    <tbody className="bg-white divide-y divide-gray-200">
-                      {company.categories && company.categories.length > 0 ? (
-                        company.categories.map((category: any, idx: number) => {
+                {company.categories && company.categories.length > 0 ? (
+                  <>
+                  <div className="md:hidden space-y-3">
+                    {company.categories.map((category: any, idx: number) => {
+                      const totalShifts = category.shifts ?? 0;
+                      const hasShiftData = totalShifts > 0 || (category.overtimeHours ?? 0) > 0;
+                      return (
+                        <div key={idx} className="bg-white border border-gray-200 rounded-lg p-4 space-y-2 text-sm shadow-sm">
+                          <div className="font-semibold text-gray-900">{category.dutyName}</div>
+                          <div><span className="text-gray-500">Codice:</span> {category.dutyCode || "-"}</div>
+                          <div><span className="text-gray-500">Ore:</span> {hasShiftData ? formatHours(0) : formatHours(category.hours ?? 0)}</div>
+                          <div><span className="text-gray-500">Turni:</span> {totalShifts} {totalShifts === 1 ? "turno" : "turni"}</div>
+                          <div><span className="text-gray-500">Straordinari:</span> {formatHours(category.overtimeHours ?? 0)}</div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                  <div className="hidden md:block overflow-x-auto mb-6">
+                    <table className="min-w-full divide-y divide-gray-200">
+                      <thead className="bg-gray-50">
+                        <tr>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Codice</th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Categoria (Mansione)</th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Ore</th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Turni</th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Straordinari</th>
+                        </tr>
+                      </thead>
+                      <tbody className="bg-white divide-y divide-gray-200">
+                        {company.categories.map((category: any, idx: number) => {
                           const totalShifts = category.shifts ?? 0;
                           const hasShiftData = totalShifts > 0 || (category.overtimeHours ?? 0) > 0;
                           return (
@@ -771,21 +817,20 @@ export default function ReportsPage() {
                               {hasShiftData ? formatHours(0) : formatHours(category.hours ?? 0)}
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
-                              {totalShifts} {totalShifts === 1 ? 'turno' : 'turni'}
+                              {totalShifts} {totalShifts === 1 ? "turno" : "turni"}
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
                               {formatHours(category.overtimeHours ?? 0)}
                             </td>
                           </tr>
-                        );})
-                      ) : (
-                        <tr>
-                          <td colSpan={5} className="px-6 py-4 text-center text-sm text-gray-500">Nessun dato disponibile</td>
-                        </tr>
-                      )}
-                    </tbody>
-                  </table>
-                </div>
+                        );})}
+                      </tbody>
+                    </table>
+                  </div>
+                  </>
+                ) : (
+                  <p className="text-gray-500 text-center py-4">Nessun dato disponibile</p>
+                )}
               </div>
 
               {/* Dettaglio giornaliero */}
@@ -794,7 +839,7 @@ export default function ReportsPage() {
                   <h4 className="text-lg font-semibold mb-3">Dettaglio Giornaliero</h4>
                   <div className="space-y-4">
                     {company.dailyDetails.map((day: any, dayIndex: number) => (
-                      <div key={dayIndex} className="border border-gray-200 rounded-lg p-4">
+                      <div key={dayIndex} className="bg-white border border-gray-200 rounded-lg p-4 shadow-sm">
                         <h5 className="text-md font-semibold mb-2 text-gray-900">
                           {new Date(day.date).toLocaleDateString('it-IT', { 
                             weekday: 'long', 
@@ -915,7 +960,7 @@ export default function ReportsPage() {
                   <h4 className="text-lg font-semibold mb-3">Dettaglio Giornaliero</h4>
                   <div className="space-y-4">
                     {employee.dailyDetails.map((day: any, dayIndex: number) => (
-                      <div key={dayIndex} className="border border-gray-200 rounded-lg p-4">
+                      <div key={dayIndex} className="bg-white border border-gray-200 rounded-lg p-4 shadow-sm">
                         <h5 className="text-md font-semibold mb-2 text-gray-900">
                           {new Date(day.date).toLocaleDateString('it-IT', { 
                             weekday: 'long', 
@@ -996,7 +1041,35 @@ export default function ReportsPage() {
               {employee.entries && employee.entries.length > 0 && (
                 <div>
                   <h4 className="text-lg font-semibold mb-3">Riepilogo Turni</h4>
-                  <div className="overflow-x-auto">
+                  <div className="md:hidden space-y-3">
+                    {employee.entries.map((entry: any, idx: number) => (
+                      <div key={idx} className="bg-white border border-gray-200 rounded-lg p-4 space-y-2 text-sm shadow-sm">
+                        <div className="font-semibold text-gray-900">{entry.eventTitle}</div>
+                        <div><span className="text-gray-500">Data:</span> {new Date(entry.date).toLocaleDateString("it-IT")}</div>
+                        <div><span className="text-gray-500">Orari:</span> {entry.startTime && entry.endTime ? `${entry.startTime} - ${entry.endTime}` : "-"}</div>
+                        <div><span className="text-gray-500">Ore:</span> {entry.shifts != null ? formatHours(0) : formatHours(entry.hours)}</div>
+                        <div><span className="text-gray-500">Turni:</span> {entry.shifts != null ? `${entry.shifts} ${Math.abs(entry.shifts - 1) < 0.01 ? "turno" : "turni"}` : "-"}</div>
+                        <div><span className="text-gray-500">Straordinari:</span> {entry.overtimeHours != null ? formatHours(entry.overtimeHours) : "-"}</div>
+                        {entry.notes && (
+                          <div>
+                            <button
+                              onClick={() => { setSelectedNote(entry.notes || null); setShowNotesModal(true); }}
+                              aria-label="Visualizza Note"
+                              className="h-8 px-3 inline-flex items-center justify-center rounded-lg bg-gray-900 text-white hover:bg-gray-800 text-xs"
+                            >
+                              Visualizza Note
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                    <div className="border-t-2 border-gray-200 pt-3 mt-3 space-y-1 text-sm font-semibold">
+                      <div>Totale Ore: {formatHours(displayHours)}</div>
+                      <div>Totale Turni: {employee.totalShifts ?? 0} {(employee.totalShifts ?? 0) === 1 ? "turno" : "turni"}</div>
+                      <div>Totale Straordinari: {formatHours(employee.totalOvertimeHours ?? 0)}</div>
+                    </div>
+                  </div>
+                  <div className="hidden md:block overflow-x-auto mb-6">
                     <table className="min-w-full divide-y divide-gray-200">
                       <thead className="bg-gray-50">
                         <tr>
@@ -1013,7 +1086,7 @@ export default function ReportsPage() {
                         {employee.entries.map((entry: any, idx: number) => (
                           <tr key={idx}>
                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
-                              {new Date(entry.date).toLocaleDateString('it-IT')}
+                              {new Date(entry.date).toLocaleDateString("it-IT")}
                             </td>
                             <td className="px-6 py-4 text-sm text-gray-700">{entry.eventTitle}</td>
                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
@@ -1022,7 +1095,7 @@ export default function ReportsPage() {
                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
                               {entry.shifts != null ? formatHours(0) : formatHours(entry.hours)}
                             </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{entry.shifts != null ? `${entry.shifts} ${Math.abs(entry.shifts - 1) < 0.01 ? 'turno' : 'turni'}` : "-"}</td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{entry.shifts != null ? `${entry.shifts} ${Math.abs(entry.shifts - 1) < 0.01 ? "turno" : "turni"}` : "-"}</td>
                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{entry.overtimeHours != null ? formatHours(entry.overtimeHours) : "-"}</td>
                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
                               {entry.notes ? (
@@ -1051,7 +1124,7 @@ export default function ReportsPage() {
                         <tr>
                           <td colSpan={3} className="px-6 py-3 text-sm font-semibold text-gray-900">Totale</td>
                           <td className="px-6 py-3 whitespace-nowrap text-sm font-semibold text-gray-900">{formatHours(displayHours)}</td>
-                          <td className="px-6 py-3 whitespace-nowrap text-sm font-semibold text-gray-900">{employee.totalShifts ?? 0} {(employee.totalShifts ?? 0) === 1 ? 'turno' : 'turni'}</td>
+                          <td className="px-6 py-3 whitespace-nowrap text-sm font-semibold text-gray-900">{employee.totalShifts ?? 0} {(employee.totalShifts ?? 0) === 1 ? "turno" : "turni"}</td>
                           <td className="px-6 py-3 whitespace-nowrap text-sm font-semibold text-gray-900">{formatHours(employee.totalOvertimeHours ?? 0)}</td>
                           <td className="px-6 py-3"></td>
                         </tr>
@@ -1070,7 +1143,19 @@ export default function ReportsPage() {
   return (
     <DashboardShell>
       <div>
-        <h1 className="text-4xl font-bold mb-6">Reportistica</h1>
+        <div className="flex items-center gap-3 mb-4">
+          <button
+            onClick={() => router.push("/dashboard")}
+            aria-label="Indietro"
+            title="Indietro"
+            className="h-11 w-11 inline-flex items-center justify-center rounded-lg bg-gray-900 text-white hover:bg-gray-800 hover:shadow-lg transition-colors"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7" />
+            </svg>
+          </button>
+          <h1 className="text-4xl font-bold">Reportistica</h1>
+        </div>
 
         {/* Filtri */}
         <div className="bg-white rounded-lg shadow p-6 mb-6">
@@ -1085,6 +1170,14 @@ export default function ReportsPage() {
                 onChange={(e) => {
                   setReportType(e.target.value as ReportType | "");
                   setReportData(null);
+                  setSelectedClientId("");
+                  setSelectedEventId("");
+                  setSelectedEventClientId("");
+                  setEventClients([]);
+                  setSelectedDutyId("");
+                  setSelectedLocationId("");
+                  setSelectedUserId("");
+                  setSelectedCompanyId("");
                 }}
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-500 focus:border-transparent"
               >
@@ -1103,8 +1196,8 @@ export default function ReportsPage() {
 
             {/* Intervallo Date (sempre presente) */}
             <div className="flex flex-wrap items-end gap-4">
-              <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)] md:grid-cols-2 gap-4 min-w-0 flex-1 min-w-[140px]">
-                <div className="min-w-0">
+              <div className="grid grid-cols-2 gap-4 min-w-0 w-full md:contents">
+                <div className="min-w-0 w-full md:w-[150px] md:flex-none">
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Data Inizio *
                   </label>
@@ -1114,7 +1207,7 @@ export default function ReportsPage() {
                     onChange={(e) => setStartDate(e.target.value)}
                   />
                 </div>
-                <div className="min-w-0">
+                <div className="min-w-0 w-full md:w-[150px] md:flex-none">
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Data Fine *
                   </label>
@@ -1130,6 +1223,7 @@ export default function ReportsPage() {
                 onToday={goToCurrentMonth}
                 onNext={goToNextMonth}
                 className="items-end"
+                fullWidthOnMobile
               />
             </div>
 
@@ -1418,7 +1512,7 @@ export default function ReportsPage() {
               <button
                 onClick={generateReport}
                 disabled={loading || !reportType}
-                className="px-6 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800 hover:shadow-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-full md:w-auto px-6 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800 hover:shadow-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {loading ? "Generazione..." : "Genera Report"}
               </button>

@@ -659,7 +659,7 @@ export default function AreasDutiesPage() {
   return (
     <DashboardShell>
       <div>
-        <div className="flex justify-between items-center mb-6">
+        <div className="flex justify-between items-center mb-4">
           <div className="flex items-center gap-3">
             <button
               onClick={() => router.push("/settings")}
@@ -676,7 +676,7 @@ export default function AreasDutiesPage() {
         </div>
 
         {/* Aree Section */}
-        <div className="mb-12">
+        <div className="mb-6">
           <div className="flex justify-between items-center mb-4">
             <h2 className="text-2xl font-semibold">Aree</h2>
             <button
@@ -690,7 +690,31 @@ export default function AreasDutiesPage() {
           {sortedAreas.length === 0 ? (
             <p className="text-gray-600">Nessuna area trovata.</p>
           ) : (
-            <div className="overflow-x-auto">
+            <>
+              {/* Mobile: card Aree stile indisponibilità */}
+              <div className="md:hidden space-y-3">
+                {sortedAreas.map((area) => (
+                  <div key={area.id} className="bg-white rounded-lg border border-gray-200 p-4 shadow-sm">
+                    <div className="space-y-3">
+                      <div className="text-sm font-semibold text-gray-900">{area.name}</div>
+                      <div className="text-sm text-gray-700"><span className="text-gray-500">Codice:</span> {area.code}</div>
+                      <div className="flex items-center justify-between flex-wrap gap-2">
+                        <span className="text-sm text-gray-700"><span className="text-gray-500">Prefisso:</span> {area.prefix || "-"}</span>
+                        <div className="inline-flex gap-2 ml-auto">
+                      <button onClick={() => openEditArea(area)} aria-label="Modifica" title="Modifica" className="h-8 w-8 inline-flex items-center justify-center rounded-lg bg-gray-900 text-white hover:bg-gray-800 transition-colors">
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.232 5.232l3.536 3.536M4 20h4l10.293-10.293a1 1 0 000-1.414l-2.586-2.586a1 1 0 00-1.414 0L4 16v4z" /></svg>
+                      </button>
+                      <button onClick={() => handleAreaDelete(area.id)} aria-label="Elimina" title="Elimina" className="h-8 w-8 inline-flex items-center justify-center rounded-lg bg-red-600 text-white hover:bg-red-700 transition-colors">
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6M9 7h6m-1-2H10l1-1h2l1 1z" /></svg>
+                      </button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              {/* Desktop: tabella Aree */}
+              <div className="hidden md:block overflow-x-auto mb-6">
               <table className="min-w-full divide-y divide-gray-200">
                 <thead className="bg-gray-50">
                   <tr>
@@ -755,6 +779,7 @@ export default function AreasDutiesPage() {
                 </tbody>
               </table>
             </div>
+            </>
           )}
         </div>
 
@@ -770,7 +795,7 @@ export default function AreasDutiesPage() {
             </button>
           </div>
 
-          <div className="mb-4">
+          <div className="bg-white border border-gray-200 rounded-lg p-4 mb-6">
             <label htmlFor="areaFilter" className="block text-sm font-medium text-gray-700 mb-2">
               Filtra per Area:
             </label>
@@ -790,7 +815,31 @@ export default function AreasDutiesPage() {
           {sortedDuties.length === 0 ? (
             <p className="text-gray-600">Nessuna mansione trovata.</p>
           ) : (
-            <div className="overflow-x-auto">
+            <>
+              {/* Mobile: card Mansioni stile indisponibilità */}
+              <div className="md:hidden space-y-3">
+                {sortedDuties.map((duty) => (
+                  <div key={duty.id} className="bg-white rounded-lg border border-gray-200 p-4 shadow-sm">
+                    <div className="space-y-3">
+                      <div className="text-sm font-semibold text-gray-900">{duty.name}</div>
+                      <div className="text-sm text-gray-700"><span className="text-gray-500">Codice:</span> {duty.code}</div>
+                      <div className="flex items-center justify-between flex-wrap gap-2">
+                        <span className="text-sm text-gray-700"><span className="text-gray-500">Area:</span> {duty.area}</span>
+                        <div className="inline-flex gap-2 ml-auto">
+                      <button onClick={() => openEditDuty(duty)} aria-label="Modifica" title="Modifica" className="h-8 w-8 inline-flex items-center justify-center rounded-lg bg-gray-900 text-white hover:bg-gray-800 transition-colors">
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.232 5.232l3.536 3.536M4 20h4l10.293-10.293a1 1 0 000-1.414l-2.586-2.586a1 1 0 00-1.414 0L4 16v4z" /></svg>
+                      </button>
+                      <button onClick={() => handleDutyDelete(duty.id)} aria-label="Elimina" title="Elimina" className="h-8 w-8 inline-flex items-center justify-center rounded-lg bg-red-600 text-white hover:bg-red-700 transition-colors">
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6M9 7h6m-1-2H10l1-1h2l1 1z" /></svg>
+                      </button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              {/* Desktop: tabella Mansioni */}
+              <div className="hidden md:block overflow-x-auto mb-6">
               <table className="min-w-full divide-y divide-gray-200">
                 <thead className="bg-gray-50">
                   <tr>
@@ -844,6 +893,7 @@ export default function AreasDutiesPage() {
                 </tbody>
               </table>
             </div>
+            </>
           )}
         </div>
       </div>

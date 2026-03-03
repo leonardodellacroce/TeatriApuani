@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import Navbar from "@/components/Navbar";
+import DashboardShell from "@/components/DashboardShell";
 import { useSession } from "next-auth/react";
 import AlertDialog from "@/components/AlertDialog";
 import ConfirmDialog from "@/components/ConfirmDialog";
@@ -519,33 +519,96 @@ export default function NotificationsSettingsPage() {
   );
   };
 
-  if (loading) {
+  const renderSystemCard = (n: NotificationSetting, category: "worker" | "admin") => {
+    const info = NOTIFICATION_INFO[n.type];
     return (
-      <div className="min-h-screen bg-white text-gray-900">
-        <Navbar />
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <div className="animate-pulse h-8 bg-gray-200 rounded w-48 mb-6" />
-          <div className="animate-pulse h-64 bg-gray-100 rounded" />
+      <div key={n.type} className="bg-gray-50 rounded-lg border border-gray-100 p-4">
+        <div className="space-y-3">
+          <div className="flex items-start justify-between gap-2">
+            <span className="text-sm font-semibold text-gray-900">{n.label}</span>
+            {info && (
+              <button
+                type="button"
+                onClick={() => setInfoModalType(n.type)}
+                className="shrink-0 p-2 rounded-lg bg-gray-900 text-white hover:bg-gray-800 transition-colors"
+                aria-label="Info"
+                title="Info"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              </button>
+            )}
+          </div>
+          <label className="flex items-center gap-2 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={n.isActive}
+              onChange={(e) => updateSystemLocal(category, n.type, "isActive", e.target.checked)}
+              className="w-4 h-4 rounded border-gray-300"
+            />
+            <span className="text-sm text-gray-700">Attiva</span>
+          </label>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Priorità</label>
+            <select
+              value={n.priority}
+              onChange={(e) => updateSystemLocal(category, n.type, "priority", e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+            >
+              <option value="HIGH">Alta</option>
+              <option value="MEDIUM">Media</option>
+              <option value="LOW">Bassa</option>
+            </select>
+          </div>
+          <label className="flex items-center gap-2 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={n.showInDashboardModal}
+              onChange={(e) => updateSystemLocal(category, n.type, "showInDashboardModal", e.target.checked)}
+              className="w-4 h-4 rounded border-gray-300"
+            />
+            <span className="text-sm text-gray-700">Modal dashboard</span>
+          </label>
+          {n.hasParams && (
+            <button
+              type="button"
+              onClick={() => setParamsModal({ type: n.type, category, label: n.label })}
+              className="w-full px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 border border-gray-300"
+            >
+              Configura parametri
+            </button>
+          )}
         </div>
       </div>
+    );
+  };
+
+  if (loading) {
+    return (
+      <DashboardShell>
+        <div className="animate-pulse h-8 bg-gray-200 rounded w-48 mb-6" />
+        <div className="animate-pulse h-64 bg-gray-100 rounded" />
+      </DashboardShell>
     );
   }
 
   return (
-    <div className="min-h-screen bg-white text-gray-900">
-      <Navbar />
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <a
-          href="/settings"
-          className="inline-flex items-center text-gray-600 hover:text-gray-900 mb-6"
-        >
-          <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7" />
-          </svg>
-          Torna alle Impostazioni
-        </a>
-
-        <h1 className="text-4xl font-bold mb-8">Impostazioni notifiche</h1>
+    <DashboardShell>
+      <div>
+        <div className="flex items-center gap-3 mb-4">
+          <button
+            onClick={() => router.push("/settings")}
+            aria-label="Indietro"
+            title="Indietro"
+            className="h-11 w-11 inline-flex items-center justify-center rounded-lg bg-gray-900 text-white hover:bg-gray-800 hover:shadow-lg transition-colors"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7" />
+            </svg>
+          </button>
+          <h1 className="text-3xl font-bold">Impostazioni notifiche</h1>
+        </div>
 
         <div className="flex gap-2 mb-6 border-b border-gray-200">
           <button
@@ -725,7 +788,12 @@ export default function NotificationsSettingsPage() {
                 <div className="space-y-8">
                   <div>
                     <h2 className="text-xl font-semibold mb-4 pl-4">Notifiche lavoratori</h2>
-                    <div className="border border-gray-200 rounded-lg overflow-hidden">
+                    {/* Mobile: box con card */}
+                    <div className="md:hidden bg-white border border-gray-200 rounded-lg p-4 shadow-sm space-y-3">
+                      {systemWorker.map((n) => renderSystemCard(n, "worker"))}
+                    </div>
+                    {/* Desktop: tabella */}
+                    <div className="hidden md:block border border-gray-200 rounded-lg overflow-hidden">
                       <table className="min-w-full table-fixed">
                         <thead className="bg-gray-50">
                           <tr>
@@ -745,7 +813,12 @@ export default function NotificationsSettingsPage() {
                   </div>
                   <div>
                     <h2 className="text-xl font-semibold mb-4 pl-4">Notifiche amministratori</h2>
-                    <div className="border border-gray-200 rounded-lg overflow-hidden">
+                    {/* Mobile: box con card */}
+                    <div className="md:hidden bg-white border border-gray-200 rounded-lg p-4 shadow-sm space-y-3">
+                      {systemAdmin.map((n) => renderSystemCard(n, "admin"))}
+                    </div>
+                    {/* Desktop: tabella */}
+                    <div className="hidden md:block border border-gray-200 rounded-lg overflow-hidden">
                       <table className="min-w-full table-fixed">
                         <thead className="bg-gray-50">
                           <tr>
@@ -784,12 +857,12 @@ export default function NotificationsSettingsPage() {
                     Dovrà essere cliccato il pulsante che porta all&apos;azione (es. Inserisci, Vai alle indisponibilità) per segnarle come lette.
                     Dopo averle segnate, saranno selezionabili ed eliminabili.
                   </p>
-                  <div className="flex items-center gap-3">
+                  <div className="flex flex-col sm:flex-row gap-3">
                     <button
                       type="button"
                       onClick={handleSaveSystem}
                       disabled={systemSaving || (systemDirty.size === 0 && !requireModalActionDirty)}
-                      className="px-4 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="w-full sm:w-auto px-4 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       {systemSaving ? "Salvataggio..." : "Salva modifiche"}
                     </button>
@@ -797,7 +870,7 @@ export default function NotificationsSettingsPage() {
                       type="button"
                       onClick={() => setResetConfirmOpen(true)}
                       disabled={systemSaving}
-                      className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="w-full sm:w-auto px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       Reset default
                     </button>
@@ -1061,6 +1134,6 @@ export default function NotificationsSettingsPage() {
           />
         )}
       </div>
-    </div>
+    </DashboardShell>
   );
 }

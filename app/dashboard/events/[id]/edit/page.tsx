@@ -450,7 +450,7 @@ export default function EditEventPage() {
   return (
     <DashboardShell>
       <div className="min-w-0 max-w-full overflow-x-hidden">
-        <h1 className="text-3xl font-bold mb-6">{fromConvert ? "Crea evento da ore libere" : "Modifica Evento"}</h1>
+        <h1 className="text-3xl font-bold mb-4">{fromConvert ? "Crea evento da ore libere" : "Modifica Evento"}</h1>
 
         {fromConvert && (
           <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg text-sm text-blue-800 max-w-xl">

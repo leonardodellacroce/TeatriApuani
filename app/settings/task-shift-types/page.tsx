@@ -326,7 +326,7 @@ export default function TaskTypesPage() {
   return (
     <DashboardShell>
       <div>
-        <div className="flex items-center gap-3 mb-8">
+        <div className="flex items-center gap-3 mb-4">
           <button
             onClick={() => router.push("/settings")}
             aria-label="Indietro"
@@ -341,7 +341,7 @@ export default function TaskTypesPage() {
         </div>
 
         {/* Tipologie di Attività */}
-        <div className="mb-12">
+        <div className="mb-6">
           <div className="flex justify-between items-center mb-4">
             <h2 className="text-2xl font-semibold">Tipologie di Attività</h2>
             <button
@@ -355,7 +355,30 @@ export default function TaskTypesPage() {
           {activities.length === 0 ? (
             <p className="text-gray-600">Nessuna tipologia di attività trovata.</p>
           ) : (
-            <div className="overflow-x-auto">
+            <>
+              {/* Mobile: card Attività stile indisponibilità */}
+              <div className="md:hidden space-y-3">
+                {activities.map((taskType) => (
+                  <div key={taskType.id} className="bg-white rounded-lg border border-gray-200 p-4 shadow-sm">
+                    <div className="space-y-3">
+                      <div className="text-sm font-semibold text-gray-900">{taskType.name}</div>
+                      <div className="flex items-center justify-between flex-wrap gap-2">
+                        <span className="text-sm text-gray-700"><span className="text-gray-500">Descrizione:</span> {taskType.description || "-"}</span>
+                        <div className="inline-flex gap-2 ml-auto">
+                      <button onClick={() => openEditTaskType(taskType)} aria-label="Modifica" title="Modifica" className="h-8 w-8 inline-flex items-center justify-center rounded-lg bg-gray-900 text-white hover:bg-gray-800 transition-colors">
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.232 5.232l3.536 3.536M4 20h4l10.293-10.293a1 1 0 000-1.414l-2.586-2.586a1 1 0 00-1.414 0L4 16v4z" /></svg>
+                      </button>
+                      <button onClick={() => handleDelete(taskType.id)} aria-label="Elimina" title="Elimina" className="h-8 w-8 inline-flex items-center justify-center rounded-lg bg-red-600 text-white hover:bg-red-700 transition-colors">
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6M9 7h6m-1-2H10l1-1h2l1 1z" /></svg>
+                      </button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              {/* Desktop: tabella Attività */}
+              <div className="hidden md:block overflow-x-auto mb-6">
               <table className="min-w-full divide-y divide-gray-200">
                 <thead className="bg-gray-50">
                   <tr>
@@ -394,6 +417,7 @@ export default function TaskTypesPage() {
                 </tbody>
               </table>
             </div>
+            </>
           )}
         </div>
 
@@ -410,11 +434,15 @@ export default function TaskTypesPage() {
           </div>
 
           {/* Area Filter */}
-          <div className="mb-4">
+          <div className="bg-white border border-gray-200 rounded-lg p-4 mb-6">
+            <label htmlFor="task-shift-area-filter" className="block text-sm font-medium text-gray-700 mb-2">
+              Filtra per Area
+            </label>
             <select
+              id="task-shift-area-filter"
               value={areaFilter || ""}
               onChange={(e) => setAreaFilter(e.target.value || null)}
-              className="px-4 py-2 h-11 border border-gray-300 rounded-lg text-sm bg-white text-gray-700 hover:border-gray-400 hover:shadow-md hover:bg-gray-50 focus:ring-2 focus:ring-gray-900 focus:border-transparent transition-all duration-200 cursor-pointer"
+              className="px-4 py-2 h-11 border border-gray-300 rounded-lg text-sm text-gray-700 hover:border-gray-400 hover:shadow-md hover:bg-gray-50 focus:ring-2 focus:ring-gray-900 focus:border-transparent transition-all duration-200 cursor-pointer"
             >
               <option value="">Tutte le aree</option>
               {[...areas]
@@ -432,7 +460,45 @@ export default function TaskTypesPage() {
               {areaFilter ? "Nessuna tipologia di turno trovata per l'area selezionata." : "Nessuna tipologia di turno trovata."}
             </p>
           ) : (
-            <div className="overflow-x-auto">
+            <>
+              {/* Mobile: card Turni stile indisponibilità */}
+              <div className="md:hidden space-y-3">
+                {filteredAndSortedShifts.map((taskType) => (
+                  <div key={taskType.id} className="bg-white rounded-lg border border-gray-200 p-4 shadow-sm">
+                    <div className="space-y-3">
+                      <div className="text-sm font-semibold text-gray-900">{taskType.name}</div>
+                      <div className="text-sm text-gray-700"><span className="text-gray-500">Descrizione:</span> {taskType.description || "-"}</div>
+                      <div className="flex items-center gap-2 text-sm text-gray-700">
+                        <span className="text-gray-500">Colore:</span>
+                        {taskType.color ? (
+                          <div className="w-6 h-6 rounded border border-gray-300" style={{ backgroundColor: taskType.color }} />
+                        ) : (
+                          <span className="text-gray-500">-</span>
+                        )}
+                      </div>
+                      <div className="flex items-center justify-between flex-wrap gap-2">
+                        <span className="text-sm text-gray-700"><span className="text-gray-500">Aree:</span> {(() => {
+                        try {
+                          const areaIds: string[] = taskType.areas ? JSON.parse(taskType.areas) : [];
+                          if (!Array.isArray(areaIds) || areaIds.length === 0) return "-";
+                          return areaIds.map(id => areas.find(a => a.id === id)?.name).filter(Boolean).join(", ") || "-";
+                        } catch { return "-"; }
+                      })()}</span>
+                        <div className="inline-flex gap-2 ml-auto">
+                      <button onClick={() => openEditTaskType(taskType)} aria-label="Modifica" title="Modifica" className="h-8 w-8 inline-flex items-center justify-center rounded-lg bg-gray-900 text-white hover:bg-gray-800 transition-colors">
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.232 5.232l3.536 3.536M4 20h4l10.293-10.293a1 1 0 000-1.414l-2.586-2.586a1 1 0 00-1.414 0L4 16v4z" /></svg>
+                      </button>
+                      <button onClick={() => handleDelete(taskType.id)} aria-label="Elimina" title="Elimina" className="h-8 w-8 inline-flex items-center justify-center rounded-lg bg-red-600 text-white hover:bg-red-700 transition-colors">
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6M9 7h6m-1-2H10l1-1h2l1 1z" /></svg>
+                      </button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              {/* Desktop: tabella Turni */}
+              <div className="hidden md:block overflow-x-auto mb-6">
               <table className="min-w-full divide-y divide-gray-200">
                 <thead className="bg-gray-50">
                   <tr>
@@ -531,6 +597,7 @@ export default function TaskTypesPage() {
                 </tbody>
               </table>
             </div>
+            </>
           )}
         </div>
       </div>

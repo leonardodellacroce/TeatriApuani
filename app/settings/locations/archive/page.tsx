@@ -139,7 +139,7 @@ export default function LocationsArchivePage() {
   return (
     <DashboardShell>
       <div>
-        <div className="flex justify-between items-center mb-6">
+        <div className="flex justify-between items-center mb-4">
           <div className="flex items-center gap-3">
             <button
               onClick={() => router.push("/settings/locations")}
@@ -160,7 +160,33 @@ export default function LocationsArchivePage() {
             <p className="text-gray-500">Nessuna location archiviata</p>
           </div>
         ) : (
-          <div className="bg-white rounded-lg shadow overflow-x-auto">
+          <>
+            {/* Mobile: card stile indisponibilità */}
+            <div className="md:hidden space-y-3">
+              {sortedLocations.map((location) => (
+                <div key={location.id} className="bg-white rounded-lg border border-gray-200 p-4 shadow-sm">
+                  <div className="space-y-3">
+                    <div className="text-sm font-semibold text-gray-900">{location.name}</div>
+                    <div className="flex items-center justify-between flex-wrap gap-2">
+                      <span className="text-sm text-gray-700"><span className="text-gray-500">Codice:</span> {location.code}</span>
+                      <div className="inline-flex gap-2 ml-auto">
+                    <button onClick={() => router.push(`/settings/locations/${location.id}/view`)} aria-label="Visualizza" title="Visualizza" className="h-8 w-8 inline-flex items-center justify-center rounded-lg bg-gray-900 text-white hover:bg-gray-800 transition-colors">
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
+                    </button>
+                    <button onClick={() => handleArchive(location.id)} aria-label="Riattiva" title="Riattiva" className="h-8 w-8 inline-flex items-center justify-center rounded-lg bg-gray-900 text-white hover:bg-gray-800 transition-colors">
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
+                    </button>
+                    <button onClick={() => handleDelete(location.id)} aria-label="Elimina" title="Elimina" className="h-8 w-8 inline-flex items-center justify-center rounded-lg bg-red-600 text-white hover:bg-red-700 transition-colors">
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6M9 7h6m-1-2H10l1-1h2l1 1z" /></svg>
+                    </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+            {/* Desktop: tabella */}
+            <div className="hidden md:block bg-white rounded-lg shadow overflow-x-auto mb-6">
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
                 <tr>
@@ -209,7 +235,7 @@ export default function LocationsArchivePage() {
                         onClick={() => router.push(`/settings/locations/${location.id}/view`)}
                         aria-label="Visualizza"
                         title="Visualizza"
-                        className="h-8 w-8 inline-flex items-center justify-center rounded-lg bg-green-600 text-white hover:bg-green-700 hover:shadow-lg transition-colors mr-2"
+                        className="h-8 w-8 inline-flex items-center justify-center rounded-lg bg-gray-900 text-white hover:bg-gray-800 hover:shadow-lg transition-colors mr-2"
                       >
                         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
@@ -220,7 +246,7 @@ export default function LocationsArchivePage() {
                         onClick={() => handleArchive(location.id)}
                         aria-label="Riattiva"
                         title="Riattiva"
-                        className="h-8 w-8 inline-flex items-center justify-center rounded-lg bg-orange-600 text-white hover:bg-orange-700 hover:shadow-lg transition-colors mr-2"
+                        className="h-8 w-8 inline-flex items-center justify-center rounded-lg bg-gray-900 text-white hover:bg-gray-800 hover:shadow-lg transition-colors mr-2"
                       >
                         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
@@ -242,6 +268,7 @@ export default function LocationsArchivePage() {
               </tbody>
             </table>
           </div>
+          </>
         )}
 
         <ConfirmDialog

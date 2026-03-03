@@ -397,12 +397,62 @@ export default function FreeHoursPage() {
           </button>
           <h1 className="text-3xl font-bold">Ore Libere</h1>
         </div>
-        <p className="text-gray-600 mb-6">
-          Inserisci ore lavorate non associate a un evento. Gli amministratori riceveranno una notifica e potranno convertirle in un evento.
-        </p>
 
         <div className="bg-white rounded-lg border border-gray-200 p-4 mb-6">
-          <div className="flex flex-wrap items-end gap-4">
+          {/* Mobile: date affiancate a tutta larghezza, nav + tasto sulla stessa riga */}
+          <div className="md:hidden flex flex-col gap-4">
+            <div className="grid grid-cols-2 gap-4 w-full min-w-0">
+              <div className="min-w-0">
+                <label className="block text-sm font-medium text-gray-700 mb-1">Data Inizio</label>
+                <DateInput
+                  name="startDate"
+                  value={startDate}
+                  onChange={(e) => setStartDate(e.target.value)}
+                />
+              </div>
+              <div className="min-w-0">
+                <label className="block text-sm font-medium text-gray-700 mb-1">Data Fine</label>
+                <DateInput
+                  name="endDate"
+                  value={endDate}
+                  onChange={(e) => setEndDate(e.target.value)}
+                />
+              </div>
+            </div>
+            <div className="flex items-center gap-2 flex-wrap">
+              <DateNavButtons
+                onPrev={handlePrevMonth}
+                onToday={handleCurrentMonth}
+                onNext={handleNextMonth}
+                className="items-center"
+              />
+              <button
+                type="button"
+                onClick={() => {
+                  setEntryToEdit(null);
+                  setFormData({
+                    date: toISODate(new Date()),
+                    areaId: "",
+                    locationId: "",
+                    startTime: "",
+                    endTime: "",
+                    taskTypeId: "",
+                    dutyId: "",
+                    actualBreaks: [],
+                    notes: "",
+                  });
+                  setError("");
+                  setShowForm(true);
+                }}
+                className="px-4 py-2 h-11 bg-gray-900 text-white rounded-lg hover:bg-gray-800 text-sm font-medium shrink-0"
+              >
+                Inserisci ore libere
+              </button>
+            </div>
+          </div>
+
+          {/* Desktop: layout originale */}
+          <div className="hidden md:flex flex-wrap items-end gap-4">
             <div className="min-w-[240px] overflow-hidden">
               <label className="block text-sm font-medium text-gray-700 mb-1">Data Inizio</label>
               <DateInput
@@ -446,7 +496,7 @@ export default function FreeHoursPage() {
                 }}
                 className="px-4 py-2 h-11 bg-gray-900 text-white rounded-lg hover:bg-gray-800 text-sm font-medium"
               >
-                + Inserisci ore libere
+                Inserisci ore libere
               </button>
             </div>
           </div>
@@ -463,7 +513,65 @@ export default function FreeHoursPage() {
               Nessuna ora libera nel periodo selezionato. Clicca &quot;Inserisci ore libere&quot; per aggiungerne.
             </div>
           ) : (
-            <div className="overflow-x-auto">
+            <>
+            {/* Mobile: card per ore in attesa */}
+            <div className="md:hidden space-y-2 p-4">
+              {entries.map((e) => (
+                <div key={e.id} className="bg-white rounded-lg border border-gray-200 p-3 shadow-sm">
+                  <div className="space-y-1.5 text-sm text-gray-700">
+                    <div className="flex items-center justify-between gap-2">
+                      <span><span className="text-gray-500">Data:</span> {new Date(e.date).toLocaleDateString("it-IT")}</span>
+                      <span className="text-right shrink-0"><span className="text-gray-500">Orario:</span> {e.startTime} - {e.endTime}</span>
+                    </div>
+                    <div>
+                      <span className="text-gray-500">Location:</span> {e.location?.name || "-"}
+                    </div>
+                    <div>
+                      <span className="text-gray-500">Tipo / Mansione:</span> {e.taskType?.name || "-"}
+                      {e.duty?.name && <span className="block text-xs text-gray-400">{e.duty.name}</span>}
+                    </div>
+                    <div className="flex items-center justify-between gap-2">
+                      <span><span className="text-gray-500">Ore lavorate:</span> <span className="font-medium text-gray-900">{formatHours(e.hoursWorked)}</span></span>
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        {e.notes ? (
+                          <button
+                            onClick={() => { setSelectedNote(e.notes || null); setShowNotesModal(true); }}
+                            aria-label="Visualizza Note"
+                            className="h-8 w-8 inline-flex items-center justify-center rounded-lg bg-gray-900 text-white hover:bg-gray-800"
+                          >
+                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.477 0 8.268 2.943 9.542 7-1.274 4.057-5.065 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                            </svg>
+                          </button>
+                        ) : null}
+                        <button
+                          onClick={() => openEdit(e)}
+                          aria-label="Modifica"
+                          className="h-8 w-8 inline-flex items-center justify-center rounded-lg bg-gray-900 text-white hover:bg-gray-800"
+                        >
+                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.232 5.232l3.536 3.536M4 20h4l10.293-10.293a1 1 0 000-1.414l-2.586-2.586a1 1 0 00-1.414 0L4 16v4z" />
+                          </svg>
+                        </button>
+                        <button
+                          onClick={() => { setEntryToDelete(e.id); setShowDeleteDialog(true); }}
+                          aria-label="Elimina"
+                          className="h-8 w-8 inline-flex items-center justify-center rounded-lg bg-red-600 text-white hover:bg-red-700"
+                        >
+                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6M9 7h6m-1-2H10l1-1h2l1 1z" />
+                          </svg>
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Desktop: tabella */}
+            <div className="hidden md:block overflow-x-auto mb-6">
               <table className="min-w-full divide-y divide-gray-200">
                 <thead className="bg-gray-50">
                   <tr>
@@ -547,6 +655,7 @@ export default function FreeHoursPage() {
                 </tbody>
               </table>
             </div>
+            </>
           )}
         </div>
 

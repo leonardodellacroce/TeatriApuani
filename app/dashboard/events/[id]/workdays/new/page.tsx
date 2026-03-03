@@ -295,7 +295,7 @@ export default function NewWorkdayPage() {
   return (
     <DashboardShell>
       <div className="min-w-0 max-w-full overflow-x-hidden">
-        <h1 className="text-3xl font-bold mb-6">Nuove Giornate di Lavoro</h1>
+        <h1 className="text-3xl font-bold mb-4">Nuove Giornate di Lavoro</h1>
 
         <div className="bg-white rounded-lg shadow p-4 md:p-6 border border-gray-200 mb-6 max-w-2xl w-full min-w-0 overflow-hidden">
         <form onSubmit={handleSubmit} className="space-y-4 min-w-0 w-full">

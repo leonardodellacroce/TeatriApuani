@@ -263,8 +263,20 @@ export default function AdminNotificationsPage() {
   return (
     <DashboardShell>
       <div>
-        <div className="flex flex-wrap items-center justify-between gap-4 mb-2">
-          <h1 className="text-3xl font-bold">Notifiche Amministratori</h1>
+        <div className="flex flex-wrap items-center justify-between gap-4 mb-4">
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => router.push("/dashboard")}
+              aria-label="Indietro"
+              title="Indietro"
+              className="h-11 w-11 inline-flex items-center justify-center rounded-lg bg-gray-900 text-white hover:bg-gray-800 hover:shadow-lg transition-colors"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7" />
+              </svg>
+            </button>
+            <h1 className="text-3xl font-bold">Notifiche Amministratori</h1>
+          </div>
           {notifications.length > 0 && (
             <div className="flex items-center gap-3">
               <button
@@ -286,9 +298,6 @@ export default function AdminNotificationsPage() {
             </div>
           )}
         </div>
-        <p className="text-gray-600 mb-6">
-          Notifiche di sistema per Amministratori. Ultimi 7 giorni.
-        </p>
 
         {notifications.length === 0 ? (
           <div className="p-8 text-center text-gray-500 rounded-xl border border-gray-200 bg-gray-50">

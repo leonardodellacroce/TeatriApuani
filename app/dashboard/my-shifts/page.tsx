@@ -147,6 +147,7 @@ export default function MyShiftsPage() {
   });
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [entryToDelete, setEntryToDelete] = useState<string | null>(null);
+  const [onlyMissingHours, setOnlyMissingHours] = useState(false);
 
   const calculateHours = (start: string, end: string, breaks: Array<{ start: string; end: string }>): number => {
     if (!start || !end) return 0;
@@ -380,6 +381,22 @@ export default function MyShiftsPage() {
       .sort(compareGroupDateDesc);
   }, [groups, todayKey, compareGroupDateDesc]);
 
+  const filterGroupsMissingHours = useMemo(() => {
+    return (groups: Group[]) => {
+      if (!onlyMissingHours) return groups;
+      return groups
+        .map((g) => ({
+          ...g,
+          items: g.items.filter((s) => !s.timeEntry && !isShiftFuture(s.workday.date)),
+        }))
+        .filter((g) => g.items.length > 0);
+    };
+  }, [onlyMissingHours]);
+
+  const filteredTodayGroups = useMemo(() => filterGroupsMissingHours(todayGroups), [todayGroups, filterGroupsMissingHours]);
+  const filteredFutureGroups = useMemo(() => filterGroupsMissingHours(futureGroups), [futureGroups, filterGroupsMissingHours]);
+  const filteredPastGroups = useMemo(() => filterGroupsMissingHours(pastGroups), [pastGroups, filterGroupsMissingHours]);
+
   const handlePrevMonth = () => {
     // Parse startDate manually to avoid timezone issues
     const [yearStr, monthStr] = startDate.split('-');
@@ -422,7 +439,114 @@ export default function MyShiftsPage() {
         ) : tableGroups.length === 0 ? (
           <div className="p-8 text-center text-gray-500">{emptyText}</div>
         ) : (
-          <div className="overflow-x-auto">
+          <>
+          {/* Mobile: card per gruppo (ispirate a Giornate di Lavoro) */}
+          <div className="md:hidden space-y-3 p-4">
+            {tableGroups.map((group) => {
+              const dateStr = new Date(group.date).toLocaleDateString("it-IT", { weekday: "long", day: "numeric", month: "short", year: "numeric" });
+              return (
+                <div
+                  key={`${title}-${group.date}-${group.event.id}-${group.location?.id || "no-location"}`}
+                  className="bg-white rounded-lg border border-gray-200 p-4 shadow-sm"
+                >
+                  <div className="space-y-3">
+                    <div>
+                      <div className="font-medium text-gray-900 capitalize">{dateStr}</div>
+                      <div className="text-sm font-semibold text-gray-800 mt-0.5">{group.event.title}</div>
+                      <div className="text-sm text-gray-500">{group.location?.name || "-"}</div>
+                    </div>
+                    {group.items.map((s) => {
+                      const breaks = (() => {
+                        const actual = parseBreaks((s.timeEntry as any)?.actualBreaks, s.timeEntry?.actualBreakStartTime, s.timeEntry?.actualBreakEndTime);
+                        const scheduled = parseBreaks((s as any).scheduledBreaks, s.scheduledBreakStartTime, s.scheduledBreakEndTime);
+                        return actual.length > 0 ? actual : scheduled;
+                      })();
+                      return (
+                        <div key={s.id} className="border-t border-gray-100 pt-3 first:border-t-0 first:pt-0">
+                          <div className="text-sm text-gray-600">
+                            <span className="font-medium text-gray-700">{s.taskType.name}</span>
+                            {s.area && ` - ${s.area}`}
+                            {s.dutyName && <span className="block text-xs text-gray-400 mt-0.5">{s.dutyName}</span>}
+                          </div>
+                          <div className="text-sm text-gray-600 mt-1">
+                            <span className="text-gray-500">Orari:</span> {s.startTime && s.endTime ? `${s.startTime} - ${s.endTime}` : "-"}
+                            {breaks.length > 0 && (
+                              <div className="text-xs text-gray-400 mt-0.5">
+                                {breaks.map((b, i) => (
+                                  <span key={i}>Pausa {b.start}-{b.end} </span>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                          <div className="flex items-center justify-between mt-2 flex-wrap gap-2">
+                            <div className="text-sm">
+                              {s.timeEntry ? (
+                                <span className="font-medium text-gray-900">{formatHours(s.timeEntry.hoursWorked)}</span>
+                              ) : isShiftFuture(s.workday.date) ? (
+                                <span className="text-gray-500">Non inseribili</span>
+                              ) : (
+                                <span className="text-red-600 font-medium">Ore non inserite</span>
+                              )}
+                            </div>
+                            <div className="flex items-center gap-2">
+                              {s.timeEntry?.notes && (
+                                <button
+                                  onClick={() => { setSelectedNote(s.timeEntry!.notes || null); setShowNotesModal(true); }}
+                                  aria-label="Note"
+                                  className="h-8 w-8 inline-flex items-center justify-center rounded-lg bg-gray-900 text-white hover:bg-gray-800"
+                                >
+                                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.477 0 8.268 2.943 9.542 7-1.274 4.057-5.065 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                                  </svg>
+                                </button>
+                              )}
+                              {s.note && (
+                                <button
+                                  onClick={() => { setSelectedNote(s.note || null); setShowNotesModal(true); }}
+                                  className="text-xs text-gray-500 hover:text-gray-700 underline"
+                                >
+                                  Note turno
+                                </button>
+                              )}
+                              <button
+                                onClick={() => !isShiftFuture(s.workday.date) && handleOpenHoursModal(s, s.timeEntry)}
+                                disabled={isShiftFuture(s.workday.date)}
+                                aria-label={s.timeEntry ? "Modifica" : "Inserisci"}
+                                className="h-8 w-8 inline-flex items-center justify-center rounded-lg bg-gray-900 text-white hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed"
+                              >
+                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  {s.timeEntry ? (
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.232 5.232l3.536 3.536M4 20h4l10.293-10.293a1 1 0 000-1.414l-2.586-2.586a1 1 0 00-1.414 0L4 16v4z" />
+                                  ) : (
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4" />
+                                  )}
+                                </svg>
+                              </button>
+                              {s.timeEntry && !isShiftFuture(s.workday.date) && (
+                                <button
+                                  onClick={() => handleDeleteClick(s.timeEntry!.id)}
+                                  aria-label="Elimina"
+                                  className="h-8 w-8 inline-flex items-center justify-center rounded-lg bg-red-600 text-white hover:bg-red-700"
+                                >
+                                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6M9 7h6m-1-2H10l1-1h2l1 1z" />
+                                  </svg>
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Desktop: tabella */}
+          <div className="hidden md:block overflow-x-auto mb-6">
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
                 <tr>
@@ -595,6 +719,7 @@ export default function MyShiftsPage() {
               </tbody>
             </table>
           </div>
+          </>
         )}
       </div>
     );
@@ -603,48 +728,118 @@ export default function MyShiftsPage() {
   return (
     <DashboardShell>
       <div>
-        <h1 className="text-3xl font-bold mb-2">I Miei Turni</h1>
+        <div className="flex items-center gap-3 mb-4">
+          <button
+            onClick={() => router.push("/dashboard")}
+            aria-label="Indietro"
+            title="Indietro"
+            className="h-11 w-11 inline-flex items-center justify-center rounded-lg bg-gray-900 text-white hover:bg-gray-800 hover:shadow-lg transition-colors"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7" />
+            </svg>
+          </button>
+          <h1 className="text-3xl font-bold">I Miei Turni</h1>
+        </div>
 
         {/* Filtri */}
         <div className="bg-white rounded-lg border border-gray-200 p-4 mb-6">
-          <div className="flex flex-wrap items-end gap-4">
-            <div className="min-w-[240px]">
-              <label className="block text-sm font-medium text-gray-700 mb-1">Data Inizio</label>
-              <DateInput
-                name="startDate"
-                value={startDate}
-                onChange={(e) => setStartDate(e.target.value)}
-              />
+          <div className="flex flex-col gap-4 md:flex-row md:flex-wrap md:items-end md:gap-4">
+            {/* Mobile: nav sx, Ore libere dx, poi campi data, poi checkbox */}
+            <div className="flex flex-col gap-3 w-full md:hidden">
+              <div className="flex justify-between items-center w-full gap-4">
+                <DateNavButtons
+                  onPrev={handlePrevMonth}
+                  onToday={handleCurrentMonth}
+                  onNext={handleNextMonth}
+                  className="items-end"
+                />
+                <Link
+                  href="/dashboard/my-shifts/free-hours"
+                  className="inline-flex items-center justify-center px-4 h-11 bg-gray-900 text-white rounded-lg text-sm font-medium hover:bg-gray-800 transition-all duration-200 shrink-0"
+                >
+                  Ore libere
+                </Link>
+              </div>
+              <div className="grid grid-cols-2 gap-4 min-w-0 w-full">
+                <div className="min-w-0">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Data Inizio</label>
+                  <DateInput
+                    name="startDate"
+                    value={startDate}
+                    onChange={(e) => setStartDate(e.target.value)}
+                  />
+                </div>
+                <div className="min-w-0">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Data Fine</label>
+                  <DateInput
+                    name="endDate"
+                    value={endDate}
+                    onChange={(e) => setEndDate(e.target.value)}
+                  />
+                </div>
+              </div>
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={onlyMissingHours}
+                  onChange={(e) => setOnlyMissingHours(e.target.checked)}
+                  className="w-4 h-4 text-gray-900 border-gray-300 rounded focus:ring-gray-500"
+                />
+                <span className="text-sm font-medium text-gray-700">Mostra solo turni con ore da inserire</span>
+              </label>
             </div>
-            <div className="min-w-[240px]">
-              <label className="block text-sm font-medium text-gray-700 mb-1">Data Fine</label>
-              <DateInput
-                name="endDate"
-                value={endDate}
-                onChange={(e) => setEndDate(e.target.value)}
-              />
-            </div>
-            <DateNavButtons
-              onPrev={handlePrevMonth}
-              onToday={handleCurrentMonth}
-              onNext={handleNextMonth}
-              className="items-end"
-            />
-            <div className="ml-auto">
-              <Link
-                href="/dashboard/my-shifts/free-hours"
-                className="inline-flex items-center justify-center px-4 h-11 bg-gray-900 text-white rounded-lg text-sm font-medium hover:bg-gray-800 transition-all duration-200"
-              >
-                Ore libere
-              </Link>
+            {/* Desktop: layout originale */}
+            <div className="hidden md:contents">
+              <div className="min-w-[240px]">
+                <label className="block text-sm font-medium text-gray-700 mb-1">Data Inizio</label>
+                <DateInput
+                  name="startDate"
+                  value={startDate}
+                  onChange={(e) => setStartDate(e.target.value)}
+                />
+              </div>
+              <div className="min-w-[240px]">
+                <label className="block text-sm font-medium text-gray-700 mb-1">Data Fine</label>
+                <DateInput
+                  name="endDate"
+                  value={endDate}
+                  onChange={(e) => setEndDate(e.target.value)}
+                />
+              </div>
+              <div className="flex items-end gap-3">
+                <DateNavButtons
+                  onPrev={handlePrevMonth}
+                  onToday={handleCurrentMonth}
+                  onNext={handleNextMonth}
+                  className="items-end"
+                />
+                <label className="flex items-center gap-2 cursor-pointer h-11">
+                  <input
+                    type="checkbox"
+                    checked={onlyMissingHours}
+                    onChange={(e) => setOnlyMissingHours(e.target.checked)}
+                    className="w-4 h-4 text-gray-900 border-gray-300 rounded focus:ring-gray-500"
+                  />
+                  <span className="text-sm font-medium text-gray-700 whitespace-nowrap">Mostra solo turni con ore da inserire</span>
+                </label>
+              </div>
+              <div className="ml-auto">
+                <Link
+                  href="/dashboard/my-shifts/free-hours"
+                  className="inline-flex items-center justify-center px-4 h-11 bg-gray-900 text-white rounded-lg text-sm font-medium hover:bg-gray-800 transition-all duration-200"
+                >
+                  Ore libere
+                </Link>
+              </div>
             </div>
           </div>
         </div>
 
         <div className="space-y-6">
-          {renderTable("Turni di Oggi", todayGroups, "Nessun turno previsto per oggi")}
-          {renderTable("Turni Futuri", futureGroups, "Nessun turno futuro nel periodo selezionato")}
-          {renderTable("Turni Passati", pastGroups, "Nessun turno passato nel periodo selezionato")}
+          {renderTable("Turni di Oggi", filteredTodayGroups, "Nessun turno previsto per oggi")}
+          {!onlyMissingHours && renderTable("Turni Futuri", filteredFutureGroups, "Nessun turno futuro nel periodo selezionato")}
+          {renderTable("Turni Passati", filteredPastGroups, "Nessun turno passato nel periodo selezionato")}
         </div>
 
         {/* Modal Note */}
