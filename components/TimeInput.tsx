@@ -44,10 +44,10 @@ export default function TimeInput({
 
   return (
     <div className="relative w-full min-w-0 overflow-hidden rounded-lg focus-within:ring-2 focus-within:ring-inset focus-within:ring-gray-900">
-      <label
-        htmlFor={id}
-        className={`block w-full min-w-0 px-3 h-11 border border-gray-300 rounded-lg text-sm flex items-center justify-between cursor-pointer bg-white hover:border-gray-400 text-left ${className} ${
-          disabled ? "opacity-50 cursor-not-allowed bg-gray-50 pointer-events-none" : ""
+      {/* Display sempre visibile (sotto l'input) */}
+      <div
+        className={`flex items-center justify-between w-full min-w-0 px-3 h-11 border border-gray-300 rounded-lg text-sm cursor-pointer bg-white hover:border-gray-400 text-left ${className} ${
+          disabled ? "opacity-50 cursor-not-allowed bg-gray-50" : ""
         }`}
       >
         <span className={showPlaceholder ? "text-gray-500" : "text-gray-900"}>
@@ -69,7 +69,8 @@ export default function TimeInput({
           <circle cx="12" cy="12" r="10" />
           <polyline points="12 6 12 12 16 14" />
         </svg>
-      </label>
+      </div>
+      {/* Input overlay: riceve tap, apre picker, non mostra display nativo (opacity-0) */}
       <input
         ref={inputRef}
         type="time"
@@ -81,9 +82,9 @@ export default function TimeInput({
         id={id}
         required={required}
         disabled={disabled}
-        className="absolute w-px h-px p-0 -m-px overflow-hidden whitespace-nowrap border-0 [clip:rect(0,0,0,0)] pointer-events-none opacity-0"
-        aria-hidden
-        tabIndex={-1}
+        className={`absolute inset-0 w-full h-full opacity-0 cursor-pointer ${disabled ? "pointer-events-none" : ""}`}
+        aria-label={placeholder}
+        tabIndex={disabled ? -1 : 0}
       />
     </div>
   );
