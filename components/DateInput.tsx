@@ -95,7 +95,7 @@ export default function DateInput({
         disabled={disabled}
         min={min}
         max={max}
-        className="absolute w-px h-px p-0 -m-px overflow-hidden whitespace-nowrap border-0 [clip:rect(0,0,0,0)]"
+        className="absolute w-px h-px p-0 -m-px overflow-hidden whitespace-nowrap border-0 [clip:rect(0,0,0,0)] pointer-events-none"
         aria-hidden
         tabIndex={-1}
       />

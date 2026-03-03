@@ -326,7 +326,7 @@ export default function NewEventPage() {
           </div>
 
           {/* Mobile: stessi blocchi di Titolo/Location/Note. Desktop: grid affiancato */}
-          <div className="block md:grid md:grid-cols-2 md:gap-4 min-w-0 w-full space-y-4 md:space-y-0">
+          <div className="grid grid-cols-2 gap-4 min-w-0 w-full">
             <div className="min-w-0 w-full">
               <label htmlFor="startDate" className="block text-sm font-medium text-gray-700 mb-1">
                 Data Inizio *
