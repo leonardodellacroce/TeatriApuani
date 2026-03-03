@@ -37,7 +37,7 @@ export default function TimeInput({
   const displayValue = value || "";
   const showPlaceholder = !value;
 
-  const handleFocus = () => {
+  const handleClick = () => {
     if (disabled) return;
     // Se vuoto, imposta HH:00 come suggerimento (evita ora attuale tipo 18:18)
     if (!value && onChange) {
@@ -46,11 +46,9 @@ export default function TimeInput({
       const suggested = `${h}:00`;
       const syntheticEvent = { target: { value: suggested } } as React.ChangeEvent<HTMLInputElement>;
       onChange(syntheticEvent);
-      // Ritarda showPicker per permettere al parent di aggiornare il valore
-      setTimeout(() => inputRef.current?.showPicker?.(), 0);
-    } else {
-      inputRef.current?.showPicker?.();
     }
+    // showPicker richiede un gesto utente: usare onClick invece di onFocus
+    inputRef.current?.showPicker?.();
   };
 
   return (
@@ -87,7 +85,7 @@ export default function TimeInput({
         type="time"
         value={value}
         onChange={onChange}
-        onFocus={handleFocus}
+        onClick={handleClick}
         onBlur={onBlur}
         name={name}
         id={id}

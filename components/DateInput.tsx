@@ -49,7 +49,7 @@ export default function DateInput({
       })()
     : "";
 
-  const handleFocus = () => {
+  const handleClick = () => {
     if (disabled) return;
     inputRef.current?.showPicker?.();
   };
@@ -77,7 +77,12 @@ export default function DateInput({
           strokeLinejoin="round"
           className="text-gray-400 flex-shrink-0 ml-2"
           aria-hidden
-        />
+        >
+          <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+          <line x1="16" y1="2" x2="16" y2="6" />
+          <line x1="8" y1="2" x2="8" y2="6" />
+          <line x1="3" y1="10" x2="21" y2="10" />
+        </svg>
       </div>
       {/* Input overlay: riceve tap, apre picker, non mostra display nativo (opacity-0) */}
       <input
@@ -85,7 +90,7 @@ export default function DateInput({
         type="date"
         value={value}
         onChange={onChange}
-        onFocus={handleFocus}
+        onClick={handleClick}
         name={name}
         id={id}
         required={required}
