@@ -10,12 +10,24 @@ export async function GET(req: NextRequest) {
   try {
     const cronSecret = process.env.CRON_SECRET?.trim();
     const authHeader = req.headers.get("authorization");
-    const secretParam = req.nextUrl.searchParams.get("secret")?.trim();
+    const url = new URL(req.url);
+    const secretParam = url.searchParams.get("secret")?.trim();
     const valid =
       cronSecret &&
       (authHeader === `Bearer ${cronSecret}` || secretParam === cronSecret);
     if (!valid) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      return NextResponse.json(
+        {
+          error: "Unauthorized",
+          debug: {
+            hasCronSecret: !!cronSecret,
+            hasAuthHeader: !!authHeader,
+            hasSecretParam: !!secretParam,
+            secretParamLength: secretParam?.length ?? 0,
+          },
+        },
+        { status: 401 }
+      );
     }
 
     const missingSetting = await getNotificationTypeSetting("MISSING_HOURS_REMINDER");
