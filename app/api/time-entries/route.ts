@@ -3,6 +3,7 @@ import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { getWorkModeFromRequest } from "@/lib/workMode";
 import { notifyWorkerHours, buildShiftDetailForNotification } from "@/lib/notifications";
+import { markMissingHoursNotificationsAsReadIfResolved } from "@/lib/missingHoursNotification";
 
 // GET /api/time-entries - Lista time entries dell'utente autenticato
 // Solo utenti standard o abilitati come lavoratori (in modalità lavoratore se non-standard)
@@ -337,6 +338,7 @@ export async function POST(req: NextRequest) {
         const { detail, dateFrom } = buildShiftDetailForNotification(assignment as any);
         await notifyWorkerHours(userId, "MODIFIED", 1, detail, { dateFrom, dateTo: dateFrom }, `ore:${assignmentId}:${userId}`);
       }
+      await markMissingHoursNotificationsAsReadIfResolved(userId);
       return NextResponse.json(timeEntry, { status: 200 });
     }
 
@@ -425,6 +427,7 @@ export async function POST(req: NextRequest) {
       },
     });
 
+    await markMissingHoursNotificationsAsReadIfResolved(userId);
     return NextResponse.json(timeEntry, { status: 201 });
   } catch (error: any) {
     console.error("Error creating time entry:", error);

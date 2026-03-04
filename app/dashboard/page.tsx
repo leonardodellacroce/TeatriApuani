@@ -269,10 +269,14 @@ export default function Dashboard() {
   const handleWorkerModalAction = async () => {
     if (!workerModalNotification) return;
     const n = workerModalNotification;
-    try {
-      await fetch(`/api/notifications/${n.id}`, { method: "PATCH" });
-      window.dispatchEvent(new Event("notificationsUpdated"));
-    } catch {}
+    // MISSING_HOURS_REMINDER: non marcare come lette al click - solo quando le ore sono effettivamente inserite
+    const shouldMarkRead = n.type !== "MISSING_HOURS_REMINDER";
+    if (shouldMarkRead) {
+      try {
+        await fetch(`/api/notifications/${n.id}`, { method: "PATCH" });
+        window.dispatchEvent(new Event("notificationsUpdated"));
+      } catch {}
+    }
     setWorkerModalNotification(null);
     if (WORKER_DELETE_TYPES.includes(n.type)) {
       return;

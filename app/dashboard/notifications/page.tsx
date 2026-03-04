@@ -193,18 +193,22 @@ export default function NotificationsPage() {
           ? buildMyShiftsUrlForMissingHoursGroup(item.group)
           : buildMyShiftsUrlWithDates(n.message, n.metadata)
         : "/dashboard/my-shifts";
-    try {
-      await Promise.all(ids.map((id) => fetch(`/api/notifications/${id}`, { method: "PATCH" })));
-      setNotifications((prev) =>
-        prev.map((x) => (ids.includes(x.id) ? { ...x, read: true } : x))
-      );
-      setSelectedIds((prev) => {
-        const next = new Set(prev);
-        ids.forEach((id) => next.delete(id));
-        return next;
-      });
-      window.dispatchEvent(new Event("notificationsUpdated"));
-    } catch {}
+    // MISSING_HOURS_REMINDER: non marcare come lette al click - solo quando le ore sono effettivamente inserite
+    const shouldMarkRead = n.type !== "MISSING_HOURS_REMINDER";
+    if (shouldMarkRead) {
+      try {
+        await Promise.all(ids.map((id) => fetch(`/api/notifications/${id}`, { method: "PATCH" })));
+        setNotifications((prev) =>
+          prev.map((x) => (ids.includes(x.id) ? { ...x, read: true } : x))
+        );
+        setSelectedIds((prev) => {
+          const next = new Set(prev);
+          ids.forEach((id) => next.delete(id));
+          return next;
+        });
+        window.dispatchEvent(new Event("notificationsUpdated"));
+      } catch {}
+    }
     router.push(url);
   };
 

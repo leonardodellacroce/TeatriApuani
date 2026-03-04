@@ -3,6 +3,7 @@ import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { getWorkModeFromRequest } from "@/lib/workMode";
 import { notifyWorkerHours, buildShiftDetailForNotification, buildShiftDetailForModifiedNotification } from "@/lib/notifications";
+import { markMissingHoursNotificationsAsReadIfResolved } from "@/lib/missingHoursNotification";
 
 function checkWorkerAccess(session: any, req: NextRequest): NextResponse | null {
   const userRole = (session.user as any).role || "";
@@ -316,6 +317,7 @@ export async function PATCH(
       },
     });
 
+    await markMissingHoursNotificationsAsReadIfResolved(existing.userId);
     return NextResponse.json(updated);
   } catch (error: any) {
     console.error("Error updating time entry:", error);
@@ -422,6 +424,8 @@ export async function DELETE(
     await prisma.timeEntry.delete({
       where: { id },
     });
+
+    await markMissingHoursNotificationsAsReadIfResolved(existing.userId);
 
     return NextResponse.json({ ok: true });
   } catch (error) {
