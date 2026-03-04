@@ -35,10 +35,13 @@ export async function GET(req: NextRequest) {
     if (missingSetting?.isActive && currentHourUtc === missingCronHour) {
       try {
         const res = await fetch(`${baseUrl}/api/cron/notify-missing-hours`, { headers });
-        results.MISSING_HOURS_REMINDER = { invoked: true };
-        if (!res.ok) {
-          results.MISSING_HOURS_REMINDER.reason = `HTTP ${res.status}`;
-        }
+        const body = await res.json().catch(() => ({}));
+        results.MISSING_HOURS_REMINDER = {
+          invoked: true,
+          ...(body.created !== undefined && { created: body.created }),
+          ...(body.skipped && { skipped: body.skipped }),
+          ...(!res.ok && { reason: `HTTP ${res.status}` }),
+        };
       } catch (e) {
         results.MISSING_HOURS_REMINDER = { invoked: true, reason: String(e) };
       }
@@ -59,10 +62,13 @@ export async function GET(req: NextRequest) {
         const res = await fetch(`${baseUrl}/api/cron/notify-daily-shift-reminder`, {
           headers,
         });
-        results.DAILY_SHIFT_REMINDER = { invoked: true };
-        if (!res.ok) {
-          results.DAILY_SHIFT_REMINDER.reason = `HTTP ${res.status}`;
-        }
+        const body = await res.json().catch(() => ({}));
+        results.DAILY_SHIFT_REMINDER = {
+          invoked: true,
+          ...(body.created !== undefined && { created: body.created }),
+          ...(body.skipped && { skipped: body.skipped }),
+          ...(!res.ok && { reason: `HTTP ${res.status}` }),
+        };
       } catch (e) {
         results.DAILY_SHIFT_REMINDER = { invoked: true, reason: String(e) };
       }
@@ -81,10 +87,14 @@ export async function GET(req: NextRequest) {
     if (workdaySetting?.isActive && currentHourUtc === workdayCronHour) {
       try {
         const res = await fetch(`${baseUrl}/api/cron/notify-workday-issues`, { headers });
-        results.WORKDAY_ISSUES = { invoked: true };
-        if (!res.ok) {
-          results.WORKDAY_ISSUES.reason = `HTTP ${res.status}`;
-        }
+        const body = await res.json().catch(() => ({}));
+        results.WORKDAY_ISSUES = {
+          invoked: true,
+          ...(body.created !== undefined && { created: body.created }),
+          ...(body.daysWithIssues !== undefined && { daysWithIssues: body.daysWithIssues }),
+          ...(body.skipped && { skipped: body.skipped }),
+          ...(!res.ok && { reason: `HTTP ${res.status}` }),
+        };
       } catch (e) {
         results.WORKDAY_ISSUES = { invoked: true, reason: String(e) };
       }

@@ -8,9 +8,13 @@ import { getNotificationTypeSetting } from "@/lib/notifications";
 // Finestra: dal 1° del mese precedente a ieri.
 export async function GET(req: NextRequest) {
   try {
+    const cronSecret = process.env.CRON_SECRET?.trim();
     const authHeader = req.headers.get("authorization");
-    const cronSecret = process.env.CRON_SECRET;
-    if (cronSecret && authHeader !== `Bearer ${cronSecret}`) {
+    const secretParam = req.nextUrl.searchParams.get("secret")?.trim();
+    const valid =
+      cronSecret &&
+      (authHeader === `Bearer ${cronSecret}` || secretParam === cronSecret);
+    if (!valid) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
