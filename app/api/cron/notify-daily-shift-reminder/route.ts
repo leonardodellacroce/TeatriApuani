@@ -39,18 +39,7 @@ export async function GET(req: NextRequest) {
       cronSecret &&
       (authHeader === `Bearer ${cronSecret}` || secretParam === cronSecret);
     if (!valid) {
-      return NextResponse.json(
-        {
-          error: "Unauthorized",
-          debug: {
-            hasCronSecret: !!cronSecret,
-            hasAuthHeader: !!authHeader,
-            hasSecretParam: !!secretParam,
-            secretParamLength: secretParam?.length ?? 0,
-          },
-        },
-        { status: 401 }
-      );
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     const setting = await getNotificationTypeSetting("DAILY_SHIFT_REMINDER");

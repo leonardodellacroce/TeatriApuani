@@ -25,7 +25,8 @@ export async function GET(req: NextRequest) {
       process.env.VERCEL_URL
         ? `https://${process.env.VERCEL_URL}`
         : process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
-    const headers: HeadersInit = cronSecret ? { Authorization: `Bearer ${cronSecret}` } : {};
+    // Usa ?secret= invece di Authorization: Vercel può rimuovere l'header nelle fetch interne
+    const secretQuery = cronSecret ? `?secret=${encodeURIComponent(cronSecret)}` : "";
 
     const results: Record<string, { invoked: boolean; reason?: string }> = {};
 
@@ -34,7 +35,7 @@ export async function GET(req: NextRequest) {
     const missingCronHour = (missingSetting?.metadata as { cronHour?: number })?.cronHour ?? 7;
     if (missingSetting?.isActive && currentHourUtc === missingCronHour) {
       try {
-        const res = await fetch(`${baseUrl}/api/cron/notify-missing-hours`, { headers });
+        const res = await fetch(`${baseUrl}/api/cron/notify-missing-hours${secretQuery}`);
         const body = await res.json().catch(() => ({}));
         results.MISSING_HOURS_REMINDER = {
           invoked: true,
@@ -59,9 +60,7 @@ export async function GET(req: NextRequest) {
     const dailyCronHour = (dailySetting?.metadata as { cronHour?: number })?.cronHour ?? 7;
     if (dailySetting?.isActive && currentHourUtc === dailyCronHour) {
       try {
-        const res = await fetch(`${baseUrl}/api/cron/notify-daily-shift-reminder`, {
-          headers,
-        });
+        const res = await fetch(`${baseUrl}/api/cron/notify-daily-shift-reminder${secretQuery}`);
         const body = await res.json().catch(() => ({}));
         results.DAILY_SHIFT_REMINDER = {
           invoked: true,
@@ -86,7 +85,7 @@ export async function GET(req: NextRequest) {
     const workdayCronHour = (workdaySetting?.metadata as { cronHour?: number })?.cronHour ?? 8;
     if (workdaySetting?.isActive && currentHourUtc === workdayCronHour) {
       try {
-        const res = await fetch(`${baseUrl}/api/cron/notify-workday-issues`, { headers });
+        const res = await fetch(`${baseUrl}/api/cron/notify-workday-issues${secretQuery}`);
         const body = await res.json().catch(() => ({}));
         results.WORKDAY_ISSUES = {
           invoked: true,
