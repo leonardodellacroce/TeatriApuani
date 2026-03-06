@@ -20,20 +20,23 @@ export async function GET(req: NextRequest) {
 
     const now = new Date();
     const currentHourUtc = now.getUTCHours();
+    const forceInvoke = req.nextUrl.searchParams.get("force") === "1";
 
+    // Preferisci dominio custom per evitare redirect 301 (il redirect può far perdere ?secret=)
     const baseUrl =
-      process.env.VERCEL_URL
-        ? `https://${process.env.VERCEL_URL}`
-        : process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
-    // Usa ?secret= invece di Authorization: Vercel può rimuovere l'header nelle fetch interne
+      process.env.NEXT_PUBLIC_APP_URL ||
+      (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "http://localhost:3000");
     const secretQuery = cronSecret ? `?secret=${encodeURIComponent(cronSecret)}` : "";
 
     const results: Record<string, { invoked: boolean; reason?: string }> = {};
+    if (forceInvoke) {
+      results._debug = { baseUrl, currentHourUtc, forceInvoke: true };
+    }
 
     // MISSING_HOURS_REMINDER
     const missingSetting = await getNotificationTypeSetting("MISSING_HOURS_REMINDER");
     const missingCronHour = (missingSetting?.metadata as { cronHour?: number })?.cronHour ?? 7;
-    if (missingSetting?.isActive && currentHourUtc === missingCronHour) {
+    if (missingSetting?.isActive && (currentHourUtc === missingCronHour || forceInvoke)) {
       try {
         const res = await fetch(`${baseUrl}/api/cron/notify-missing-hours${secretQuery}`);
         const body = await res.json().catch(() => ({}));
@@ -58,7 +61,7 @@ export async function GET(req: NextRequest) {
     // DAILY_SHIFT_REMINDER
     const dailySetting = await getNotificationTypeSetting("DAILY_SHIFT_REMINDER");
     const dailyCronHour = (dailySetting?.metadata as { cronHour?: number })?.cronHour ?? 7;
-    if (dailySetting?.isActive && currentHourUtc === dailyCronHour) {
+    if (dailySetting?.isActive && (currentHourUtc === dailyCronHour || forceInvoke)) {
       try {
         const res = await fetch(`${baseUrl}/api/cron/notify-daily-shift-reminder${secretQuery}`);
         const body = await res.json().catch(() => ({}));
@@ -83,7 +86,7 @@ export async function GET(req: NextRequest) {
     // WORKDAY_ISSUES
     const workdaySetting = await getNotificationTypeSetting("WORKDAY_ISSUES");
     const workdayCronHour = (workdaySetting?.metadata as { cronHour?: number })?.cronHour ?? 8;
-    if (workdaySetting?.isActive && currentHourUtc === workdayCronHour) {
+    if (workdaySetting?.isActive && (currentHourUtc === workdayCronHour || forceInvoke)) {
       try {
         const res = await fetch(`${baseUrl}/api/cron/notify-workday-issues${secretQuery}`);
         const body = await res.json().catch(() => ({}));
@@ -118,7 +121,7 @@ export async function GET(req: NextRequest) {
         meta.cronHour2 ?? 19,
       ].filter((h) => h >= 0 && h <= 23);
       const shiftHourMatches = shiftHours.some((h) => h === currentHourUtc);
-      if (shiftChangesSetting.isActive && shiftHourMatches) {
+      if (shiftChangesSetting.isActive && (shiftHourMatches || forceInvoke)) {
         try {
           const result = await runNotifyShiftChanges();
           results.SHIFT_CHANGES_REMINDER = {
