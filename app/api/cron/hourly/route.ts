@@ -142,7 +142,15 @@ export async function GET(req: NextRequest) {
       ok: true,
       currentHourUtc,
       results,
-      ...(forceInvoke && { _debug: { baseUrl, currentHourUtc, forceInvoke: true } }),
+      ...(forceInvoke && {
+        _debug: {
+          baseUrl,
+          currentHourUtc,
+          forceInvoke: true,
+          hasNextPublicAppUrl: !!process.env.NEXT_PUBLIC_APP_URL,
+          nextPublicAppUrlValue: process.env.NEXT_PUBLIC_APP_URL || "(empty)",
+        },
+      }),
     });
   } catch (error) {
     console.error("Cron hourly error:", error);
