@@ -29,9 +29,6 @@ export async function GET(req: NextRequest) {
     const secretQuery = cronSecret ? `?secret=${encodeURIComponent(cronSecret)}` : "";
 
     const results: Record<string, { invoked: boolean; reason?: string }> = {};
-    if (forceInvoke) {
-      results._debug = { baseUrl, currentHourUtc, forceInvoke: true };
-    }
 
     // MISSING_HOURS_REMINDER
     const missingSetting = await getNotificationTypeSetting("MISSING_HOURS_REMINDER");
@@ -145,6 +142,7 @@ export async function GET(req: NextRequest) {
       ok: true,
       currentHourUtc,
       results,
+      ...(forceInvoke && { _debug: { baseUrl, currentHourUtc, forceInvoke: true } }),
     });
   } catch (error) {
     console.error("Cron hourly error:", error);
