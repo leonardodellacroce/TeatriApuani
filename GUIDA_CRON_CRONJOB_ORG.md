@@ -41,7 +41,7 @@ I cron non usano Vercel (il piano non supporta cron ogni ora). Si usa **cron-job
 ## 3. Variabili su Vercel
 
 1. Vercel → **Settings** → **Environment Variables**
-2. Verifica che esistano: `CRON_SECRET` e `NEXT_PUBLIC_APP_URL` = `https://app.teatriapuani.it` (per le chiamate interne, evita redirect 301)
+2. Verifica che esistano: `CRON_SECRET` e `APP_URL` = `https://app.teatriapuani.it` (per le chiamate interne, evita 401 nelle fetch)
 3. Se non c’è, generane uno con `openssl rand -hex 32` e aggiungilo
 
 ---

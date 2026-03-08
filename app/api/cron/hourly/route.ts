@@ -22,8 +22,10 @@ export async function GET(req: NextRequest) {
     const currentHourUtc = now.getUTCHours();
     const forceInvoke = req.nextUrl.searchParams.get("force") === "1";
 
-    // Preferisci dominio custom per evitare redirect 301 (il redirect può far perdere ?secret=)
+    // Usa APP_URL (o NEXT_PUBLIC_APP_URL) per evitare redirect 301 nelle fetch interne.
+    // Le variabili NEXT_PUBLIC_* possono non essere disponibili nelle API routes su Vercel.
     const baseUrl =
+      process.env.APP_URL ||
       process.env.NEXT_PUBLIC_APP_URL ||
       (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "http://localhost:3000");
     const secretQuery = cronSecret ? `?secret=${encodeURIComponent(cronSecret)}` : "";
@@ -147,8 +149,7 @@ export async function GET(req: NextRequest) {
           baseUrl,
           currentHourUtc,
           forceInvoke: true,
-          hasNextPublicAppUrl: !!process.env.NEXT_PUBLIC_APP_URL,
-          nextPublicAppUrlValue: process.env.NEXT_PUBLIC_APP_URL || "(empty)",
+          appUrl: process.env.APP_URL || "(empty)",
         },
       }),
     });
